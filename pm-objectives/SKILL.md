@@ -36,30 +36,39 @@ Key things to extract:
 
 ## Phase 1: Context check
 
-Check if an audit has been run:
-
 ```bash
-[ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
+[ -f ".nanopm/AUDIT.md"    ] && echo "AUDIT_EXISTS"    || echo "AUDIT_MISSING"
+[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
 ```
 
 **If AUDIT.md exists:** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
+
+**If FEEDBACK.md exists:** Read it. Extract the top unaddressed themes. At least one objective should address the highest-severity unaddressed theme — surface this to the user: "FEEDBACK.md shows {theme} is the top unaddressed signal. Should a KR target it directly?"
 
 **If AUDIT.md missing:** Tell the user: "No audit found. Running /pm-objectives without an audit gives weaker output. Consider running /pm-audit first. Continuing with what I know."
 
 ## Phase 2: Clarifying questions
 
-Ask these questions as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip any already answered in AUDIT.md or prior context.
+Ask these questions as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next.
 
-**Q1: Time horizon** — ask this first, wait for answer:
-"What time horizon are these objectives for? (e.g., Q2 2026, next 6 months, FY2026 H2)"
+**Before asking any question**, check these sources in order:
+1. Prior context from `nanopm_context_all` — look for a prior pm-objectives entry with a period
+2. AUDIT.md Q5 answer in CONTEXT.md — often names the quarter or goals directly
+3. AUDIT.md Section 3 (biggest gap) — often implies the top goal
 
-**Q2: Top goals** — ask after Q1 is answered:
-"What are your top 1-3 goals for this period? What would make it a success? (Be specific — not 'grow the product' but 'reach 1,000 paying customers' or 'reduce churn below 5%')"
+**Q1: Time horizon**
+- Check: Does CONTEXT.md Q5 reference a specific quarter or timeframe? If yes, state it and skip Q1: "Period: {X} (from CONTEXT.md Q5)."
+- If not derivable: ask "What time horizon are these objectives for? (e.g., Q2 2026, next 6 months)"
 
-**Q3: Constraints** — ask after Q2 is answered, only if not derivable from audit:
-"What constraints are you working under? (team size, budget, tech debt, regulatory, etc.)"
+**Q2: Top goals**
+- Check: Does CONTEXT.md Q5 name specific, measurable goals? If yes, use them as draft KRs and confirm: "Based on your Q5 answer, your goals are: {list}. Are these right for this period, or do you want to change them?"
+- If vague or missing: ask "What are your top 1-3 goals for this period? Be specific — not 'grow the product' but 'reach 1,000 paying customers' or 'reduce churn below 5%.'"
 
-Stop when all three are answered or clearly answerable from context.
+**Q3: Constraints**
+- Check: Is team size derivable from CONTEXT.md Q8? Is methodology from Q11? If both are present, synthesize: "Constraints: {team size} team, {methodology}, budget = {if stated}. Is anything missing?"
+- If not derivable: ask "What constraints are you working under? (team size, budget, tech debt, regulatory, etc.)"
+
+Stop when all three are answered or clearly answered from context.
 
 ## Phase 3: Write OBJECTIVES.md
 
@@ -102,8 +111,12 @@ Period: {time horizon from Q1}
 
 ## What's NOT an objective this period
 
-{List 2-3 things that are explicitly out of scope for this period, and why.
-This is as important as the objectives themselves.}
+{For each item, include:
+(a) why it was tempting — what would make a reasonable person pursue it this period,
+(b) the specific condition that would re-open it ("Revisit when {trigger}").
+A list without these two elements is just a to-do list for later, not a boundary.}
+
+**Action:** Before accepting any new feature request or work item this period, check it against this list. If it matches an anti-goal, the answer is no without a re-prioritization conversation.
 
 ---
 

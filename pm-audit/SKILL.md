@@ -61,6 +61,16 @@ Offer re-fetch only if last audit was >30 days ago: "Re-fetch from {url}? (y/N)"
 
 ## Phase 2: Data collection
 
+Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
+
+```bash
+[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+```
+
+**If FEEDBACK_EXISTS:** read FEEDBACK.md. Extract the top unaddressed signal and top themes. These will pre-fill Q6 in Phase 3 and enrich the Phase 4 synthesis. Note: do not re-fetch Dovetail or Notion feedback — FEEDBACK.md already synthesizes those sources.
+
+**If FEEDBACK_MISSING:** fetch from connectors as below.
+
 For each connector, check available tier and collect data:
 
 ```bash
@@ -94,7 +104,11 @@ Check if CONTEXT.md already exists:
 
 **If CONTEXT.md exists:** Read it. Skip questions that are already answered (non-empty, no `[auto]` placeholder). Only ask for missing answers.
 
-**If CONTEXT.md missing or incomplete:** Write the template and ask the user to fill in the unanswered questions ONE BY ONE via AskUserQuestion. Do NOT ask all 10 at once.
+**If CONTEXT.md missing or incomplete:** Write the template. Before asking any question:
+1. Check `nanopm_context_all` for prior answers — pre-fill if derivable, mark `[auto from prior context]`
+2. **If FEEDBACK.md exists:** pre-fill Q6 from the top unaddressed signal: mark `[auto from FEEDBACK.md]`
+
+Ask only genuinely unanswered questions ONE BY ONE via AskUserQuestion. Do NOT ask all at once.
 
 Template written to `CONTEXT.md`:
 
@@ -161,7 +175,7 @@ Synthesize a first-pass understanding of:
 1. What this product actually does (from behavior/code/data, not just the pitch)
 2. Who it's actually for (inferred, may differ from stated)
 3. The gap between stated goals (Q5) and what's been shipped (Q4)
-4. The most important feedback signal (Q6 + Dovetail data)
+4. The most important feedback signal — use FEEDBACK.md top unaddressed signal if available, otherwise Q6 + connector data. If FEEDBACK.md exists, note which themes are already addressed vs. which represent genuine gaps.
 
 ## Phase 5: Adversarial self-challenge
 
@@ -190,7 +204,12 @@ Project: {slug}
 ## 1. What You're Actually Building
 
 [Synthesized description — not the founder's pitch. What the shipped work, metrics,
-and user behavior reveal about what this product actually is. 2-4 sentences.]
+and user behavior reveal about what this product actually is. Must include:
+(a) one observation from code/commits/data that contradicts or sharpens the stated pitch,
+(b) what the product does that users don't expect from the description alone.
+2-4 sentences.]
+
+**Next:** Confirm this description matches what you'd tell an investor in one sentence. If it doesn't, edit CONTEXT.md Q1 and re-run before setting objectives.
 
 ---
 
@@ -201,6 +220,8 @@ Name any divergence explicitly. e.g., "You say you're building for enterprise CT
 Your top users are indie developers. That's not a problem — but you should decide
 which one you're optimizing for." 2-3 sentences.]
 
+**Action:** If stated and actual audiences diverge — pick one to optimize for and write that decision in CONTEXT.md Q2 before running /pm-objectives. Trying to serve both is a strategy, not a default.
+
 ---
 
 ## 3. The Biggest Strategic Gap Right Now
@@ -208,14 +229,20 @@ which one you're optimizing for." 2-3 sentences.]
 [One thing. Not a list. The single most important gap between where you are
 and where you said you want to go (Q5 vs Q4). Concrete, specific, actionable. 2-3 sentences.]
 
+**Action:** {One imperative directive to close or measure this gap this week — e.g., "Interview 3 users about X by {date}." or "Ship Y before adding Z." Name a specific output and deadline.}
+
 ---
 
 ## 4. The Question You're Avoiding
 
 [The assumption in the founder's framing that most needs to be tested.
-Phrased as a direct question. This comes from the adversarial subagent challenge.
+Stated as a single direct question — not a paragraph, a question.
+This comes from the adversarial subagent challenge. It must be falsifiable:
+"Is X true?" not "Have you considered X?"
 e.g., "Is the problem you're solving actually painful enough that users would
 pay to fix it, or is it just a nice-to-have?"]
+
+**Action:** Answer this question before setting objectives. Write your answer in CONTEXT.md below Q10. If you can't answer it, your first objective should be to find out.
 
 ---
 

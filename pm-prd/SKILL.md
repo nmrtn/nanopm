@@ -50,7 +50,15 @@ Store the feature name as `_FEATURE`.
 
 ## Phase 2: User research pull
 
-Check for Dovetail data (verbatim user quotes):
+Check for FEEDBACK.md first — it's the pre-synthesized source that already aggregates Dovetail, Productboard, and other sources:
+
+```bash
+[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+```
+
+**If FEEDBACK_EXISTS:** read FEEDBACK.md. Find themes and verbatim quotes relevant to `_FEATURE`. Use these for the Problem Statement and User Stories. Do not fetch from Dovetail directly — FEEDBACK.md already contains that data.
+
+**If FEEDBACK_MISSING:** fall back to Dovetail connector:
 
 ```bash
 _TIER_DOVETAIL=$(nanopm_has_connector dovetail)
@@ -71,9 +79,9 @@ Ask these as SEPARATE sequential AskUserQuestion calls — one call per question
 - Q3: "What are the rabbit holes? Where could this get complicated and blow the appetite?"
 
 **All other methodologies:**
-- Q1: "What specific problem does '{_FEATURE}' solve? Who experiences it, and how often? (A story is better than a category)"
-- Q2: "How will you know it succeeded? What does the user do differently after it ships?"
-- Q3: "What is explicitly OUT of scope for v1? (List at least 1-2 things you're deferring)"
+- Q1: Check ROADMAP.md NOW section for this feature's outcome statement ("Ship X so {user} can {do Y}, measured by {metric}"). If found, extract the problem automatically — the user/outcome clause identifies who and what, the "measured by" clause identifies success — and skip Q1: "Problem derived from ROADMAP.md: {extracted statement}." Only ask Q1 if the outcome statement is missing or too vague.
+- Q2: Check OBJECTIVES.md for KRs whose description or "Ties to" column references this feature. If matching KRs exist, use them as draft success criteria and skip Q2: "Success criteria derived from OBJECTIVES.md KRs: {list}. Are these right?" Only ask Q2 if no matching KRs exist.
+- Q3: Always ask — out-of-scope decisions are rarely derivable from prior artifacts: "What is explicitly OUT of scope for v1? (List at least 1-2 things you're deferring)"
 
 Stop after 3 questions or when context is sufficient.
 
@@ -180,7 +188,7 @@ Include: who experiences it, how often, what they do today instead (the workarou
 
 ## User Stories
 
-{3-5 user stories in format: "As a [user type], I want to [action], so that [outcome]."}
+{Max 3 user stories. Each must add information not already in the Problem Statement — if a story just restates the problem in "As a..." format, cut it. Format: "As a [user type], I want to [action], so that [outcome]."}
 
 ---
 
@@ -192,6 +200,9 @@ Include: who experiences it, how often, what they do today instead (the workarou
 |----------|-------------|--------|
 | {behavior change} | {measurement method} | {threshold} |
 | {behavior change} | {measurement method} | {threshold} |
+| What will be different in commits after this ships? | Review git log 7 days post-ship | {describe: which files, what types of changes, or which features will appear in commits — be specific enough that a stranger could verify it} |
+
+The "What will be different in commits?" row is REQUIRED. If you cannot answer it concretely, the feature is not defined well enough to build. Do not leave it as a placeholder.
 
 **Anti-goals:** What does NOT count as success for v1.
 
@@ -221,17 +232,19 @@ Include: who experiences it, how often, what they do today instead (the workarou
 
 ---
 
-## Design notes
+## The One UX Decision
 
-{High-level UX notes. Flag the hardest UX decision that needs to be made. 2-4 bullets.}
+{Not a list of notes — one specific decision that, if made wrong, invalidates the feature. State it as a choice: "Option A: {description} vs Option B: {description}." Name the tradeoff. If there's no hard UX decision, omit this section entirely rather than filling it with generic observations.}
 
 ---
 
 ## Open questions
 
-| Question | Owner | By when |
-|----------|-------|---------|
-| {question} | {name/team} | {date} |
+| Question | Owner | Blocks | By when |
+|----------|-------|--------|---------|
+| {question} | {name — not a team} | {what implementation work is blocked until this is answered} | {date} |
+
+**Action:** Resolve the highest-priority open question before beginning implementation. If it's unanswerable, it's a scope problem — remove the part of the feature that depends on it.
 
 ---
 
@@ -265,6 +278,6 @@ Tell the user:
 - PRD written to `.nanopm/prds/{feature}.md`
 - Open questions that need answers before implementation
 - The success criteria — ask if they look right
-- Suggested next step: hand this PRD to your engineering team or run `/pm-watch` to set up automated tracking
+- Suggested next step: hand this PRD to your engineering team or run `/pm-breakdown` to create tickets, then `/pm-retro` after the sprint to compare plan vs reality
 
 **STATUS: DONE**

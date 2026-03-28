@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.1.0"
+NANOPM_VERSION="0.3.0"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
@@ -87,13 +87,13 @@ chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 ok "lib/nanopm.sh installed"
 
 step "Installing connectors"
-for connector in README.md linear.md notion.md dovetail.md github.md; do
+for connector in README.md linear.md notion.md dovetail.md github.md productboard.md; do
   _install_file "connectors/$connector" "$GLOBAL_CONFIG_DIR/connectors/$connector"
 done
 ok "Connectors installed"
 
 step "Installing skills"
-for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run; do
+for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
   _install_file "$skill/SKILL.md" "$INSTALL_DIR/$skill/SKILL.md"
   ok "  $skill"
 done
@@ -111,6 +111,10 @@ EOF
 else
   ok "Config already exists — skipping"
 fi
+
+# Write installed version to ~/.nanopm/VERSION (used by update check)
+echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
+ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION"
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
 # Only if we're inside a git repo right now (running from a project directory)
@@ -141,7 +145,7 @@ fi
 # ── verify installation ───────────────────────────────────────────────────────
 step "Verifying installation"
 _ERRORS=0
-for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run; do
+for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
   if [ -f "$INSTALL_DIR/$skill/SKILL.md" ]; then
     ok "$skill"
   else
@@ -178,8 +182,10 @@ echo "   /pm-objectives  — set OKRs, produces OBJECTIVES.md"
 echo "   /pm-strategy    — product strategy + adversarial review, produces STRATEGY.md"
 echo "   /pm-roadmap     — outcome-driven roadmap, produces ROADMAP.md"
 echo "   /pm-prd         — write a PRD for a feature"
-echo "   /pm-breakdown   — break PRD into tasks, create tickets in Linear / GitHub Issues"
-echo "   /pm-retro       — compare roadmap vs commits, surfaces drift"
+echo "   /pm-breakdown         — break PRD into tasks, create tickets in Linear / GitHub Issues"
+echo "   /pm-retro             — compare roadmap vs commits, surfaces drift"
+echo "   /pm-upgrade           — upgrade nanopm to the latest version"
+echo "   /pm-competitors-intel — monitor competitor changelogs, API docs, and product updates"
 echo
 echo "  Start with:"
 echo "   $(_bold '/pm-run')  — or  $(_bold '/pm-discovery')  if you're not sure what to build"

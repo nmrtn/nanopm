@@ -274,10 +274,84 @@ nanopm_staleness_check() {
   done
 }
 
+# ── Update check ─────────────────────────────────────────────────────────────
+#
+# Checks GitHub for a newer version of nanopm. Cached for 24h to avoid
+# hitting the network on every skill invocation.
+#
+# Outputs (to stdout, for the skill preamble to capture):
+#   UPGRADE_AVAILABLE {local_ver} {remote_ver}  — if a newer version exists
+#   (nothing)                                   — if up to date or network unavailable
+#
+# Snooze state: ~/.nanopm/update-snoozed  format: "{version} {level} {timestamp}"
+#   Level 1 → 24h backoff, level 2 → 48h, level 3+ → 1 week
+
+nanopm_update_check() {
+  # Respect disable flag
+  local _disabled
+  _disabled=$(nanopm_config_get "update_check_disabled" 2>/dev/null || true)
+  [ "$_disabled" = "1" ] && return 0
+
+  local _now
+  _now=$(date +%s)
+
+  # Check snooze
+  local _snooze="$HOME/.nanopm/update-snoozed"
+  if [ -f "$_snooze" ]; then
+    local _sv _sl _st
+    _sv=$(awk '{print $1}' "$_snooze" 2>/dev/null || echo "")
+    _sl=$(awk '{print $2}' "$_snooze" 2>/dev/null || echo "0")
+    _st=$(awk '{print $3}' "$_snooze" 2>/dev/null || echo "0")
+    case "$_sl" in *[!0-9]*) _sl=0 ;; esac
+    case "$_st" in *[!0-9]*) _st=0 ;; esac
+    local _backoff=86400
+    case "$_sl" in 2) _backoff=172800 ;; 3) _backoff=604800 ;; esac
+    if [ $(( _now - _st )) -lt $_backoff ]; then
+      # Still snoozed — check if a newer version than the snoozed one exists
+      local _lv
+      _lv=$(cat "$HOME/.nanopm/VERSION" 2>/dev/null || echo "0.0.0")
+      [ "$_sv" = "$_lv" ] && return 0  # snoozed version matches local; stay quiet
+    fi
+  fi
+
+  # Cache: ~/.nanopm/last-update-check  format: "{timestamp} {remote_version}"
+  local _cache="$HOME/.nanopm/last-update-check"
+  local _local_ver
+  _local_ver=$(cat "$HOME/.nanopm/VERSION" 2>/dev/null || echo "0.0.0")
+
+  if [ -f "$_cache" ]; then
+    local _cts _crv
+    _cts=$(awk '{print $1}' "$_cache" 2>/dev/null || echo "0")
+    _crv=$(awk '{print $2}' "$_cache" 2>/dev/null || echo "")
+    case "$_cts" in *[!0-9]*) _cts=0 ;; esac
+    if [ $(( _now - _cts )) -lt 86400 ] && [ -n "$_crv" ]; then
+      # Use cached result
+      [ "$_crv" != "$_local_ver" ] && echo "UPGRADE_AVAILABLE $_local_ver $_crv"
+      return 0
+    fi
+  fi
+
+  # Fetch remote version (3s timeout, silent fail)
+  local _remote_ver
+  _remote_ver=$(curl -fsSL --max-time 3 \
+    "https://raw.githubusercontent.com/nmrtn/nanopm/main/VERSION" 2>/dev/null \
+    | tr -d '[:space:]' || echo "")
+  [ -z "$_remote_ver" ] && return 0
+
+  # Write cache
+  mkdir -p "$HOME/.nanopm"
+  echo "$_now $_remote_ver" > "$_cache"
+
+  [ "$_remote_ver" != "$_local_ver" ] && echo "UPGRADE_AVAILABLE $_local_ver $_remote_ver"
+  return 0
+}
+
 # ── Standard preamble helper ─────────────────────────────────────────────────
 #
 # Call nanopm_preamble from every skill's bash preamble block.
 # Sets: _SLUG, _BRANCH, _VERSION, B (browse binary)
+# Also runs update check — if output contains UPGRADE_AVAILABLE, tell the user
+# "nanopm v{new} is available. Run /pm-upgrade to update." before proceeding.
 
 nanopm_preamble() {
   _SLUG=$(nanopm_slug)
@@ -289,6 +363,7 @@ nanopm_preamble() {
   nanopm_find_browse > /dev/null  # sets $B
   nanopm_check_gitignore
   nanopm_staleness_check
+  nanopm_update_check             # prints UPGRADE_AVAILABLE if a new version exists
   echo "SLUG: $_SLUG"
   echo "BRANCH: $_BRANCH"
   echo "VERSION: $_VERSION"

@@ -35,12 +35,15 @@ nanopm_context_all
 Read upstream artifacts:
 
 ```bash
-[ -f ".nanopm/AUDIT.md" ]      && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
+[ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
-[ -f ".nanopm/STRATEGY.md" ]   && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
+[ -f ".nanopm/STRATEGY.md"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
+[ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
 ```
 
 Read any that exist. A roadmap without strategy is a to-do list. Warn if STRATEGY.md is missing.
+
+**If FEEDBACK.md exists:** read the top themes and their roadmap-mapping (the "In Roadmap?" column). When writing the NOW/NEXT sections, mark items that directly address a high-severity unaddressed theme with a `📣 signal-backed` tag. Items without any feedback signal should not be deprioritized, but the signal-backed ones have validated demand.
 
 ## Phase 2: Connector data pull
 
@@ -81,8 +84,8 @@ Ask as SEPARATE sequential AskUserQuestion calls — one call per question, neve
 - Q2: "What is the single most important epic to progress in the next sprint?"
 
 **All other methodologies (Kanban, hybrid, none, not set):**
-- Q1: "How many engineers (or engineer-weeks) do you have available for the NOW horizon (typically 4-8 weeks)?"
-- Q2: "What is the single most important thing to ship in the NOW horizon — the thing that, if it doesn't ship, everything else is moot?"
+- Q1: Check CONTEXT.md Q8 for team size. For a solo project (1 person), default to 1 eng-week per month and skip Q1: "Assuming ~1 eng-week/month for solo project (from CONTEXT.md Q8). Correct this if your actual pace differs." Only ask Q1 if team size is unclear or multi-person.
+- Q2: Check STRATEGY.md "Cheapest test" — if it names a concrete action, surface it: "The strategy's cheapest test is: {action}. Is this the top NOW item, or is there something more important?" Only ask Q2 from scratch if STRATEGY.md has no cheapest test or the user wants something different.
 
 Stop after 2 questions. If both are answerable from context, skip Phase 3 entirely.
 
@@ -230,16 +233,18 @@ Strategy: {one-line strategy bet from STRATEGY.md}
 
 ## LATER (3+ months / when we get there)
 
-*Good ideas that aren't the priority now. Preserved here so they're not forgotten.*
+*Good ideas that aren't the priority now. Each item must include a re-open condition or it gets cut.*
 
-- {item} — {why it's worth remembering}
-- {item} — {why it's worth remembering}
+- {item} — {why it's worth remembering} — revisit when {specific trigger}
+- {item} — {why it's worth remembering} — revisit when {specific trigger}
 
 ---
 
 ## Explicitly NOT on the roadmap
 
-- **Not {thing}** — {reason from strategy}
+{Don't just restate STRATEGY.md. Add what would need to be true to change this decision.}
+
+- **Not {thing}** — {reason} — reconsider if {specific condition changes}
 
 ---
 

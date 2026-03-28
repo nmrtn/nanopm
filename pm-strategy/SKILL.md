@@ -35,9 +35,12 @@ nanopm_context_all
 Read upstream artifacts if they exist:
 
 ```bash
-[ -f ".nanopm/AUDIT.md" ]      && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
+[ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
+[ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
 ```
+
+**If FEEDBACK.md exists:** read it before drafting strategy. The top unaddressed signal is the most grounded input you have — the bet should either address it directly or explicitly explain why it doesn't. A strategy that ignores the loudest user signal is a strategy with a named gap.
 
 Read any that exist. The richer the context, the better the strategy.
 
@@ -45,11 +48,16 @@ If both are missing: warn the user — "Strategy without audit or objectives is 
 
 ## Phase 2: One clarifying question (only if needed)
 
-If the combined context does not answer this, ask via AskUserQuestion:
+**Before asking**, derive the bet by cross-referencing:
+1. OBJECTIVES.md Objective 1 — the primary objective often names a directional choice
+2. AUDIT.md Section 3 (biggest gap) — the gap implies the bet needed to close it
+3. AUDIT.md Section 4 (the question being avoided) — the bet is often the answer to that question
+
+If a clear, falsifiable directional hypothesis emerges from this cross-reference, state it and skip Phase 2: "Derived bet: {hypothesis}. Proceeding with strategy."
+
+Only ask if the bet is genuinely ambiguous after reading all three sources:
 
 **"What is your primary strategic bet for this period — the one decision that, if right, changes everything? (e.g., 'go enterprise before SMB', 'API-first over UI', 'vertical niche X before expanding')"**
-
-Only ask this if the answer isn't already clear from audit + objectives. If it's clear, use it and skip the question.
 
 ## Phase 3: Draft strategy
 
@@ -74,7 +82,7 @@ You are a skeptical, experienced CPO who has seen many product strategies fail. 
 
 1. ASSUMPTION: What is the single most important assumption this strategy makes? Name it in one sentence. This is not a minor risk — it is the belief the entire strategy collapses without.
 
-2. FALSIFICATION: What specific evidence or event would prove that assumption wrong? Be concrete — not 'users don't adopt it' but 'fewer than 10% of users in segment X use feature Y within 30 days of signup.'
+2. FALSIFICATION: What specific evidence or event would prove that assumption wrong? Be concrete — not 'users don't adopt it' but 'fewer than 10% of users in segment X use feature Y within 30 days of signup.' Your answer MUST include all four of: (a) a specific number or percentage, (b) a named user segment or actor, (c) a specific observable behavior, and (d) a timeframe in days or weeks. If any element is missing, your answer is too vague — rewrite it before responding.
 
 3. CHEAPEST TEST: What is the fastest, cheapest way to test this assumption before committing to the strategy? Name one action that could be done this week and what result would confirm or deny the assumption.
 
@@ -124,20 +132,22 @@ One sentence, stated clearly as a falsifiable claim.}
 ## How We Win
 
 {2-3 specific advantages or moves that make the bet work.
-Each should be concrete and actionable, not platitudes.}
+Each must be concrete — not "better UX" but "users can do X in one command; competitor requires Y steps."
+For each advantage, include why it can't be copied in 30 days.}
 
-1. {Advantage/move 1}
-2. {Advantage/move 2}
-3. {Advantage/move 3 — only if genuinely distinct}
+1. {Advantage/move 1} — **Why this holds:** {specific reason it's durable or hard to replicate}
+2. {Advantage/move 2} — **Why this holds:** {specific reason it's durable or hard to replicate}
+3. {Advantage/move 3 — only if genuinely distinct} — **Why this holds:** {reason}
 
 ---
 
 ## What We're Saying No To
 
-{Explicit out-of-scope decisions. At least 2. These protect the strategy from scope creep.}
+{Explicit out-of-scope decisions. At least 2. These protect the strategy from scope creep.
+For each item, state what would need to be true to change this decision.}
 
-- **Not {thing}** because {reason}
-- **Not {thing}** because {reason}
+- **Not {thing}** because {reason} — revisit when {specific trigger}
+- **Not {thing}** because {reason} — revisit when {specific trigger}
 
 ---
 
@@ -145,6 +155,8 @@ Each should be concrete and actionable, not platitudes.}
 
 {The one thing most likely to make this strategy wrong.
 Not hedging — a specific, named risk with a specific trigger condition.}
+
+**Action:** Run the cheapest test (from the adversarial review below) before committing any significant engineering work to this strategy. If the test result falsifies the assumption, update the bet before proceeding.
 
 ---
 
