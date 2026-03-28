@@ -1,9 +1,50 @@
 # nanopm
 
-**Autonomous product management for Claude Code.**
+**You answer questions. nanopm does the thinking.**
 
-Built for solo founders and small teams who need to make sharp product decisions
-without a dedicated PM. You answer questions. nanopm does the thinking.
+Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is the PM layer for Claude Code — it runs the full planning cycle inside your terminal and remembers everything across sessions.
+
+Inspired by [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC CEO), which proved you can give Claude Code a full engineering team via the SKILL.md standard. nanopm is the PM layer on top of that idea.
+
+---
+
+## What it does
+
+One command runs the full pipeline:
+
+```
+/pm-run
+```
+
+```
+audit → objectives → strategy → roadmap → PRD → tickets
+```
+
+Each skill writes a markdown artifact. The next skill reads it. Context compounds — the strategy knows the audit, the PRD knows the strategy, the tickets know the PRD. Re-run `/pm-audit` six months later and it knows what you tried before.
+
+---
+
+## Example
+
+```
+You:     /pm-audit
+
+nanopm:  Q1: What are you building? (one sentence)
+You:     A Claude Code skill pack for PM workflows.
+
+nanopm:  Q2: Who is it actually for?
+You:     Solo founders who context-switch too much.
+
+...11 questions later...
+
+nanopm:  AUDIT.md written.
+
+         Biggest gap: no evidence of demand. You're solving
+         your own problem without knowing if others have it.
+         Question you're avoiding: would you pay for this?
+
+         Recommended next: /pm-discovery
+```
 
 ---
 
@@ -17,29 +58,6 @@ Installs to `~/.claude/skills/nanopm/`. Skills appear as `/pm-*` commands in Cla
 
 **Requirements:** Claude Code. `python3` (standard on macOS/Linux).
 
----
-
-## Quick start
-
-**Not sure what to build?**
-```
-/pm-discovery
-```
-Maps the opportunity space, surfaces your riskiest assumptions, designs the cheapest tests.
-Run this before building anything.
-
-**Know what you're building?**
-```
-/pm-audit
-```
-Answer 11 questions about your product. Get a brutally honest assessment:
-what you're actually building, who you're actually building it for,
-the biggest gap, and the question you're avoiding.
-
-**Want the full pipeline in one command?**
-```
-/pm-run
-```
 ---
 
 ## All skills
@@ -58,8 +76,7 @@ the biggest gap, and the question you're avoiding.
 /pm-retro            → compare roadmap vs commits, surface what drifted
 ```
 
-The pipeline compounds. The audit informs objectives. The strategy shapes the roadmap.
-The PRD feeds the tickets. Every skill also works standalone.
+The pipeline compounds. Every skill also works standalone.
 
 ---
 
@@ -86,6 +103,12 @@ graph LR
 
 ---
 
+## Memory
+
+Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill knows what was tried before. Re-run `/pm-audit` six months later — it knows the history. No other PM tool does this because no other PM tool lives in your editor.
+
+---
+
 ## How it gets data
 
 nanopm tries each tier in order, uses the highest available:
@@ -103,14 +126,6 @@ Connectors: Linear, GitHub Issues, Notion, Dovetail.
 
 ---
 
-## Memory
-
-nanopm builds a persistent model of your product in `~/.nanopm/memory/{project}.jsonl`.
-Every skill run appends to it. Every new skill knows what was tried before.
-Re-run `/pm-audit` six months later — it knows the history.
-
----
-
 ## Methodology support
 
 nanopm detects your methodology at audit time and adapts its artifacts:
@@ -118,8 +133,6 @@ nanopm detects your methodology at audit time and adapts its artifacts:
 - **Shape Up** → roadmap uses bets + appetite + cool-down; PRDs become pitches
 - **Scrum/Agile** → roadmap uses sprint framing, epics, story points
 - **Kanban / hybrid / none** → NOW/NEXT/LATER roadmap, standard PRDs
-
-The audit, objectives, and strategy are methodology-agnostic.
 
 ---
 
@@ -158,7 +171,6 @@ bash test/adversarial.e2e.sh       # adversarial subagent gate (needs claude CLI
 
 ---
 
-*Inspired by [gstack](https://github.com/garrytan/gstack) — thank you Garry for the skill
-architecture pattern and for proving that AI can own an entire engineering function end-to-end.*
+*Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack) — thank you Garry for proving that AI can own an entire function end-to-end.*
 
 MIT license.
