@@ -8,8 +8,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebF
 ## Preamble (run first)
 
 ```bash
-source ~/.claude/skills/nanopm/lib/nanopm.sh 2>/dev/null || \
-  source .claude/skills/nanopm/lib/nanopm.sh 2>/dev/null || \
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
+  source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
 _DISCOVERY_FILE=".nanopm/DISCOVERY.md"

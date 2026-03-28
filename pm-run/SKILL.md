@@ -8,8 +8,8 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebF
 ## Preamble (run first)
 
 ```bash
-source ~/.claude/skills/nanopm/lib/nanopm.sh 2>/dev/null || \
-  source .claude/skills/nanopm/lib/nanopm.sh 2>/dev/null || \
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
+  source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
 ```
@@ -68,7 +68,7 @@ If D: exit.
 
 ## Phase 2: Run pm-audit inline
 
-Read and follow `~/.claude/skills/nanopm/pm-audit/SKILL.md` inline, skipping:
+Read and follow `~/.claude/skills/pm-audit/SKILL.md` inline, skipping:
 - Its own "Preamble (run first)" (already sourced above)
 
 Complete all phases of pm-audit through **Phase 8: Save context**.
@@ -79,7 +79,7 @@ If user chose B: stop here. Output: "Pipeline stopped after audit. Run /pm-objec
 
 ## Phase 3: Run pm-objectives inline
 
-Read and follow `~/.claude/skills/nanopm/pm-objectives/SKILL.md` inline, skipping:
+Read and follow `~/.claude/skills/pm-objectives/SKILL.md` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context.
@@ -88,7 +88,7 @@ After pm-objectives completes: "✅ Objectives set. Moving to strategy..."
 
 ## Phase 4: Run pm-strategy inline
 
-Read and follow `~/.claude/skills/nanopm/pm-strategy/SKILL.md` inline, skipping:
+Read and follow `~/.claude/skills/pm-strategy/SKILL.md` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context. This includes the adversarial challenge.
@@ -97,7 +97,7 @@ After pm-strategy completes: "✅ Strategy locked (adversarial review done). Mov
 
 ## Phase 5: Run pm-roadmap inline
 
-Read and follow `~/.claude/skills/nanopm/pm-roadmap/SKILL.md` inline, skipping:
+Read and follow `~/.claude/skills/pm-roadmap/SKILL.md` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context.
@@ -108,7 +108,7 @@ After pm-roadmap completes: "✅ Roadmap built. Moving to PRD for top NOW item..
 
 Read the roadmap NOW section and identify the top priority item. Run pm-prd for that item.
 
-Read and follow `~/.claude/skills/nanopm/pm-prd/SKILL.md` inline, skipping:
+Read and follow `~/.claude/skills/pm-prd/SKILL.md` inline, skipping:
 - Its own "Preamble (run first)"
 
 After pm-prd completes: "✅ PRD written."

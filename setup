@@ -7,7 +7,7 @@ set -euo pipefail
 NANOPM_VERSION="0.1.0"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
-INSTALL_DIR="$HOME/.claude/skills/nanopm"
+INSTALL_DIR="$HOME/.claude/skills"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
 
 # ── colors ────────────────────────────────────────────────────────────────────
@@ -61,18 +61,8 @@ fi
 # ── create directories ────────────────────────────────────────────────────────
 step "Creating directories"
 mkdir -p "$INSTALL_DIR"
-mkdir -p "$INSTALL_DIR/lib"
-mkdir -p "$INSTALL_DIR/connectors"
-mkdir -p "$INSTALL_DIR/pm-audit"
-mkdir -p "$INSTALL_DIR/pm-objectives"
-mkdir -p "$INSTALL_DIR/pm-strategy"
-mkdir -p "$INSTALL_DIR/pm-roadmap"
-mkdir -p "$INSTALL_DIR/pm-prd"
-mkdir -p "$INSTALL_DIR/pm-breakdown"
-mkdir -p "$INSTALL_DIR/pm-discovery"
-mkdir -p "$INSTALL_DIR/pm-retro"
-mkdir -p "$INSTALL_DIR/pm-run"
-mkdir -p "$GLOBAL_CONFIG_DIR"
+mkdir -p "$GLOBAL_CONFIG_DIR/lib"
+mkdir -p "$GLOBAL_CONFIG_DIR/connectors"
 mkdir -p "$GLOBAL_CONFIG_DIR/memory"
 ok "Directories ready"
 
@@ -92,13 +82,13 @@ _install_file() {
 }
 
 step "Installing lib/nanopm.sh"
-_install_file "lib/nanopm.sh" "$INSTALL_DIR/lib/nanopm.sh"
-chmod +x "$INSTALL_DIR/lib/nanopm.sh"
+_install_file "lib/nanopm.sh" "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
+chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 ok "lib/nanopm.sh installed"
 
 step "Installing connectors"
 for connector in README.md linear.md notion.md dovetail.md github.md; do
-  _install_file "connectors/$connector" "$INSTALL_DIR/connectors/$connector"
+  _install_file "connectors/$connector" "$GLOBAL_CONFIG_DIR/connectors/$connector"
 done
 ok "Connectors installed"
 
@@ -168,10 +158,7 @@ fi
 step "Checking browser capability (optional, enables Tier 3 data)"
 _BROWSE_FOUND=0
 # Check nanopm-native paths first
-if [ -x "$INSTALL_DIR/browse/dist/browse" ]; then
-  _BROWSE_FOUND=1
-  ok "Browse binary found — Tier 3 (browser) connectors available"
-elif [ -x "$HOME/.nanopm/bin/browse" ]; then
+if [ -x "$HOME/.nanopm/bin/browse" ]; then
   _BROWSE_FOUND=1
   ok "Browse binary found (~/.nanopm/bin/browse) — Tier 3 connectors available"
 else

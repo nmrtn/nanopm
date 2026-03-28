@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # nanopm runtime library v0.1.0
 # Source this from every skill preamble:
-#   source ~/.claude/skills/nanopm/lib/nanopm.sh
+#   source ~/.nanopm/lib/nanopm.sh
 #
 # Provides: config, context/memory, connectors, browser, gitignore check
 
@@ -135,13 +135,13 @@ nanopm_find_browse() {
   B=""
 
   # 1. nanopm's own browse binary (global install)
-  [ -z "$B" ] && [ -x "$HOME/.claude/skills/nanopm/browse/dist/browse" ] && \
-    B="$HOME/.claude/skills/nanopm/browse/dist/browse"
+  [ -z "$B" ] && [ -x "$HOME/.nanopm/browse/dist/browse" ] && \
+    B="$HOME/.nanopm/browse/dist/browse"
 
   # 2. nanopm's own browse binary (project-local install)
   [ -z "$B" ] && [ -n "$root" ] && \
-    [ -x "$root/.claude/skills/nanopm/browse/dist/browse" ] && \
-    B="$root/.claude/skills/nanopm/browse/dist/browse"
+    [ -x "$root/.nanopm/browse/dist/browse" ] && \
+    B="$root/.nanopm/browse/dist/browse"
 
   # 3. User-installed binary at ~/.nanopm/bin/browse
   [ -z "$B" ] && [ -x "$HOME/.nanopm/bin/browse" ] && \
@@ -282,7 +282,7 @@ nanopm_staleness_check() {
 nanopm_preamble() {
   _SLUG=$(nanopm_slug)
   _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-  _VERSION=$(cat ~/.claude/skills/nanopm/VERSION 2>/dev/null || \
+  _VERSION=$(cat ~/.nanopm/VERSION 2>/dev/null || \
              cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "unknown")
   mkdir -p ~/.nanopm/memory
   mkdir -p .nanopm
