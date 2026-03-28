@@ -144,7 +144,7 @@ If website data was collected in Phase 1, pre-fill Q1, Q2, Q3 with extracted con
 
 If connector data was collected in Phase 2, pre-fill relevant answers (e.g., Q4 from GitHub merged PRs, Q4/Q5 from Linear) and mark `[auto from {connector}]`.
 
-Ask remaining unanswered questions one at a time. Stop when all 11 are filled.
+Ask remaining unanswered questions one at a time using free-text input (no preset options). Stop when all 11 are filled.
 
 After Q11 is answered, store the methodology so downstream skills can adapt their output:
 
