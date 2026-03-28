@@ -1,0 +1,4 @@
+.nanopm/
+*.log
+.DS_Store
+.gstack/

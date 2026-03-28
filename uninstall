@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# nanopm uninstall — remove nanopm skills from Claude Code
+# Usage: bash uninstall
+#        bash uninstall --purge   (also removes ~/.nanopm config and memory)
+set -euo pipefail
+
+INSTALL_DIR="$HOME/.claude/skills/nanopm"
+GLOBAL_CONFIG_DIR="$HOME/.nanopm"
+
+# ── colors ────────────────────────────────────────────────────────────────────
+_bold()  { printf '\033[1m%s\033[0m' "$*"; }
+_green() { printf '\033[0;32m%s\033[0m' "$*"; }
+_yellow(){ printf '\033[0;33m%s\033[0m' "$*"; }
+_red()   { printf '\033[0;31m%s\033[0m' "$*"; }
+
+step() { echo; printf '  %s %s\n' "$(_bold '→')" "$*"; }
+ok()   { printf '  %s %s\n' "$(_green '✓')" "$*"; }
+warn() { printf '  %s %s\n' "$(_yellow '⚠')" "$*"; }
+fail() { printf '  %s %s\n' "$(_red '✗')" "$*"; echo; exit 1; }
+
+_PURGE=0
+for arg in "$@"; do
+  [ "$arg" = "--purge" ] && _PURGE=1
+done
+
+echo
+echo "  $(_bold 'nanopm uninstall')"
+echo
+
+# ── remove installed skills ───────────────────────────────────────────────────
+step "Removing skills from $INSTALL_DIR"
+if [ -d "$INSTALL_DIR" ]; then
+  rm -rf "$INSTALL_DIR"
+  ok "Skills removed"
+else
+  warn "Install directory not found — already uninstalled?"
+fi
+
+# ── remove git hooks (in current repo, if any) ────────────────────────────────
+step "Checking for pm-watch hooks in current repo"
+_GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+if [ -n "$_GIT_ROOT" ]; then
+  _HOOK_FILE="$_GIT_ROOT/.git/hooks/post-commit"
+  if [ -f "$_HOOK_FILE" ] && grep -q "nanopm" "$_HOOK_FILE" 2>/dev/null; then
+    # Remove only the nanopm block — leave other hooks intact
+    _TMP=$(mktemp "${_HOOK_FILE}.tmp.XXXXXX")
+    # Strip lines between "# nanopm pm-watch" and the end of the nanopm block
+    awk '
+      /# nanopm pm-watch/ { skip=1; next }
+      skip && /^fi$/ { skip=0; next }
+      skip { next }
+      { print }
+    ' "$_HOOK_FILE" > "$_TMP" && mv "$_TMP" "$_HOOK_FILE" || rm -f "$_TMP"
+    ok "nanopm block removed from .git/hooks/post-commit"
+  else
+    ok "No pm-watch hook found in this repo"
+  fi
+  # Remove watch script if present
+  if [ -f "$_GIT_ROOT/.nanopm/watch.sh" ]; then
+    rm -f "$_GIT_ROOT/.nanopm/watch.sh"
+    ok "watch.sh removed"
+  fi
+else
+  ok "Not in a git repo — skipping hook removal"
+fi
+
+# ── purge global config and memory (opt-in only) ──────────────────────────────
+if [ "$_PURGE" -eq 1 ]; then
+  step "Purging global config and memory at $GLOBAL_CONFIG_DIR"
+  if [ -d "$GLOBAL_CONFIG_DIR" ]; then
+    # Safety check — don't purge if it looks like it has user data beyond nanopm
+    _MEMORY_SIZE=$(du -sh "$GLOBAL_CONFIG_DIR/memory" 2>/dev/null | cut -f1 || echo "0")
+    echo "  Memory size: $_MEMORY_SIZE"
+    echo
+    read -r -p "  This will permanently delete all nanopm memory and config. Continue? [y/N] " _CONFIRM
+    if [ "$_CONFIRM" = "y" ] || [ "$_CONFIRM" = "Y" ]; then
+      rm -rf "$GLOBAL_CONFIG_DIR"
+      ok "~/.nanopm removed"
+    else
+      warn "Skipped — ~/.nanopm kept"
+    fi
+  else
+    ok "~/.nanopm not found — nothing to purge"
+  fi
+else
+  echo
+  echo "  $(_yellow 'Note:') ~/.nanopm/ (config + memory) was kept."
+  echo "  Run $(_bold 'bash uninstall --purge') to also remove it."
+fi
+
+# ── done ──────────────────────────────────────────────────────────────────────
+echo
+echo "  $(_bold "$(_green 'nanopm uninstalled.')")"
+echo
+echo "  To reinstall:"
+echo "   curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"
+echo

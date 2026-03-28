@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+# nanopm setup — install nanopm skills into Claude Code
+# Usage: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
+# Or:    bash setup   (from repo root)
+set -euo pipefail
+
+NANOPM_VERSION="0.1.0"
+NANOPM_REPO="https://github.com/nmrtn/nanopm"
+NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
+INSTALL_DIR="$HOME/.claude/skills/nanopm"
+GLOBAL_CONFIG_DIR="$HOME/.nanopm"
+
+# ── colors ────────────────────────────────────────────────────────────────────
+_bold()  { printf '\033[1m%s\033[0m' "$*"; }
+_green() { printf '\033[0;32m%s\033[0m' "$*"; }
+_yellow(){ printf '\033[0;33m%s\033[0m' "$*"; }
+_red()   { printf '\033[0;31m%s\033[0m' "$*"; }
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+step() { echo; printf '  %s %s\n' "$(_bold '→')" "$*"; }
+ok()   { printf '  %s %s\n' "$(_green '✓')" "$*"; }
+warn() { printf '  %s %s\n' "$(_yellow '⚠')" "$*"; }
+fail() { printf '  %s %s\n' "$(_red '✗')" "$*"; echo; exit 1; }
+
+# ── detect install source ─────────────────────────────────────────────────────
+# Running from piped curl: download files. Running locally: copy from repo root.
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-/dev/stdin}")" 2>/dev/null && pwd || echo "")"
+if [ -f "$_SCRIPT_DIR/lib/nanopm.sh" ]; then
+  _SOURCE="local"
+  _REPO_ROOT="$_SCRIPT_DIR"
+else
+  _SOURCE="remote"
+  _REPO_ROOT=""
+fi
+
+# ── banner ────────────────────────────────────────────────────────────────────
+echo
+echo "  $(_bold 'nanopm') v${NANOPM_VERSION} — PM automation for Claude Code"
+echo "  $NANOPM_REPO"
+echo
+
+# ── preflight checks ──────────────────────────────────────────────────────────
+step "Checking prerequisites"
+
+# Claude Code skills directory
+if [ ! -d "$HOME/.claude" ]; then
+  fail "Claude Code not found at ~/.claude. Install Claude Code first: https://claude.ai/claude-code"
+fi
+ok "Claude Code found"
+
+# curl (needed for remote installs)
+if [ "$_SOURCE" = "remote" ] && ! command -v curl >/dev/null 2>&1; then
+  fail "curl not found. Install curl and retry."
+fi
+
+# git (optional but warn)
+if ! command -v git >/dev/null 2>&1; then
+  warn "git not found — /pm-retro will need git history to detect drift"
+fi
+
+# ── create directories ────────────────────────────────────────────────────────
+step "Creating directories"
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR/lib"
+mkdir -p "$INSTALL_DIR/connectors"
+mkdir -p "$INSTALL_DIR/pm-audit"
+mkdir -p "$INSTALL_DIR/pm-objectives"
+mkdir -p "$INSTALL_DIR/pm-strategy"
+mkdir -p "$INSTALL_DIR/pm-roadmap"
+mkdir -p "$INSTALL_DIR/pm-prd"
+mkdir -p "$INSTALL_DIR/pm-breakdown"
+mkdir -p "$INSTALL_DIR/pm-discovery"
+mkdir -p "$INSTALL_DIR/pm-retro"
+mkdir -p "$INSTALL_DIR/pm-run"
+mkdir -p "$GLOBAL_CONFIG_DIR"
+mkdir -p "$GLOBAL_CONFIG_DIR/memory"
+ok "Directories ready"
+
+# ── copy / download files ─────────────────────────────────────────────────────
+_install_file() {
+  local src_path="$1"   # relative path from repo root
+  local dst_path="$2"   # absolute destination path
+  local dst_dir
+  dst_dir="$(dirname "$dst_path")"
+  mkdir -p "$dst_dir"
+
+  if [ "$_SOURCE" = "local" ]; then
+    cp "$_REPO_ROOT/$src_path" "$dst_path"
+  else
+    curl -fsSL "$NANOPM_RAW/$src_path" -o "$dst_path"
+  fi
+}
+
+step "Installing lib/nanopm.sh"
+_install_file "lib/nanopm.sh" "$INSTALL_DIR/lib/nanopm.sh"
+chmod +x "$INSTALL_DIR/lib/nanopm.sh"
+ok "lib/nanopm.sh installed"
+
+step "Installing connectors"
+for connector in README.md linear.md notion.md dovetail.md github.md; do
+  _install_file "connectors/$connector" "$INSTALL_DIR/connectors/$connector"
+done
+ok "Connectors installed"
+
+step "Installing skills"
+for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run; do
+  _install_file "$skill/SKILL.md" "$INSTALL_DIR/$skill/SKILL.md"
+  ok "  $skill"
+done
+
+# ── global config init ────────────────────────────────────────────────────────
+step "Initializing global config"
+_CONFIG="$GLOBAL_CONFIG_DIR/config"
+if [ ! -f "$_CONFIG" ]; then
+  cat > "$_CONFIG" <<'EOF'
+# nanopm global config
+# Managed by nanopm. Edit manually or via nanopm_config_set.
+# Format: key=value (one per line, no quotes)
+EOF
+  ok "Config initialized at ~/.nanopm/config"
+else
+  ok "Config already exists — skipping"
+fi
+
+# ── project-level .gitignore ──────────────────────────────────────────────────
+# Only if we're inside a git repo right now (running from a project directory)
+step "Checking .gitignore"
+_GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+if [ -n "$_GIT_ROOT" ]; then
+  _GITIGNORE="$_GIT_ROOT/.gitignore"
+  if [ -f "$_GITIGNORE" ]; then
+    if grep -q "^\.nanopm/" "$_GITIGNORE" 2>/dev/null; then
+      ok ".nanopm/ already in .gitignore"
+    else
+      echo "" >> "$_GITIGNORE"
+      echo "# nanopm — local PM state (not for version control)" >> "$_GITIGNORE"
+      echo ".nanopm/" >> "$_GITIGNORE"
+      ok "Added .nanopm/ to .gitignore"
+    fi
+  else
+    cat >> "$_GIT_ROOT/.gitignore" <<'EOF'
+# nanopm — local PM state (not for version control)
+.nanopm/
+EOF
+    ok "Created .gitignore with .nanopm/"
+  fi
+else
+  ok "Not in a git repo — skipping .gitignore"
+fi
+
+# ── verify installation ───────────────────────────────────────────────────────
+step "Verifying installation"
+_ERRORS=0
+for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run; do
+  if [ -f "$INSTALL_DIR/$skill/SKILL.md" ]; then
+    ok "$skill"
+  else
+    warn "MISSING: $skill/SKILL.md"
+    _ERRORS=$(( _ERRORS + 1 ))
+  fi
+done
+
+if [ "$_ERRORS" -gt 0 ]; then
+  fail "$_ERRORS skill(s) failed to install. Check your network connection and retry."
+fi
+
+# ── check for browse binary (optional, enables Tier 3 data) ──────────────────
+step "Checking browser capability (optional, enables Tier 3 data)"
+_BROWSE_FOUND=0
+# Check nanopm-native paths first
+if [ -x "$INSTALL_DIR/browse/dist/browse" ]; then
+  _BROWSE_FOUND=1
+  ok "Browse binary found — Tier 3 (browser) connectors available"
+elif [ -x "$HOME/.nanopm/bin/browse" ]; then
+  _BROWSE_FOUND=1
+  ok "Browse binary found (~/.nanopm/bin/browse) — Tier 3 connectors available"
+else
+  warn "No browse binary found — Tier 3 (browser) connectors will be skipped"
+  warn "Tier 1 (MCP), Tier 2 (API), and Tier 4 (manual) work without it."
+fi
+
+# ── done ──────────────────────────────────────────────────────────────────────
+echo
+echo "  $(_bold "$(_green 'nanopm installed successfully!')")"
+echo
+echo "  Available skills:"
+echo "   /pm-run         — run the full pipeline in one command (recommended)"
+echo "   /pm-discovery   — figure out WHAT to build before planning HOW"
+echo "   /pm-audit       — deep product audit, produces AUDIT.md"
+echo "   /pm-objectives  — set OKRs, produces OBJECTIVES.md"
+echo "   /pm-strategy    — product strategy + adversarial review, produces STRATEGY.md"
+echo "   /pm-roadmap     — outcome-driven roadmap, produces ROADMAP.md"
+echo "   /pm-prd         — write a PRD for a feature"
+echo "   /pm-breakdown   — break PRD into tasks, create tickets in Linear / GitHub Issues"
+echo "   /pm-retro       — compare roadmap vs commits, surfaces drift"
+echo
+echo "  Start with:"
+echo "   $(_bold '/pm-run')  — or  $(_bold '/pm-discovery')  if you're not sure what to build"
+echo
+echo "  Docs: $NANOPM_REPO"
+echo
