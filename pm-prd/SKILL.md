@@ -63,7 +63,7 @@ Extract verbatim user quotes for the PRD's "User stories" section.
 
 ## Phase 3: Clarifying questions
 
-Ask these ONE AT A TIME via AskUserQuestion. Skip if already clear from context.
+Ask these as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if already clear from context.
 
 **If Shape Up** (`_METHODOLOGY` contains "shape"):
 - Q1: "What's the appetite for this — small batch (1-2 weeks) or big batch (6 weeks)?"

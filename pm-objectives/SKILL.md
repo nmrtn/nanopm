@@ -48,16 +48,15 @@ Check if an audit has been run:
 
 ## Phase 2: Clarifying questions
 
-Ask these questions ONE AT A TIME via AskUserQuestion. Skip any already answered in AUDIT.md or prior context.
+Ask these questions as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip any already answered in AUDIT.md or prior context.
 
-**Q1: Time horizon**
+**Q1: Time horizon** — ask this first, wait for answer:
 "What time horizon are these objectives for? (e.g., Q2 2026, next 6 months, FY2026 H2)"
 
-**Q2: Top goals**
-"What are your top 1-3 goals for this period? What would make it a success?
-(Be specific — not 'grow the product' but 'reach 1,000 paying customers' or 'reduce churn below 5%')"
+**Q2: Top goals** — ask after Q1 is answered:
+"What are your top 1-3 goals for this period? What would make it a success? (Be specific — not 'grow the product' but 'reach 1,000 paying customers' or 'reduce churn below 5%')"
 
-**Q3: Constraints (only ask if not derivable from audit)**
+**Q3: Constraints** — ask after Q2 is answered, only if not derivable from audit:
 "What constraints are you working under? (team size, budget, tech debt, regulatory, etc.)"
 
 Stop when all three are answered or clearly answerable from context.

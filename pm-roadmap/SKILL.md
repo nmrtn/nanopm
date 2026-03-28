@@ -70,7 +70,7 @@ Extract:
 
 ## Phase 3: Clarifying questions
 
-Ask ONE AT A TIME via AskUserQuestion. Skip if answered by context.
+Ask as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if answered by context.
 
 **If Shape Up** (`_METHODOLOGY` contains "shape" case-insensitive):
 - Q1: "What is the appetite for your next cycle — 6 weeks, 2 weeks, or something else?"

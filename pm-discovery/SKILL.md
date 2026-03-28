@@ -51,7 +51,7 @@ This answer scopes everything that follows. Don't proceed with a vague answer �
 
 ## Phase 2: The job to be done
 
-Ask ONE AT A TIME via AskUserQuestion. Skip if clearly answered by context.
+Ask as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if clearly answered by context.
 
 **Q1: Who is the user you're focused on?**
 "Describe the specific person you're trying to help. Not a category — a person.
