@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1 — 2026-04-01
+
+### New skill
+- **`/pm-scan`** — scan an existing codebase to reverse-engineer what it actually does; reads routes, data models, tests, git history, and README; produces `SCAN.md` with pre-filled answers for pm-audit Q1–Q4; run this before pm-audit when joining an existing project or after going heads-down for months
+
+### Pipeline improvements
+- **`/pm-run`** now asks a starting-point question when no prior context exists: existing project (runs pm-scan inline) vs. greenfield (runs pm-discovery inline) vs. skip to audit
+- Pipeline diagram updated: pm-scan and pm-discovery shown as distinct entry points with labels ("existing codebase" vs. "greenfield")
+- `setup`: pm-scan added to install loop and skill summary
+
+### Competitor monitoring
+- prawduct (`brookstalley/prawduct`) added to `competitors.json` — governance-layer tool with structural Critic agent that blocks code completion
+
 ## 0.3.0 — 2026-03-28
 
 ### New skill
