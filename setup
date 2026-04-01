@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.3.0"
+NANOPM_VERSION="0.3.1"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
@@ -93,7 +93,7 @@ done
 ok "Connectors installed"
 
 step "Installing skills"
-for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
+for skill in pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
   _install_file "$skill/SKILL.md" "$INSTALL_DIR/$skill/SKILL.md"
   ok "  $skill"
 done
@@ -145,7 +145,7 @@ fi
 # ── verify installation ───────────────────────────────────────────────────────
 step "Verifying installation"
 _ERRORS=0
-for skill in pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
+for skill in pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
   if [ -f "$INSTALL_DIR/$skill/SKILL.md" ]; then
     ok "$skill"
   else
@@ -176,7 +176,8 @@ echo "  $(_bold "$(_green 'nanopm installed successfully!')")"
 echo
 echo "  Available skills:"
 echo "   /pm-run         — run the full pipeline in one command (recommended)"
-echo "   /pm-discovery   — figure out WHAT to build before planning HOW"
+echo "   /pm-scan        — read an existing codebase to understand what it actually does
+   /pm-discovery   — figure out WHAT to build before planning HOW (greenfield)"
 echo "   /pm-audit       — deep product audit, produces AUDIT.md"
 echo "   /pm-objectives  — set OKRs, produces OBJECTIVES.md"
 echo "   /pm-strategy    — product strategy + adversarial review, produces STRATEGY.md"
