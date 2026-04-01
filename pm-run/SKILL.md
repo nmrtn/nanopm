@@ -32,6 +32,7 @@ If you're not sure what to build yet, run `/pm-discovery` first. `/pm-run` assum
 
 ```bash
 echo "=== Existing artifacts ==="
+[ -f ".nanopm/SCAN.md"       ] && echo "  SCAN.md       ✓" || echo "  SCAN.md       (none)"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
 [ -f ".nanopm/AUDIT.md"      ] && echo "  AUDIT.md      ✓" || echo "  AUDIT.md      (will create)"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "  OBJECTIVES.md ✓" || echo "  OBJECTIVES.md (will create)"
@@ -42,6 +43,22 @@ echo "========================="
 ```
 
 If any artifacts already exist, tell the user: "Existing artifacts found — this run will refresh them. Prior context is preserved in memory and will inform the new outputs."
+
+## Phase 0b: Starting point
+
+**Skip this phase if** SCAN.md, AUDIT.md, or DISCOVERY.md already exist — context is established, proceed to Phase 1.
+
+**If none exist**, ask via AskUserQuestion before anything else:
+
+**"How are you starting?**
+
+A) **Existing project** — there's already code. I'll scan the codebase to understand what's been built, then run the full pipeline. *(recommended for most projects)*
+B) **Greenfield / pre-product** — nothing built yet. I'll run discovery to map the opportunity first, then plan.
+C) **Skip straight to audit** — I know what I'm building, just run the pipeline."
+
+If A: run pm-scan inline (read and follow `~/.claude/skills/pm-scan/SKILL.md`, skipping its preamble) before Phase 2. After scan completes: "✅ Codebase scanned. Moving to feedback..."
+If B: run pm-discovery inline (read and follow `~/.claude/skills/pm-discovery/SKILL.md`, skipping its preamble) before Phase 2. After discovery completes: "✅ Discovery done. Moving to feedback..."
+If C: proceed directly to Phase 1.
 
 ## Phase 1: Confirm pipeline
 

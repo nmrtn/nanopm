@@ -64,7 +64,8 @@ Installs to `~/.claude/skills/nanopm/`. Skills appear as `/pm-*` commands in Cla
 
 ```
 /pm-run              → full pipeline in one command
-/pm-discovery        → figure out WHAT to build before planning HOW
+/pm-scan             → read an existing codebase to understand what it actually does before planning
+/pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
 /pm-audit            → brutal honest assessment of product, user, and biggest gap
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
@@ -86,7 +87,8 @@ The pipeline compounds. Every skill also works standalone.
 graph LR
     RUN(["/pm-run"]):::runner -.->|orchestrates| AUDIT
 
-    DISC["/pm-discovery"] -->|optional| AUDIT["/pm-audit"]
+    SCAN["/pm-scan"]:::entry -->|existing codebase| AUDIT["/pm-audit"]
+    DISC["/pm-discovery"]:::entry -->|greenfield| AUDIT
     AUDIT --> OBJ["/pm-objectives"]
     OBJ --> STRAT["/pm-strategy"]
     UF["/pm-user-feedback"] --> STRAT
@@ -99,6 +101,7 @@ graph LR
     RETRO -.->|next cycle| AUDIT
 
     classDef runner fill:#f5f5f5,stroke:#aaa,stroke-dasharray:5 5
+    classDef entry fill:#e8f4e8,stroke:#5a9e5a
 ```
 
 ---
