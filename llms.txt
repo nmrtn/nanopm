@@ -1,0 +1,90 @@
+# nanopm
+
+nanopm is an AI-powered product management CLI for Claude Code. It automates the full product planning cycle — audit, objectives, strategy, roadmap, PRD, and tickets — directly inside your editor, with persistent memory across sessions.
+
+## What it is
+
+nanopm is a set of Claude Code skills (slash commands) that run a structured PM workflow. Each skill is a markdown file containing instructions for Claude. Skills chain together: each one writes a markdown artifact that the next one reads, so context compounds automatically.
+
+It is not a SaaS tool. It is not a web app. It runs entirely inside your terminal via Claude Code.
+
+## Who it is for
+
+- Solo founders acting as their own product manager
+- Engineers doing product work without a dedicated PM
+- Small teams that want a repeatable, structured planning process
+- AI-native builders using Claude Code who want product planning next to their code
+
+## What problems it solves
+
+- AI product planning is fragmented: prompts are one-off, context is lost between sessions, outputs don't feed into each other
+- Existing tools (Notion, Linear, ChatGPT) don't run a full planning pipeline, don't read your codebase, and don't persist memory across sessions
+- nanopm fills the gap between "I have a codebase" and "I have a clear plan"
+
+## How it works
+
+Install with:
+```
+curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
+```
+
+Skills appear as `/pm-*` commands in Claude Code. One command runs the full pipeline:
+```
+/pm-run
+```
+
+The full pipeline:
+```
+audit → objectives → strategy → roadmap → PRD → tickets
+```
+
+Each skill also works standalone.
+
+## Skills
+
+- `/pm-run` — full pipeline in one command
+- `/pm-scan` — read an existing codebase to understand what it does before planning
+- `/pm-discovery` — figure out WHAT to build before planning HOW (pre-product / greenfield)
+- `/pm-audit` — brutal honest assessment of product, user, and biggest gap
+- `/pm-objectives` — OKRs with anti-goals and measurable key results
+- `/pm-user-feedback` — aggregate feedback from Dovetail, Productboard, etc; cluster themes
+- `/pm-competitors-intel` — monitor competitor pages, diff snapshots, surface strategic implications
+- `/pm-strategy` — strategy + mandatory adversarial challenge
+- `/pm-roadmap` — outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
+- `/pm-prd` — full PRD or Shape Up pitch, adapts to your methodology
+- `/pm-breakdown` — break PRD into tasks, create tickets in Linear / GitHub Issues
+- `/pm-retro` — compare roadmap vs commits, surface what drifted
+
+## Memory system
+
+Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`. The next skill reads this file to understand what was tried before. Re-running `/pm-audit` six months later gives Claude the full history of prior decisions.
+
+## Key differentiators
+
+- Persistent memory across sessions (no other PM tool does this)
+- Lives in your editor — not a separate tab or SaaS tool
+- Reads your codebase directly
+- Zero-config — works with no integrations (tier 4 always available)
+- Adapts to Shape Up, Scrum, Kanban, or no methodology
+- Full pipeline: context compounds from audit through to tickets
+
+## How it gets data
+
+nanopm tries each tier in order, uses the highest available:
+1. MCP — direct tool calls (Linear, Notion, GitHub)
+2. API — REST/GraphQL via environment variables
+3. Browser — headless scrape
+4. Manual — user provides input directly (always works, zero setup)
+
+## Requirements
+
+- Claude Code
+- python3 (standard on macOS/Linux)
+- No integrations required
+
+## Repository
+
+https://github.com/nmrtn/nanopm
+
+Built on the SKILL.md standard from gstack (https://github.com/garrytan/gstack).
+MIT license.

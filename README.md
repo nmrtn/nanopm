@@ -1,10 +1,25 @@
 # nanopm
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **You answer questions. nanopm does the thinking.**
 
-Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is the PM layer for Claude Code — it runs the full planning cycle inside your terminal and remembers everything across sessions.
+Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is an AI-powered product management CLI for Claude Code — it automates the full planning cycle (audit → strategy → roadmap → PRD) directly in your editor and remembers everything across sessions.
 
 Inspired by [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC CEO), which proved you can give Claude Code a full engineering team via the SKILL.md standard. nanopm is the PM layer on top of that idea.
+
+---
+
+## The problem
+
+Product work with AI is fragmented:
+
+- You prompt ChatGPT for a strategy. Context is gone next session.
+- You track roadmap in Notion. It doesn't know your codebase.
+- You write PRDs in Linear. They don't feed back into your next audit.
+- You switch between tools constantly. Nothing compounds.
+
+No existing tool runs the full planning cycle, persists memory, and lives where you code.
 
 ---
 
@@ -45,6 +60,15 @@ nanopm:  AUDIT.md written.
 
          Recommended next: /pm-discovery
 ```
+
+---
+
+## Who it's for
+
+- **Solo founders acting as their own PM** — structured product thinking without leaving the terminal
+- **Engineers doing product work** — go from codebase to roadmap without context-switching
+- **Small teams without a dedicated PM** — a repeatable process that compounds over time
+- **AI-native builders using Claude Code** — product planning that lives next to your code, not in a separate tab
 
 ---
 
@@ -112,6 +136,21 @@ Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill k
 
 ---
 
+## How it compares
+
+| | nanopm | Notion / Linear | ChatGPT |
+|---|---|---|---|
+| Lives in your editor | ✅ | ❌ | ❌ |
+| Persistent memory across sessions | ✅ | ⚠️ manual | ❌ |
+| Full pipeline (audit → PRD) | ✅ | ❌ | ❌ |
+| Reads your codebase | ✅ | ❌ | ❌ |
+| Zero-config (no integrations required) | ✅ | ❌ | ✅ |
+| Adapts to Shape Up / Scrum / Kanban | ✅ | ✅ | ❌ |
+
+Notion and Linear are great for tracking decisions. They don't make them. ChatGPT is great for one-off prompts. It doesn't remember the last six months of your product thinking. nanopm fills the gap between "I have a codebase" and "I have a clear plan".
+
+---
+
 ## How it gets data
 
 nanopm tries each tier in order, uses the highest available:
@@ -175,5 +214,3 @@ bash test/adversarial.e2e.sh       # adversarial subagent gate (needs claude CLI
 ---
 
 *Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack) — thank you Garry for proving that AI can own an entire function end-to-end.*
-
-MIT license.
