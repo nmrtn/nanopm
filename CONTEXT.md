@@ -11,7 +11,10 @@
    Run the full pipeline (/pm-run): audit → objectives → strategy → roadmap → PRD in one command.
 
 4. What did you ship in the last 30 days?
-   Initial v0.1.0 release — full pipeline with 9 skills, shared runtime (nanopm.sh), and test suite.
+   v0.1.0–v0.4.2: grew from 9 to 13 skills (added pm-scan, pm-user-feedback, pm-competitors-intel, pm-upgrade).
+   Built full telemetry system (nanopm-telemetry-log, nanopm-analytics, nanopm-telemetry-sync — local JSONL, 3 tiers).
+   Added adversarial subagent to pm-strategy (FALSIFICATION must have number + segment + behavior + timeframe).
+   100% skill syntax test coverage (was 4/13 missing). pm-run now has starting-point question (scan vs discovery vs audit).
 
 5. What are your top 1-2 goals for this quarter?
    Validate the pipeline end-to-end: prove the full audit→PRD flow works for real products.
