@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.4.1"
+NANOPM_VERSION="0.4.2"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
@@ -94,6 +94,8 @@ _install_file "bin/nanopm-analytics" "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-log"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-sync"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
+mkdir -p "$GLOBAL_CONFIG_DIR/supabase"
+_install_file "supabase/config.sh" "$GLOBAL_CONFIG_DIR/supabase/config.sh"
 ok "Telemetry binaries installed"
 
 step "Installing connectors"

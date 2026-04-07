@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 — 2026-04-07
+
+### Bug fixes
+- **Telemetry sync now works** — setup installs `supabase/config.sh` so sync can find Supabase URL
+- **Edge function accepts JSONL format** — fixed field name validation (`session_id` vs `session`)
+- Events now successfully sync to Supabase cloud
+
 ## 0.4.1 — 2026-04-07
 
 ### Bug fix
