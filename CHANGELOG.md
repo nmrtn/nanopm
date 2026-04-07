@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — 2026-04-07
+
+### Bug fix
+- **All skills now log telemetry** — added telemetry footers to all 13 skills (0.4.0 only had pm-audit)
+- Events now properly sync to Supabase when skills complete
+
 ## 0.4.0 — 2026-04-07
 
 ### Anonymous telemetry system

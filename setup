@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.4.0"
+NANOPM_VERSION="0.4.1"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
