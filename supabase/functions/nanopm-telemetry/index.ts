@@ -33,8 +33,11 @@ const VALID_SKILLS = [
 
 // Validate event
 function validateEvent(data: any): TelemetryEvent | null {
-  // Required fields
-  if (!data.skill || !data.duration_s || !data.outcome || !data.session || !data.ts) {
+  // Required fields - accept both session/session_id and ts/timestamp
+  const session = data.session_id || data.session
+  const ts = data.ts
+  
+  if (!data.skill || !data.duration_s || !data.outcome || !session || !ts) {
     return null
   }
 
@@ -55,12 +58,12 @@ function validateEvent(data: any): TelemetryEvent | null {
   }
 
   // Session ID length check (prevent abuse)
-  if (data.session.length > 100) {
+  if (session.length > 100) {
     return null
   }
 
   // Timestamp format check (ISO 8601)
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(data.ts)) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(ts)) {
     return null
   }
 
@@ -68,8 +71,8 @@ function validateEvent(data: any): TelemetryEvent | null {
     skill: data.skill,
     duration_s: duration,
     outcome: data.outcome,
-    session: data.session,
-    ts: data.ts,
+    session: session,
+    ts: ts,
   }
 }
 
