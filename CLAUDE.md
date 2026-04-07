@@ -18,6 +18,7 @@ Autonomous PM skill pack for Claude Code. Replaces the PM workflow end-to-end.
 | pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
 | pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |
 | pm-weekly-update | `/pm-weekly-update` | Draft stakeholder update email, adapted to audience |
+| pm-data | `/pm-data` | Answer a product question with PostHog or Amplitude data — trends, funnels, retention |
 
 ## Architecture
 
