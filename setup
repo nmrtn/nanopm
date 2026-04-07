@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.3.1"
+NANOPM_VERSION="0.4.0"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
@@ -86,6 +86,16 @@ _install_file "lib/nanopm.sh" "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 ok "lib/nanopm.sh installed"
 
+step "Installing telemetry binaries"
+mkdir -p "$GLOBAL_CONFIG_DIR/bin"
+_install_file "bin/nanopm-telemetry-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-log"
+_install_file "bin/nanopm-telemetry-sync" "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-sync"
+_install_file "bin/nanopm-analytics" "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-log"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-sync"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
+ok "Telemetry binaries installed"
+
 step "Installing connectors"
 for connector in README.md linear.md notion.md dovetail.md github.md productboard.md; do
   _install_file "connectors/$connector" "$GLOBAL_CONFIG_DIR/connectors/$connector"
@@ -115,6 +125,46 @@ fi
 # Write installed version to ~/.nanopm/VERSION (used by update check)
 echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
 ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION"
+
+# ── telemetry opt-in ──────────────────────────────────────────────────────────
+step "Telemetry preferences"
+echo
+echo "  nanopm collects anonymous usage data to understand which skills are most useful."
+echo
+echo "  Three tiers:"
+echo "    off        — no data sent (local analytics still work)"
+echo "    anonymous  — skill usage only, no installation tracking"
+echo "    community  — includes installation ID for aggregate stats"
+echo
+echo "  Data collected: skill name, duration, outcome, OS, arch, version."
+echo "  NOT collected: code, project names, personal data, IP addresses."
+echo
+echo "  Local analytics (~/.nanopm/analytics/) always work regardless of this setting."
+echo
+if [ -t 0 ]; then
+  # Interactive terminal — ask
+  printf "  Choose telemetry tier [off/anonymous/community] (default: anonymous): "
+  read -r _tel_choice
+  case "$_tel_choice" in
+    off|OFF)
+      echo "telemetry=off" >> "$_CONFIG"
+      ok "Telemetry disabled — local analytics still available"
+      ;;
+    community|COMMUNITY)
+      echo "telemetry=community" >> "$_CONFIG"
+      ok "Community telemetry enabled — thank you for helping improve nanopm!"
+      ;;
+    *)
+      echo "telemetry=anonymous" >> "$_CONFIG"
+      ok "Anonymous telemetry enabled — thank you!"
+      ;;
+  esac
+else
+  # Non-interactive (piped install) — default to anonymous
+  echo "telemetry=anonymous" >> "$_CONFIG"
+  ok "Anonymous telemetry enabled by default"
+fi
+echo "  (Change anytime: grep telemetry ~/.nanopm/config)"
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
 # Only if we're inside a git repo right now (running from a project directory)

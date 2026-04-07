@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0 — 2026-04-07
+
+### Anonymous telemetry system
+- **Three-tier telemetry** (off/anonymous/community) — understand which skills are most useful across all installations
+- **Local analytics always available** — `~/.nanopm/bin/nanopm-analytics` shows your usage stats (7d/30d/all time windows)
+- **Batched remote sync** — events sync to Supabase in background (rate-limited, non-blocking, silently fails if offline)
+- **Crash recovery** — pending markers ensure events are logged even if skill crashes
+- **Transparent disclosure** — setup prompts for tier choice, README documents what's collected and NOT collected
+- **Privacy-first** — no code, project names, or PII collected; only skill usage patterns (name, duration, outcome, OS, arch, version)
+- **Public anon key** — safely distributed in repo (RLS prevents unauthorized access, all writes validated through edge function)
+
+### Infrastructure
+- **Supabase backend** — edge function validates and stores telemetry events; SQL migration creates table with proper indexes and RLS policies
+- **Session tracking** — concurrent session count included in telemetry for aggregate stats
+- **Installation ID** — community tier includes anonymous installation ID for unique user counts (opt-in)
+
+### Setup improvements
+- Interactive telemetry tier selection during install (default: anonymous)
+- Clear explanation of what's collected vs. NOT collected
+- Easy opt-out instructions shown during setup
+
 ## 0.3.1 — 2026-04-01
 
 ### New skill

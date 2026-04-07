@@ -82,6 +82,8 @@ Installs to `~/.claude/skills/nanopm/`. Skills appear as `/pm-*` commands in Cla
 
 **Requirements:** Claude Code. `python3` (standard on macOS/Linux).
 
+**Note:** During setup, you'll choose a telemetry tier (off/anonymous/community). See [Analytics & Telemetry](#analytics--telemetry) for details.
+
 ---
 
 ## All skills
@@ -185,6 +187,49 @@ Every skill run warns if your AUDIT.md or STRATEGY.md is more than 20 commits ol
 ```
 ⚠  nanopm: AUDIT.md is 34 commits old — consider re-running /pm-audit
 ```
+
+---
+
+## Analytics & Telemetry
+
+nanopm collects anonymous usage data to understand which skills are most useful.
+
+**What's collected:**
+- Skill name (e.g., `pm-audit`, `pm-strategy`)
+- Duration in seconds
+- Outcome (`success`, `error`, `abort`)
+- OS, architecture, nanopm version
+- Timestamp
+
+**NOT collected:**
+- Code, project names, file contents
+- Personal data, email, username
+- IP addresses
+
+**Three tiers:**
+- **off** — no data sent (local analytics still work)
+- **anonymous** — skill usage only, no installation tracking
+- **community** — includes installation ID for aggregate stats across all users
+
+**View your local analytics:**
+```bash
+~/.nanopm/bin/nanopm-analytics        # last 7 days
+~/.nanopm/bin/nanopm-analytics 30d    # last 30 days
+~/.nanopm/bin/nanopm-analytics all    # all time
+```
+
+**Change telemetry tier:**
+```bash
+# View current setting
+grep telemetry ~/.nanopm/config
+
+# Change tier
+echo "telemetry=off" >> ~/.nanopm/config        # disable
+echo "telemetry=anonymous" >> ~/.nanopm/config  # anonymous
+echo "telemetry=community" >> ~/.nanopm/config  # community
+```
+
+Local analytics (`~/.nanopm/analytics/skill-usage.jsonl`) always work regardless of tier.
 
 ---
 

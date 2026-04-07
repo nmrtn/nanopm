@@ -12,6 +12,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
+nanopm_telemetry_pending "pm-audit"
 _AUDIT_FILE=".nanopm/AUDIT.md"
 _CONTEXT_FILE="CONTEXT.md"
 ```
@@ -274,3 +275,27 @@ Tell the user:
 - The recommended next skill
 
 **STATUS: DONE**
+
+## Telemetry (run last)
+
+After the skill workflow completes (success, error, or abort), log the telemetry event.
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+# Determine outcome: success if completed normally, error if it failed, abort if user interrupted
+_OUTCOME="success"
+
+# Log to local JSONL + trigger background sync
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-audit" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
+
+Replace `_OUTCOME="success"` with `"error"` if the skill failed, or `"abort"` if the user interrupted.

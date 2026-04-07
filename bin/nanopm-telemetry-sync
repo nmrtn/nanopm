@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# nanopm-telemetry-sync — batch sync local JSONL to Supabase
+# Runs in background, rate-limited to once per 5 minutes
+set -uo pipefail
+
+NANOPM_DIR="${NANOPM_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+STATE_DIR="${NANOPM_STATE_DIR:-$HOME/.nanopm}"
+ANALYTICS_DIR="$STATE_DIR/analytics"
+JSONL_FILE="$ANALYTICS_DIR/skill-usage.jsonl"
+CURSOR_FILE="$ANALYTICS_DIR/.last-sync-line"
+RATE_FILE="$ANALYTICS_DIR/.last-sync-time"
+CONFIG_FILE="$STATE_DIR/config"
+
+# Source Supabase config if not overridden by env
+if [ -z "${NANOPM_SUPABASE_URL:-}" ] && [ -f "$NANOPM_DIR/supabase/config.sh" ]; then
+  . "$NANOPM_DIR/supabase/config.sh"
+fi
+SUPABASE_URL="${NANOPM_SUPABASE_URL:-}"
+ANON_KEY="${NANOPM_SUPABASE_ANON_KEY:-}"
+
+# No Supabase URL configured yet → exit silently
+[ -z "$SUPABASE_URL" ] && exit 0
+
+# No JSONL file → nothing to sync
+[ -f "$JSONL_FILE" ] || exit 0
+
+# Rate limit: once per 5 minutes
+if [ -f "$RATE_FILE" ]; then
+  STALE=$(find "$RATE_FILE" -mmin +5 2>/dev/null || true)
+  [ -z "$STALE" ] && exit 0
+fi
+
+# ─── Read tier ───────────────────────────────────────────────
+TIER="off"
+if [ -f "$CONFIG_FILE" ]; then
+  TIER=$(grep "^telemetry=" "$CONFIG_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || echo "off")
+fi
+[ "$TIER" = "off" ] && exit 0
+
+# ─── Read cursor ─────────────────────────────────────────────
+CURSOR=0
+if [ -f "$CURSOR_FILE" ]; then
+  CURSOR="$(cat "$CURSOR_FILE" 2>/dev/null | tr -d ' \n\r\t')"
+  case "$CURSOR" in *[!0-9]*) CURSOR=0 ;; esac
+fi
+
+# Safety: if cursor exceeds file length, reset
+TOTAL_LINES="$(wc -l < "$JSONL_FILE" | tr -d ' \n\r\t')"
+if [ "$CURSOR" -gt "$TOTAL_LINES" ] 2>/dev/null; then
+  CURSOR=0
+fi
+
+# Nothing new to sync
+[ "$CURSOR" -ge "$TOTAL_LINES" ] 2>/dev/null && exit 0
+
+# ─── Read unsent lines ───────────────────────────────────────
+SKIP=$(( CURSOR + 1 ))
+UNSENT="$(tail -n "+$SKIP" "$JSONL_FILE" 2>/dev/null || true)"
+[ -z "$UNSENT" ] && exit 0
+
+# Build batch array
+BATCH="["
+FIRST=true
+COUNT=0
+
+while IFS= read -r LINE; do
+  [ -z "$LINE" ] && continue
+  echo "$LINE" | grep -q '^{' || continue
+
+  # Strip local-only fields
+  CLEAN="$(echo "$LINE" | sed \
+    -e 's/,\"_repo_slug\":\"[^\"]*\"//g' \
+    -e 's/,\"_branch\":\"[^\"]*\"//g')"
+
+  # If anonymous tier, strip installation_id
+  if [ "$TIER" = "anonymous" ]; then
+    CLEAN="$(echo "$CLEAN" | sed 's/,\"installation_id\":\"[^\"]*\"//g; s/,\"installation_id\":null//g')"
+  fi
+
+  if [ "$FIRST" = "true" ]; then
+    FIRST=false
+  else
+    BATCH="$BATCH,"
+  fi
+  BATCH="$BATCH$CLEAN"
+  COUNT=$(( COUNT + 1 ))
+
+  # Batch size limit
+  [ "$COUNT" -ge 100 ] && break
+done <<< "$UNSENT"
+
+BATCH="$BATCH]"
+
+# Nothing to send after filtering
+[ "$COUNT" -eq 0 ] && exit 0
+
+# ─── POST to edge function ───────────────────────────────────
+RESP_FILE="$(mktemp /tmp/nanopm-sync-XXXXXX 2>/dev/null || echo "/tmp/nanopm-sync-$$")"
+HTTP_CODE="$(curl -s -w '%{http_code}' --max-time 10 \
+  -X POST "${SUPABASE_URL}/functions/v1/nanopm-telemetry" \
+  -H "Content-Type: application/json" \
+  -H "apikey: ${ANON_KEY}" \
+  -o "$RESP_FILE" \
+  -d "$BATCH" 2>/dev/null || echo "000")"
+
+# ─── Update cursor on success (2xx) ─────────────────────────
+case "$HTTP_CODE" in
+  2*)
+    # Parse inserted count from response
+    INSERTED="$(grep -o '"inserted":[0-9]*' "$RESP_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")"
+    if [ "${INSERTED:-0}" -gt 0 ] 2>/dev/null; then
+      NEW_CURSOR=$(( CURSOR + COUNT ))
+      echo "$NEW_CURSOR" > "$CURSOR_FILE" 2>/dev/null || true
+    fi
+    ;;
+esac
+
+rm -f "$RESP_FILE" 2>/dev/null || true
+
+# Update rate limit marker
+touch "$RATE_FILE" 2>/dev/null || true
+
+exit 0
