@@ -226,4 +226,22 @@ Tell the user:
 - "Run tests before building. The goal of discovery is to fail fast on paper, not in code."
 - Recommended next: run the tests, then `/pm-audit`
 
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-discovery" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
+
 **STATUS: DONE**

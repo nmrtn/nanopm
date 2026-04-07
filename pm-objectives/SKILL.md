@@ -151,4 +151,22 @@ Tell the user:
 - Any goals that couldn't be made measurable (ask user to sharpen them)
 - Recommended next skill: `/pm-strategy`
 
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-objectives" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
+
 **STATUS: DONE**

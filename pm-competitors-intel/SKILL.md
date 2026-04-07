@@ -296,6 +296,24 @@ Tell the user:
 - How many material changes were found, and for which competitors
 - Any pages that failed to fetch (with actionable fix — e.g., "competitor.com/docs requires login — add session cookies or switch to manual")
 - The single most important strategic implication (if any)
-- Recommended next: "Run `/pm-strategy` if a competitor change affects your current bet."
+- Recommended next: "Run `/pm-strategy` to adjust your bet based on competitive moves
+
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-competitors-intel" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
 
 **STATUS: DONE**

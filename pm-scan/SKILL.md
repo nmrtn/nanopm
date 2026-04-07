@@ -305,4 +305,22 @@ Tell the user:
 - Which pre-filled answers for pm-audit they should verify before accepting
 - Recommended next: `/pm-audit` — which will read SCAN.md to pre-fill Q1–Q4
 
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-scan" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
+
 **STATUS: DONE**

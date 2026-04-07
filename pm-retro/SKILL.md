@@ -161,8 +161,8 @@ Update your roadmap with carry-forward items and new priorities from this retro.
 ---
 
 *Sources: ROADMAP.md, git log, AUDIT.md (if present)*
-```
 
+## Telemetry
 ## Phase 7: Save context
 
 ```bash

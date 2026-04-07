@@ -329,4 +329,22 @@ Tell the user:
 - Which themes are already addressed by the roadmap vs. which are gaps
 - Recommended next: "Run /pm-audit — FEEDBACK.md will pre-fill Q6 and sharpen the synthesis."
 
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-user-feedback" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
+
 **STATUS: DONE**

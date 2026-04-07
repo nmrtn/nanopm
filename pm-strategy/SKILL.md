@@ -207,6 +207,24 @@ Tell the user:
 - STRATEGY.md written to `.nanopm/STRATEGY.md`
 - The adversarial challenge and whether it changed the strategy
 - The open question that still needs answering
-- Recommended next skill: `/pm-roadmap`
+- Recommended next skill: `/pm-roadmap` to translate this strategy into a concrete plan
+
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-strategy" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
 
 **STATUS: DONE**

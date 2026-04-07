@@ -278,6 +278,24 @@ Tell the user:
 - PRD written to `.nanopm/prds/{feature}.md`
 - Open questions that need answers before implementation
 - The success criteria — ask if they look right
-- Suggested next step: hand this PRD to your engineering team or run `/pm-breakdown` to create tickets, then `/pm-retro` after the sprint to compare plan vs reality
+- Suggested next step: hand this PRD to your engineering team or run `/pm-breakdown` to create tickets, or `/pm-retro` after shipping to compare plan vs reality
+
+## Telemetry
+
+```bash
+_TEL_END=$(date +%s)
+_TEL_DUR=$(( _TEL_END - _TEL_START ))
+rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
+
+_OUTCOME="success"
+
+if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
+  ~/.nanopm/bin/nanopm-telemetry-log \
+    --skill "pm-prd" \
+    --duration "$_TEL_DUR" \
+    --outcome "$_OUTCOME" \
+    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
+fi
+```
 
 **STATUS: DONE**
