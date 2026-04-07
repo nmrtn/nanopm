@@ -10,10 +10,9 @@ create table if not exists public.telemetry_events (
   timestamp timestamptz not null,
   nanopm_version text,
   os text,
-  arch text,
+  failed_step text,
   sessions integer default 1,
-  installation_id text,
-  created_at timestamptz not null default now()
+  created_at timestamptz default now()
 );
 
 -- Index for analytics queries

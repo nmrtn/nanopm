@@ -4,7 +4,7 @@
 # Or:    bash setup   (from repo root)
 set -euo pipefail
 
-NANOPM_VERSION="0.4.2"
+NANOPM_VERSION="0.4.3"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 INSTALL_DIR="$HOME/.claude/skills"
@@ -133,19 +133,17 @@ step "Telemetry preferences"
 echo
 echo "  nanopm collects anonymous usage data to understand which skills are most useful."
 echo
-echo "  Three tiers:"
+echo "  Two tiers:"
 echo "    off        — no data sent (local analytics still work)"
-echo "    anonymous  — skill usage only, no installation tracking"
-echo "    community  — includes installation ID for aggregate stats"
+echo "    anonymous  — skill usage only (skill name, duration, outcome, OS, arch, version)"
 echo
-echo "  Data collected: skill name, duration, outcome, OS, arch, version."
-echo "  NOT collected: code, project names, personal data, IP addresses."
+echo "  NOT collected: code, project names, personal data, IP addresses, installation IDs."
 echo
 echo "  Local analytics (~/.nanopm/analytics/) always work regardless of this setting."
 echo
 if [ -t 0 ]; then
   # Interactive terminal — ask
-  printf "  Choose telemetry tier [off/anonymous/community] (default: anonymous): "
+  printf "  Choose telemetry tier [off/anonymous] (default: anonymous): "
   read -r _tel_choice
   case "$_tel_choice" in
     off|OFF)

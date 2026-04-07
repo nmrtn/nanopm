@@ -67,15 +67,8 @@ while IFS= read -r LINE; do
   [ -z "$LINE" ] && continue
   echo "$LINE" | grep -q '^{' || continue
 
-  # Strip local-only fields
-  CLEAN="$(echo "$LINE" | sed \
-    -e 's/,\"_repo_slug\":\"[^\"]*\"//g' \
-    -e 's/,\"_branch\":\"[^\"]*\"//g')"
-
-  # If anonymous tier, strip installation_id
-  if [ "$TIER" = "anonymous" ]; then
-    CLEAN="$(echo "$CLEAN" | sed 's/,\"installation_id\":\"[^\"]*\"//g; s/,\"installation_id\":null//g')"
-  fi
+  # Strip internal fields
+  CLEAN=$(echo "$LINE" | sed -e 's/,\"_repo_slug\":\"[^\"]*\"//g' -e 's/,\"_branch\":\"[^\"]*\"//g')
 
   if [ "$FIRST" = "true" ]; then
     FIRST=false

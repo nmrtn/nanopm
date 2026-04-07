@@ -121,8 +121,10 @@ serve(async (req) => {
           nanopm_version: item.nanopm_version || 'unknown',
           os: item.os || 'unknown',
           arch: item.arch || 'unknown',
+          error_class: item.error_class || null,
+          error_message: item.error_message || null,
+          failed_step: item.failed_step || null,
           sessions: item.sessions || 1,
-          installation_id: item.installation_id || null,
           created_at: new Date().toISOString(),
         })
       }

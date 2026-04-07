@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# ─── Read telemetry tier ─────────────────────────────────────
+# ─── Read tier ───────────────────────────────────────────────
 TIER="off"
 if [ -f "$CONFIG_FILE" ]; then
   TIER=$(grep "^telemetry=" "$CONFIG_FILE" 2>/dev/null | tail -1 | cut -d= -f2- || echo "off")
@@ -45,7 +45,7 @@ fi
 
 # Validate tier
 case "$TIER" in
-  off|anonymous|community) ;;
+  off|anonymous) ;;
   *) TIER="off" ;;
 esac
 
@@ -160,13 +160,10 @@ fi
 DUR_FIELD="null"
 [ -n "$DURATION" ] && DUR_FIELD="$DURATION"
 
-INSTALL_FIELD="null"
-[ -n "$INSTALL_ID" ] && INSTALL_FIELD="\"$INSTALL_ID\""
-
-printf '{"v":1,"ts":"%s","event_type":"%s","skill":"%s","session_id":"%s","nanopm_version":"%s","os":"%s","arch":"%s","duration_s":%s,"outcome":"%s","error_class":%s,"error_message":%s,"failed_step":%s,"sessions":%s,"installation_id":%s,"_repo_slug":"%s","_branch":"%s"}\n' \
+printf '{"v":1,"ts":"%s","event_type":"%s","skill":"%s","session_id":"%s","nanopm_version":"%s","os":"%s","arch":"%s","duration_s":%s,"outcome":"%s","error_class":%s,"error_message":%s,"failed_step":%s,"sessions":%s,"_repo_slug":"%s","_branch":"%s"}\n' \
   "$TS" "$EVENT_TYPE" "$SKILL" "$SESSION_ID" "$NANOPM_VERSION" "$OS" "$ARCH" \
   "$DUR_FIELD" "$OUTCOME" "$ERR_FIELD" "$ERR_MSG_FIELD" "$STEP_FIELD" \
-  "${SESSIONS:-1}" "$INSTALL_FIELD" "$REPO_SLUG" "$BRANCH" >> "$JSONL_FILE" 2>/dev/null || true
+  "${SESSIONS:-1}" "$REPO_SLUG" "$BRANCH" >> "$JSONL_FILE" 2>/dev/null || true
 
 # ─── Trigger sync if tier is not off ─────────────────────────
 SYNC_CMD="$NANOPM_DIR/bin/nanopm-telemetry-sync"

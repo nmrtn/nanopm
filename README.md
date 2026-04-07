@@ -198,27 +198,28 @@ nanopm collects anonymous usage data to understand which skills are most useful.
 - Skill name (e.g., `pm-audit`, `pm-strategy`)
 - Duration in seconds
 - Outcome (`success`, `error`, `abort`)
-- OS, architecture, nanopm version
-- Timestamp
+- OS and architecture (e.g., `darwin`, `arm64`)
+- nanopm version
 
-**NOT collected:**
-- Code, project names, file contents
-- Personal data, email, username
-- IP addresses
+### What's NOT collected
 
-**Three tiers:**
-- **off** — no data sent (local analytics still work)
-- **anonymous** — skill usage only, no installation tracking
-- **community** — includes installation ID for aggregate stats across all users
+- Your code
+- Project names
+- File paths
+- Personal data
+- IP addresses (not logged server-side)
+- Installation IDs or any tracking identifier
 
-**View your local analytics:**
+### View your local analytics
+
 ```bash
 ~/.nanopm/bin/nanopm-analytics        # last 7 days
 ~/.nanopm/bin/nanopm-analytics 30d    # last 30 days
 ~/.nanopm/bin/nanopm-analytics all    # all time
 ```
 
-**Change telemetry tier:**
+### Change telemetry tier
+
 ```bash
 # View current setting
 grep telemetry ~/.nanopm/config
@@ -226,7 +227,6 @@ grep telemetry ~/.nanopm/config
 # Change tier
 echo "telemetry=off" >> ~/.nanopm/config        # disable
 echo "telemetry=anonymous" >> ~/.nanopm/config  # anonymous
-echo "telemetry=community" >> ~/.nanopm/config  # community
 ```
 
 Local analytics (`~/.nanopm/analytics/skill-usage.jsonl`) always work regardless of tier.

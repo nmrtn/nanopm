@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 — 2026-04-07
+
+### Simplification
+- **Removed community tier** — telemetry now has only two tiers: `off` and `anonymous`
+- **No installation tracking** — removed `installation_id` from all code, schema, and documentation
+- Simpler setup experience with clearer privacy guarantees
+
 ## 0.4.2 — 2026-04-07
 
 ### Bug fixes
