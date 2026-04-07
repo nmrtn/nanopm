@@ -33,3 +33,7 @@ That's it. No code changes needed.
 | notion | `mcp__notion__*` | `NOTION_API_KEY` | notion.so | Pages, databases |
 | dovetail | — | `DOVETAIL_API_KEY` | dovetail.com | Insights, themes, tags |
 | github | `mcp__github__*` | `GITHUB_TOKEN` | github.com | Issues, PRs, releases |
+| google-calendar | `mcp__claude_ai_Google_Calendar__*` | OAuth v3 | — | Today's events, meetings |
+| granola | `mcp__claude_ai_Granola__*` | — | — | Meeting notes, transcripts |
+| posthog | `mcp__claude_ai_PostHog__*` | `POSTHOG_API_KEY` + `POSTHOG_PROJECT_ID` | — | Trends, funnels, retention, paths |
+| amplitude | — | `AMPLITUDE_API_KEY` + `AMPLITUDE_SECRET_KEY` | app.amplitude.com | Trends, funnels, retention |

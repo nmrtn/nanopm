@@ -62,6 +62,19 @@ Offer re-fetch only if last audit was >30 days ago: "Re-fetch from {url}? (y/N)"
 
 ## Phase 2: Data collection
 
+Check for DATA.md — if it exists, it contains quantitative analytics from /pm-data:
+
+```bash
+[ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
+```
+
+**If DATA_EXISTS:** read `.nanopm/DATA.md`. Extract:
+- The most recent analysis question and its key insight
+- Metrics marked 🟢 high confidence — these are facts, not hypotheses
+- Any "biggest unknown" flagged — these are candidates for Section 4 (the question you're avoiding)
+
+Store these for use in Phase 4 synthesis. Only 🟢 high-confidence findings should anchor audit conclusions.
+
 Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
 
 ```bash
@@ -177,6 +190,7 @@ Synthesize a first-pass understanding of:
 2. Who it's actually for (inferred, may differ from stated)
 3. The gap between stated goals (Q5) and what's been shipped (Q4)
 4. The most important feedback signal — use FEEDBACK.md top unaddressed signal if available, otherwise Q6 + connector data. If FEEDBACK.md exists, note which themes are already addressed vs. which represent genuine gaps.
+5. **If DATA_EXISTS:** fold in quantitative findings. For each 🟢 high-confidence metric: does it confirm or contradict the qualitative signal? Flag contradictions explicitly — e.g., "Users say onboarding is fine (FEEDBACK.md), but data shows 60% drop-off at step 2 (DATA.md 🟢)." Contradictions between quanti and quali are the most valuable audit findings.
 
 ## Phase 5: Adversarial self-challenge
 
@@ -247,7 +261,21 @@ pay to fix it, or is it just a nice-to-have?"]
 
 ---
 
-## 5. Recommended Next Skill
+## 5. What The Data Says
+
+{Include this section ONLY if DATA.md exists. Otherwise omit entirely.}
+
+[2-3 sentences max. The most important quantitative finding and what it means for the audit.
+Format: "{Metric} is {value} ({confidence}), which {confirms / contradicts} {qualitative signal}.
+The most important unknown the data raises: {question}."]
+
+**Action:** {If quanti contradicts quali: "Investigate the discrepancy before setting objectives."
+If quanti confirms: "Use this number to size the problem in your PRD."
+If biggest unknown is flagged: "Run /pm-interview to answer {question} before /pm-strategy."}
+
+---
+
+## 6. Recommended Next Skill
 
 **Run: /pm-{objectives|strategy|roadmap}**
 
