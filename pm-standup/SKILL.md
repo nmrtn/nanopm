@@ -1,7 +1,7 @@
 ---
 name: pm-standup
-version: 0.2.0
-description: "Daily standup briefing. Pulls what happened since yesterday from git, Linear, Google Calendar, and Granola. Surfaces today's meetings, priorities, blockers, and anything that drifted. Takes under 60 seconds to run."
+version: 0.3.0
+description: "Daily standup briefing. Pulls commits from all your active GitHub repos, Linear, Google Calendar, and Granola. Works from a standalone Product OS folder — no need to be inside a codebase. Surfaces today's meetings, cross-repo activity, priorities, and drift."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_Google_Calendar__gcal_list_events, mcp__claude_ai_Google_Calendar__gcal_list_calendars, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
@@ -29,11 +29,36 @@ This skill never asks questions. It reads context, generates the briefing, done.
 
 ## Phase 1: Gather yesterday's activity
 
-**Git activity (last 24h):**
+**GitHub — multi-repo commits (last 24h):**
+
+```bash
+_TIER_GITHUB=$(nanopm_has_connector github)
+echo "GITHUB_TIER: $_TIER_GITHUB"
+```
+
+If GITHUB tier is MCP or API:
+- Fetch all commits by the authenticated user across all repos in the last 24h
+- Use GitHub API: `GET /search/commits?q=author:{username}+committer-date:>{yesterday_iso}&sort=committer-date`
+- For each commit extract: repo name, commit message, timestamp
+- Group by repo — show repo name as prefix: `[repo-name] commit message`
+- Limit to 15 commits total, most recent first
+
+If GITHUB not available: fall back to local git:
 ```bash
 git log --since="24 hours ago" --oneline --no-merges 2>/dev/null | head -10 || echo "NO_GIT"
-git diff --stat HEAD~1 HEAD 2>/dev/null | tail -5 || echo "NO_DIFF"
 ```
+Note in output: "(local repo only — connect GitHub for multi-repo view)"
+
+**First-run repo list:**
+On first run, store the list of active repos found via GitHub API:
+```bash
+nanopm_config_get "github_active_repos"
+```
+If empty: fetch repos with pushes in the last 30 days, store as comma-separated list:
+```bash
+nanopm_config_set "github_active_repos" "{repo1},{repo2},..."
+```
+This speeds up subsequent runs — only query known active repos instead of all repos.
 
 **Linear (if available):**
 ```bash
@@ -54,7 +79,7 @@ If LINEAR not available: read `.nanopm/ROADMAP.md` and check for any manually up
 [ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
 ```
 
-If ROADMAP_EXISTS: scan for items marked as "this week" or current sprint. Check which have no recent commits.
+If ROADMAP_EXISTS: scan for items marked as "this week" or current sprint. Cross-reference with GitHub commits — flag items with no recent commits across any repo.
 
 **Granola — recent meetings (last 48h):**
 
@@ -92,7 +117,8 @@ Output the standup briefing — concise, scannable, no fluff:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 YESTERDAY
-  ✓ {what was completed — from git commits or Linear Done}
+  ✓ [{repo}] {commit message}
+  ✓ [{repo}] {commit message}
   ✓ {if nothing shipped: "No commits in the last 24h"}
   {if Granola had a user meeting: "📋 User call with {name} — run /pm-interview to extract signal"}
 
