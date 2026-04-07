@@ -15,6 +15,9 @@ Autonomous PM skill pack for Claude Code. Replaces the PM workflow end-to-end.
 | pm-prd | `/pm-prd` | Full PRD (or Shape Up pitch) |
 | pm-breakdown | `/pm-breakdown` | Break PRD into tasks, create tickets in Linear / GitHub Issues |
 | pm-retro | `/pm-retro` | Compare roadmap vs commits, surface drift |
+| pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
+| pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |
+| pm-weekly-update | `/pm-weekly-update` | Draft stakeholder update email, adapted to audience |
 
 ## Architecture
 
