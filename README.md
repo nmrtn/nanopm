@@ -143,16 +143,16 @@ Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill k
 
 ## How it compares
 
-| | nanopm | Notion / Linear | ChatGPT |
-|---|---|---|---|
-| Lives in your editor | ✅ | ❌ | ❌ |
-| Persistent memory across sessions | ✅ | ⚠️ manual | ❌ |
-| Full pipeline (audit → PRD) | ✅ | ❌ | ❌ |
-| Reads your codebase | ✅ | ❌ | ❌ |
-| Zero-config (no integrations required) | ✅ | ❌ | ✅ |
-| Adapts to Shape Up / Scrum / Kanban | ✅ | ✅ | ❌ |
+| | nanopm | Claude Code alone | Notion / Linear | ChatGPT |
+|---|---|---|---|---|
+| Lives in your editor | ✅ | ✅ | ❌ | ❌ |
+| Persistent memory across sessions | ✅ | ❌ | ⚠️ manual | ❌ |
+| Full pipeline (audit → PRD) | ✅ | ❌ | ❌ | ❌ |
+| Reads your codebase | ✅ | ✅ | ❌ | ❌ |
+| Zero-config (no integrations required) | ✅ | ✅ | ❌ | ✅ |
+| Adapts to Shape Up / Scrum / Kanban | ✅ | ⚠️ if you prompt it | ✅ | ❌ |
 
-Notion and Linear are great for tracking decisions. They don't make them. ChatGPT is great for one-off prompts. It doesn't remember the last six months of your product thinking. nanopm fills the gap between "I have a codebase" and "I have a clear plan".
+Claude Code alone is powerful but stateless — context resets every session, there's no structured pipeline, and methodology has to be re-explained each time. nanopm is what you add to Claude Code when you want the PM workflow to be repeatable, not improvised.
 
 ---
 
