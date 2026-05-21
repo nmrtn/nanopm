@@ -151,6 +151,7 @@ Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill k
 | Reads your codebase | ✅ | ✅ | ❌ | ❌ |
 | Zero-config (no integrations required) | ✅ | ✅ | ❌ | ✅ |
 | Adapts to Shape Up / Scrum / Kanban | ✅ | ⚠️ if you prompt it | ✅ | ❌ |
+| Outputs tickets & engineering specs | ✅ Linear, GitHub, OpenSpec | ⚠️ ad-hoc | ⚠️ Linear only | ❌ |
 
 Claude Code alone is powerful but stateless — context resets every session, there's no structured pipeline, and methodology has to be re-explained each time. nanopm is what you add to Claude Code when you want the PM workflow to be repeatable, not improvised.
 
