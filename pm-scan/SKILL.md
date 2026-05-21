@@ -56,6 +56,16 @@ Read the project root to understand what kind of thing this is:
 ls -1 .
 ```
 
+Also check for OpenSpec:
+
+```bash
+[ -d "openspec/specs" ] && find openspec/specs -name "spec.md" | head -20 || echo "OPENSPEC_NOT_FOUND"
+```
+
+**If OpenSpec specs found:** Read all `openspec/specs/*/spec.md` files before synthesis. These describe *intended behavior* — more reliable than the README for understanding what the product is supposed to do. Note: the gap between spec and tests is a signal — a spec with no corresponding tests is aspirational. Flag each one.
+
+Store as `_OPENSPEC_SPECS` for use in Phase 8 synthesis.
+
 Look for and read (if present):
 - `package.json` / `package-lock.json` — JS/TS stack, dependencies, scripts
 - `Cargo.toml` — Rust
@@ -180,6 +190,7 @@ The 3-5 step sequence a user goes through to get value. Derived from routes and 
 
 **4. What's real vs. aspirational**
 Features in code with tests = real. Features in README without routes/tests = aspirational. Be explicit.
+If OpenSpec specs exist: also cross-reference each spec against tests. A spec with no test = the team wrote down the intent but hasn't validated it. A test with no spec = behavior that grew organically without documented requirements.
 
 **5. The main technical bets**
 What technology choices does the product depend on? (e.g., "real-time sync via WebSockets", "LLM at the core of every response", "offline-first SQLite"). Each bet is a risk.
@@ -258,6 +269,16 @@ Each is a risk — if the bet is wrong, significant rework follows.}
 - Most-changed area: {subsystem} — {what this suggests}
 - Recently shipped: {items from git log}
 - Stale areas: {subsystems with few recent commits — may be stable or abandoned}
+
+---
+
+## OpenSpec Coverage
+
+{Only include this section if openspec/specs/ was found. Otherwise omit entirely.}
+
+| Spec | Has tests? | Gap |
+|------|-----------|-----|
+| {spec name} | {yes/no/partial} | {what's missing or unvalidated} |
 
 ---
 

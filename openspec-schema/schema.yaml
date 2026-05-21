@@ -1,0 +1,56 @@
+name: nanopm
+version: 1
+description: |
+  PM-first workflow. Runs nanopm's planning pipeline (audit → strategy → roadmap → PRD)
+  upstream of implementation. Use this when you need to figure out WHAT to build before
+  OpenSpec figures out HOW to build it.
+
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Product proposal derived from nanopm audit + PRD
+    template: proposal.md
+    instruction: |
+      Create a product proposal based on the nanopm audit and PRD context provided.
+      Focus on the problem (from the audit), the solution (from the PRD), and
+      the success criteria (from the objectives). Reference the nanopm artifacts
+      if they exist in .nanopm/.
+    requires: []
+
+  - id: specs
+    generates: specs/**/*.md
+    description: Functional requirements as SHALL statements, one file per capability
+    template: spec.md
+    instruction: |
+      Convert the PRD's functional requirements into OpenSpec SHALL statements.
+      One spec file per logical capability. Use Given/When/Then scenarios.
+      If .nanopm/prds/ exists, read the PRD there and extract requirements directly.
+    requires:
+      - proposal
+
+  - id: design
+    generates: design.md
+    description: Technical design derived from PRD constraints and nanopm strategy
+    template: design.md
+    instruction: |
+      Create a technical design based on the PRD's technical notes and the
+      nanopm strategy context. Focus on key decisions and trade-offs.
+      If .nanopm/STRATEGY.md exists, reference the strategic constraints.
+    requires:
+      - proposal
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist broken down from the PRD
+    template: tasks.md
+    instruction: |
+      Create an implementation checklist from the proposal and specs.
+      If .nanopm/tasks/ has an existing breakdown, use it as the source of truth.
+      Each task should be independently shippable, 1-3 days of work.
+    requires:
+      - specs
+      - design
+
+apply:
+  requires: [tasks]
+  tracks: tasks.md

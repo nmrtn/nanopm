@@ -233,6 +233,33 @@ Local analytics (`~/.nanopm/analytics/skill-usage.jsonl`) always work regardless
 
 ---
 
+## Works with OpenSpec
+
+[OpenSpec](https://openspec.dev) is a spec-driven development framework — specs live as markdown in your repo, and `/opsx:propose` turns a feature description into a proposal + design + tasks that any AI coding agent can execute.
+
+nanopm and OpenSpec are complementary layers:
+
+| Layer | Tool | Answers |
+|-------|------|---------|
+| PM | **nanopm** | Why to build, what to build, for whom, strategy, roadmap |
+| Engineering | **OpenSpec** | How to build it, what are the requirements, what are the tasks |
+
+**nanopm ends where OpenSpec begins.** `/pm-breakdown` can write an OpenSpec-compatible change folder directly — so your PRD becomes immediately executable:
+
+```
+openspec/changes/my-feature/
+├── proposal.md   ← from the PRD
+├── design.md     ← technical decisions
+├── tasks.md      ← the breakdown
+└── specs/        ← requirements as SHALL statements
+```
+
+Then run `/opsx:apply` to implement. No copy-paste.
+
+If your repo already uses OpenSpec, `/pm-scan` will read your `openspec/specs/` files automatically — they describe intended behavior more accurately than a README.
+
+---
+
 ## Uninstall
 
 ```bash
