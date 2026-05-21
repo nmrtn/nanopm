@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 — 2026-05-21
+
+### Multi-host support (Mistral Vibe + OpenAI Codex)
+- **`setup --host` flag** — install to a specific agent: `--host=claude`, `--host=vibe`, `--host=codex`, `--host=all`. Default (`auto`) detects installed agents and installs to all of them.
+- **Mistral Vibe translation** — setup rewrites `allowed-tools` from Claude's PascalCase comma-separated format to Vibe's snake_case space-separated format. Tool mapping: `Bash→bash`, `Read→read_file`, `Write→write_file`, `Edit→search_replace`, `Grep→grep`, `AskUserQuestion→ask_user_question`, `Agent→task`, `WebFetch→webfetch`. Glob is dropped (no Vibe equivalent; bash accomplishes the same).
+- **OpenAI Codex translation** — setup strips `allowed-tools` from the frontmatter entirely (Codex rejects unknown frontmatter keys). Skill body runs as-is; Codex handles AskUserQuestion blocks conversationally.
+- **Host detection in `lib/nanopm.sh`** — `$NANOPM_HOST` is exported at source time (`claude` / `vibe` / `codex`), detected via environment variables set by each agent.
+- **README updated** — install section now shows all four host variants with a host → install path → invocation table.
+- **CLAUDE.md updated** — development setup section covers all `--host` options.
+
 ## 0.5.0 — 2026-05-21
 
 ### OpenSpec integration

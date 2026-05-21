@@ -25,7 +25,11 @@ Data ingestion: MCP → API → browser → CONTEXT.md manual fallback.
 ## Development
 
 ```bash
-./setup          # install skills to ~/.claude/skills/
+./setup                   # auto-detect installed agents, install to all
+./setup --host=claude     # Claude Code only → ~/.claude/skills/
+./setup --host=vibe       # Mistral Vibe only → ~/.vibe/skills/
+./setup --host=codex      # OpenAI Codex only → ~/.codex/skills/
+./setup --host=all        # all paths including ~/.agents/skills/
 ```
 
 ## Testing

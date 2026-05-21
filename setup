@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# nanopm setup — install nanopm skills into Claude Code
+# nanopm setup — install nanopm skills into Claude Code, Mistral Vibe, or OpenAI Codex
 # Usage: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
-# Or:    bash setup   (from repo root)
+#        curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -- --host=vibe
+#        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.4.3"
+NANOPM_VERSION="0.5.1"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
-INSTALL_DIR="$HOME/.claude/skills"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
 
 # ── colors ────────────────────────────────────────────────────────────────────
@@ -22,6 +22,16 @@ ok()   { printf '  %s %s\n' "$(_green '✓')" "$*"; }
 warn() { printf '  %s %s\n' "$(_yellow '⚠')" "$*"; }
 fail() { printf '  %s %s\n' "$(_red '✗')" "$*"; echo; exit 1; }
 
+# ── parse arguments ───────────────────────────────────────────────────────────
+_HOST="auto"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --host=*) _HOST="${1#--host=}"; shift ;;
+    --host)   shift; _HOST="${1:-auto}"; shift ;;
+    *)        shift ;;
+  esac
+done
+
 # ── detect install source ─────────────────────────────────────────────────────
 # Running from piped curl: download files. Running locally: copy from repo root.
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-/dev/stdin}")" 2>/dev/null && pwd || echo "")"
@@ -35,22 +45,89 @@ fi
 
 # ── banner ────────────────────────────────────────────────────────────────────
 echo
-echo "  $(_bold 'nanopm') v${NANOPM_VERSION} — PM automation for Claude Code"
+echo "  $(_bold 'nanopm') v${NANOPM_VERSION} — PM automation for AI coding agents"
 echo "  $NANOPM_REPO"
 echo
 
-# ── preflight checks ──────────────────────────────────────────────────────────
-step "Checking prerequisites"
-
-# Claude Code skills directory
-if [ ! -d "$HOME/.claude" ]; then
-  fail "Claude Code not found at ~/.claude. Install Claude Code first: https://claude.ai/claude-code"
+# ── resolve --host ─────────────────────────────────────────────────────────────
+# auto: detect which agents are installed and install to all of them
+if [ "$_HOST" = "auto" ]; then
+  _HOST="claude"
+  command -v vibe  >/dev/null 2>&1 && _HOST="${_HOST},vibe"
+  command -v codex >/dev/null 2>&1 && _HOST="${_HOST},codex"
 fi
-ok "Claude Code found"
+
+# Build _TARGETS array: "name:dir" entries
+_TARGETS=()
+case ",$_HOST," in
+  *,claude,*|*,all,*) _TARGETS+=("claude:$HOME/.claude/skills") ;;
+esac
+case ",$_HOST," in
+  *,vibe,*|*,all,*)   _TARGETS+=("vibe:$HOME/.vibe/skills") ;;
+esac
+case ",$_HOST," in
+  *,codex,*|*,all,*)  _TARGETS+=("codex:$HOME/.codex/skills") ;;
+esac
+case ",$_HOST," in
+  *,agents,*|*,all,*) _TARGETS+=("agents:$HOME/.agents/skills") ;;
+esac
+
+if [ "${#_TARGETS[@]}" -eq 0 ]; then
+  fail "Unknown --host value '$_HOST'. Use: auto, claude, vibe, codex, all, or comma-separated combo."
+fi
+
+# ── preflight checks ──────────────────────────────────────────────────────────
+step "Checking host(s): $_HOST"
+
+_VALID_TARGETS=()
+for _te in "${_TARGETS[@]}"; do
+  _tname="${_te%%:*}"
+  _tdir="${_te##*:}"
+  case "$_tname" in
+    claude)
+      if [ ! -d "$HOME/.claude" ]; then
+        warn "Claude Code not found at ~/.claude — skipping (install from https://claude.ai/claude-code)"
+      else
+        ok "Claude Code found → $_tdir"
+        _VALID_TARGETS+=("$_te")
+      fi
+      ;;
+    vibe)
+      if ! command -v vibe >/dev/null 2>&1 && [ ! -d "$HOME/.vibe" ]; then
+        warn "Mistral Vibe not found — skipping (install from https://mistral.ai/fr/products/vibe)"
+      else
+        ok "Mistral Vibe found → $_tdir"
+        _VALID_TARGETS+=("$_te")
+      fi
+      ;;
+    codex)
+      if ! command -v codex >/dev/null 2>&1 && [ ! -d "$HOME/.codex" ]; then
+        warn "OpenAI Codex not found — skipping (install from https://github.com/openai/codex)"
+      else
+        ok "OpenAI Codex found → $_tdir"
+        _VALID_TARGETS+=("$_te")
+      fi
+      ;;
+    agents)
+      ok "Agent Skills path → $_tdir"
+      _VALID_TARGETS+=("$_te")
+      ;;
+  esac
+done
+
+if [ "${#_VALID_TARGETS[@]}" -eq 0 ]; then
+  fail "No supported hosts found. Install Claude Code, Mistral Vibe, or OpenAI Codex first."
+fi
+_TARGETS=("${_VALID_TARGETS[@]}")
 
 # curl (needed for remote installs)
 if [ "$_SOURCE" = "remote" ] && ! command -v curl >/dev/null 2>&1; then
   fail "curl not found. Install curl and retry."
+fi
+
+# python3 (needed for skill translation)
+if ! command -v python3 >/dev/null 2>&1; then
+  fail "python3 not found. Install Python 3 and retry."
 fi
 
 # git (optional but warn)
@@ -60,7 +137,9 @@ fi
 
 # ── create directories ────────────────────────────────────────────────────────
 step "Creating directories"
-mkdir -p "$INSTALL_DIR"
+for _te in "${_TARGETS[@]}"; do
+  mkdir -p "${_te##*:}"
+done
 mkdir -p "$GLOBAL_CONFIG_DIR/lib"
 mkdir -p "$GLOBAL_CONFIG_DIR/connectors"
 mkdir -p "$GLOBAL_CONFIG_DIR/memory"
@@ -81,6 +160,92 @@ _install_file() {
   fi
 }
 
+# ── translation functions ─────────────────────────────────────────────────────
+
+# Translate a Claude SKILL.md for Mistral Vibe:
+#   - Remap PascalCase tool names → snake_case in allowed-tools frontmatter
+#   - Convert comma-separated list → space-separated (Vibe format)
+_translate_skill_for_vibe() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  python3 - "$src" "$dst" <<'PYEOF'
+import sys
+
+src, dst = sys.argv[1], sys.argv[2]
+
+tool_map = {
+    'Bash':            'bash',
+    'Read':            'read_file',
+    'Write':           'write_file',
+    'Edit':            'search_replace',
+    'Glob':            None,             # no Glob in Vibe — drop
+    'Grep':            'grep',
+    'AskUserQuestion': 'ask_user_question',
+    'Agent':           'task',
+    'WebFetch':        'webfetch',
+    'WebSearch':       'webfetch',       # closest equivalent
+    'TodoWrite':       None,             # no equivalent — drop
+}
+
+with open(src) as f:
+    text = f.read()
+
+def translate_tools(tools_str):
+    tools = [t.strip() for t in tools_str.split(',')]
+    mapped = [tool_map.get(t, t.lower()) for t in tools]
+    mapped = [t for t in mapped if t]   # drop None values
+    return ' '.join(mapped)
+
+in_front = False
+lines = text.split('\n')
+out = []
+for line in lines:
+    if line.strip() == '---':
+        in_front = not in_front
+        out.append(line)
+        continue
+    if in_front and line.startswith('allowed-tools:'):
+        tools_part = line[len('allowed-tools:'):].strip()
+        out.append('allowed-tools: ' + translate_tools(tools_part))
+    else:
+        out.append(line)
+
+with open(dst, 'w') as f:
+    f.write('\n'.join(out))
+PYEOF
+}
+
+# Translate a Claude SKILL.md for OpenAI Codex:
+#   - Strip allowed-tools from frontmatter entirely (Codex ignores/rejects it)
+_translate_skill_for_codex() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  python3 - "$src" "$dst" <<'PYEOF'
+import sys
+
+src, dst = sys.argv[1], sys.argv[2]
+
+with open(src) as f:
+    text = f.read()
+
+in_front = False
+lines = text.split('\n')
+out = []
+for line in lines:
+    if line.strip() == '---':
+        in_front = not in_front
+        out.append(line)
+        continue
+    if in_front and line.startswith('allowed-tools:'):
+        continue   # drop it
+    out.append(line)
+
+with open(dst, 'w') as f:
+    f.write('\n'.join(out))
+PYEOF
+}
+
+# ── install shared runtime ────────────────────────────────────────────────────
 step "Installing lib/nanopm.sh"
 _install_file "lib/nanopm.sh" "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
@@ -104,9 +269,38 @@ for connector in README.md linear.md notion.md dovetail.md github.md productboar
 done
 ok "Connectors installed"
 
+# ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-for skill in pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
-  _install_file "$skill/SKILL.md" "$INSTALL_DIR/$skill/SKILL.md"
+_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel"
+
+for skill in $_SKILL_LIST; do
+  # Download/copy source SKILL.md to a temp file once
+  _SKILL_TMP=$(mktemp)
+  if [ "$_SOURCE" = "local" ]; then
+    cp "$_REPO_ROOT/$skill/SKILL.md" "$_SKILL_TMP"
+  else
+    curl -fsSL "$NANOPM_RAW/$skill/SKILL.md" -o "$_SKILL_TMP"
+  fi
+
+  # Install to each target with the appropriate translation
+  for _te in "${_TARGETS[@]}"; do
+    _tname="${_te%%:*}"
+    _tdir="${_te##*:}"
+    mkdir -p "$_tdir/$skill"
+    case "$_tname" in
+      claude|agents)
+        cp "$_SKILL_TMP" "$_tdir/$skill/SKILL.md"
+        ;;
+      vibe)
+        _translate_skill_for_vibe "$_SKILL_TMP" "$_tdir/$skill/SKILL.md"
+        ;;
+      codex)
+        _translate_skill_for_codex "$_SKILL_TMP" "$_tdir/$skill/SKILL.md"
+        ;;
+    esac
+  done
+
+  rm -f "$_SKILL_TMP"
   ok "  $skill"
 done
 
@@ -191,12 +385,19 @@ fi
 # ── verify installation ───────────────────────────────────────────────────────
 step "Verifying installation"
 _ERRORS=0
-for skill in pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel; do
-  if [ -f "$INSTALL_DIR/$skill/SKILL.md" ]; then
-    ok "$skill"
-  else
-    warn "MISSING: $skill/SKILL.md"
-    _ERRORS=$(( _ERRORS + 1 ))
+for _te in "${_TARGETS[@]}"; do
+  _tname="${_te%%:*}"
+  _tdir="${_te##*:}"
+  _te_errors=0
+  for skill in $_SKILL_LIST; do
+    if [ ! -f "$_tdir/$skill/SKILL.md" ]; then
+      warn "MISSING: [$_tname] $skill/SKILL.md"
+      _ERRORS=$(( _ERRORS + 1 ))
+      _te_errors=$(( _te_errors + 1 ))
+    fi
+  done
+  if [ "$_te_errors" -eq 0 ]; then
+    ok "[$_tname] all 13 skills verified at $_tdir"
   fi
 done
 
@@ -206,10 +407,7 @@ fi
 
 # ── check for browse binary (optional, enables Tier 3 data) ──────────────────
 step "Checking browser capability (optional, enables Tier 3 data)"
-_BROWSE_FOUND=0
-# Check nanopm-native paths first
 if [ -x "$HOME/.nanopm/bin/browse" ]; then
-  _BROWSE_FOUND=1
   ok "Browse binary found (~/.nanopm/bin/browse) — Tier 3 connectors available"
 else
   warn "No browse binary found — Tier 3 (browser) connectors will be skipped"
@@ -217,21 +415,31 @@ else
 fi
 
 # ── done ──────────────────────────────────────────────────────────────────────
+_INSTALLED_NAMES=""
+for _te in "${_TARGETS[@]}"; do
+  _n="${_te%%:*}"
+  if [ -n "$_INSTALLED_NAMES" ]; then
+    _INSTALLED_NAMES="${_INSTALLED_NAMES}, ${_n}"
+  else
+    _INSTALLED_NAMES="$_n"
+  fi
+done
+
 echo
-echo "  $(_bold "$(_green 'nanopm installed successfully!')")"
+echo "  $(_bold "$(_green "nanopm installed for: ${_INSTALLED_NAMES}")")"
 echo
 echo "  Available skills:"
 echo "   /pm-run         — run the full pipeline in one command (recommended)"
-echo "   /pm-scan        — read an existing codebase to understand what it actually does
-   /pm-discovery   — figure out WHAT to build before planning HOW (greenfield)"
+echo "   /pm-scan        — read an existing codebase to understand what it actually does"
+echo "   /pm-discovery   — figure out WHAT to build before planning HOW (greenfield)"
 echo "   /pm-audit       — deep product audit, produces AUDIT.md"
 echo "   /pm-objectives  — set OKRs, produces OBJECTIVES.md"
 echo "   /pm-strategy    — product strategy + adversarial review, produces STRATEGY.md"
 echo "   /pm-roadmap     — outcome-driven roadmap, produces ROADMAP.md"
 echo "   /pm-prd         — write a PRD for a feature"
-echo "   /pm-breakdown         — break PRD into tasks, create tickets in Linear / GitHub Issues"
-echo "   /pm-retro             — compare roadmap vs commits, surfaces drift"
-echo "   /pm-upgrade           — upgrade nanopm to the latest version"
+echo "   /pm-breakdown   — break PRD into tasks, create tickets in Linear / GitHub Issues"
+echo "   /pm-retro       — compare roadmap vs commits, surfaces drift"
+echo "   /pm-upgrade     — upgrade nanopm to the latest version"
 echo "   /pm-competitors-intel — monitor competitor changelogs, API docs, and product updates"
 echo
 echo "  Start with:"

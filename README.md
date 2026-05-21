@@ -75,12 +75,25 @@ nanopm:  AUDIT.md written.
 ## Install
 
 ```bash
+# Auto-detect installed agents (Claude Code, Mistral Vibe, OpenAI Codex)
 curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
+
+# Target a specific host
+curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -- --host=claude
+curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -- --host=vibe
+curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -- --host=codex
+
+# Install to all hosts at once
+curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -- --host=all
 ```
 
-Installs to `~/.claude/skills/`. Skills appear as `/pm-*` commands in Claude Code.
+| Host | Skills install to | Invocation |
+|------|-------------------|------------|
+| Claude Code | `~/.claude/skills/` | `/pm-*` commands |
+| Mistral Vibe | `~/.vibe/skills/` | `/pm-*` commands |
+| OpenAI Codex | `~/.codex/skills/` | `/pm-*` commands |
 
-**Requirements:** Claude Code. `python3` (standard on macOS/Linux).
+**Requirements:** One of: Claude Code, Mistral Vibe, or OpenAI Codex. `python3` (standard on macOS/Linux).
 
 **Note:** During setup, you'll choose a telemetry tier (off/anonymous). See [Analytics & Telemetry](#analytics--telemetry) for details.
 

@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-# nanopm runtime library v0.1.0
+# nanopm runtime library v0.2.0
 # Source this from every skill preamble:
 #   source ~/.nanopm/lib/nanopm.sh
 #
 # Provides: config, context/memory, connectors, browser, gitignore check, telemetry
+
+# ── Host detection ───────────────────────────────────────────────────────────
+# Detects which AI coding agent is running nanopm and exports NANOPM_HOST.
+# Skills can use $NANOPM_HOST to branch on host-specific behavior.
+# Currently informational — all skill bodies run as-is on every host.
+
+if [ -n "${VIBE_VERSION:-}" ] || [ -n "${VIBE_SKILLS_DIR:-}" ]; then
+  export NANOPM_HOST="vibe"
+elif [ -n "${CODEX_VERSION:-}" ] || [ -n "${CODEX_SKILLS_DIR:-}" ]; then
+  export NANOPM_HOST="codex"
+else
+  export NANOPM_HOST="claude"
+fi
 
 # ── Config ──────────────────────────────────────────────────────────────────
 # Key-value store in ~/.nanopm/config (one KEY=VALUE per line)
