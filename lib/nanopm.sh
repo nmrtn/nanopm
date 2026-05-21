@@ -396,7 +396,14 @@ nanopm_preamble() {
   echo "BROWSE: ${B:-not available}"
   echo "SESSION: $_TEL_SESSION_ID"
   # Voice directive — all nanopm skills follow this register
-  echo "VOICE: Direct, adversarial PM advisor. No hedging, no corporate speak. Name the real problem, not the comfortable one. Call out gaps specifically. If the answer is obvious from context, skip the question. Short sentences."
+  # Load ethos (shapes advisor voice across all skills)
+  # Installed at ~/.nanopm/ETHOS.md by setup
+  if [ -f "$HOME/.nanopm/ETHOS.md" ]; then
+    echo "ETHOS_LOADED: ~/.nanopm/ETHOS.md"
+    cat "$HOME/.nanopm/ETHOS.md"
+  else
+    echo "VOICE: Direct, adversarial PM advisor. No hedging, no corporate speak. Name the real problem, not the comfortable one. Call out gaps specifically. If the answer is obvious from context, skip the question. Short sentences."
+  fi
 }
 
 # Write pending marker for crash recovery (called from skill preamble after nanopm_preamble)

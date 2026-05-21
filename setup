@@ -246,10 +246,11 @@ PYEOF
 }
 
 # ── install shared runtime ────────────────────────────────────────────────────
-step "Installing lib/nanopm.sh"
+step "Installing lib/nanopm.sh and ETHOS.md"
 _install_file "lib/nanopm.sh" "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
-ok "lib/nanopm.sh installed"
+_install_file "ETHOS.md" "$GLOBAL_CONFIG_DIR/ETHOS.md"
+ok "lib/nanopm.sh and ETHOS.md installed"
 
 step "Installing telemetry binaries"
 mkdir -p "$GLOBAL_CONFIG_DIR/bin"
