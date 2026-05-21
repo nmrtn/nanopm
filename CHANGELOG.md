@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.5.0 — 2026-05-21
+
+### OpenSpec integration
+- **`/pm-breakdown` writes OpenSpec change folders** — choose "OpenSpec" as a write target to produce `openspec/changes/<feature>/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/` in OpenSpec format. Run `/opsx:apply` to implement directly.
+- **`/pm-scan` reads OpenSpec specs** — if `openspec/specs/` exists, scans specs before synthesis and surfaces spec/test gaps in SCAN.md
+- **Community schema** — `openspec-schema/` is a valid OpenSpec schema that nanopm users can copy into their project. Listed in the OpenSpec community catalog.
+- **README "Works with OpenSpec" section** — explains the two-layer model (nanopm = PM layer, OpenSpec = engineering layer)
+
+### Bug fixes (16 issues from alignment review)
+- `pm-retro`: fixed missing closing fence and merged section headers
+- `pm-audit`: now explicitly reads SCAN.md to use pm-scan pre-fills for Q1–Q4
+- `pm-run`: fixed PRD path in summary (`.nanopm/prds/` not `.nanopm/PRD-`)
+- `pm-prd`: fixed `context_append` next value (`implement` → `pm-breakdown`)
+- `pm-competitors-intel`: fixed unclosed string in Completion section
+- `pm-user-feedback`: removed dead `/tmp/nanopm-feedback-cluster.txt` path
+- `pm-upgrade`: removed misleading local CHANGELOG.md path reference
+- `setup`: removed dead community telemetry tier (removed in v0.4.3 but code remained)
+- `README`: fixed install path, pipeline description, mermaid diagram, connector list
+- `CLAUDE.md`: fixed install path, removed non-existent `--local` flag
+- `llms.txt`: added `pm-upgrade`, fixed pipeline description
+- `connectors/README.md`: added Productboard row
+- `connectors/dovetail.md`: fixed Q6 description
+
 ## 0.4.3 — 2026-04-07
 
 ### Simplification
