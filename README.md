@@ -47,18 +47,22 @@ Each skill writes a markdown artifact. The next skill reads it. Context compound
 You:     /pm-audit
 
 nanopm:  Q1: What are you building? (one sentence)
-You:     A Claude Code skill pack for PM workflows.
+You:     An AI agent harness for financial advisors — automates
+         client reporting, portfolio commentary, and compliance checks.
 
 nanopm:  Q2: Who is it actually for?
-You:     Solo founders who context-switch too much.
+You:     Independent RIAs managing $50M–$500M books, no ops team.
 
 ...11 questions later...
 
 nanopm:  AUDIT.md written.
 
-         Biggest gap: no evidence of demand. You're solving
-         your own problem without knowing if others have it.
-         Question you're avoiding: would you pay for this?
+         Biggest gap: you're solving the reporting problem, but the
+         job your users are actually hired to do is winning and
+         keeping clients. Faster reports don't help if advisors
+         can't explain the AI's output to a nervous client.
+         Question you're avoiding: would a compliance officer
+         sign off on AI-generated commentary going out unsupervised?
 
          Recommended next: /pm-discovery
 ```
