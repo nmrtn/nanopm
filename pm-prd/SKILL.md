@@ -50,6 +50,17 @@ Store the feature name as `_FEATURE`.
 
 ## Phase 2: User research pull
 
+Check for DATA.md — quantitative analytics from /pm-data:
+
+```bash
+[ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
+```
+
+**If DATA_EXISTS:** read `.nanopm/DATA.md`. Find findings relevant to `_FEATURE`:
+- Funnel drop-off rates → use to quantify the problem size in the Problem Statement
+- Retention or usage metrics → use as baseline targets in Success Criteria
+- Cite only 🟢 high-confidence metrics — don't use 🔴 low-confidence numbers as facts in a PRD
+
 Check for FEEDBACK.md first — it's the pre-synthesized source that already aggregates Dovetail, Productboard, and other sources:
 
 ```bash
@@ -182,7 +193,9 @@ Status: DRAFT
 Include: who experiences it, how often, what they do today instead (the workaround), and the cost of the workaround.
 2-4 sentences.}
 
-{If Dovetail data was available: include 1-2 verbatim user quotes here.}
+{If DATA.md had relevant 🟢 metrics: include one quantified fact here — e.g., "X% of users drop off at step N" or "only Y% return after day 7". One number, with source: "(DATA.md)".}
+
+{If FEEDBACK.md had relevant quotes: include 1-2 verbatim user quotes here.}
 
 ---
 

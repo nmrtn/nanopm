@@ -34,3 +34,13 @@ That's it. No code changes needed.
 | dovetail | — | `DOVETAIL_API_KEY` | dovetail.com | Insights, themes, tags |
 | github | `mcp__github__*` | `GITHUB_TOKEN` | github.com | Issues, PRs, releases |
 | productboard | — | `PRODUCTBOARD_API_KEY` | app.productboard.com | Features, insights, user notes |
+| google-calendar | `mcp__claude_ai_Google_Calendar__*` | OAuth v3 | — | Today's events, meetings |
+| granola | `mcp__claude_ai_Granola__*` | — | — | Meeting notes, transcripts |
+| posthog | `mcp__claude_ai_PostHog__*` | `POSTHOG_API_KEY` + `POSTHOG_PROJECT_ID` | — | Trends, funnels, retention, paths |
+| amplitude | — | `AMPLITUDE_API_KEY` + `AMPLITUDE_SECRET_KEY` | app.amplitude.com | Trends, funnels, retention |
+| mixpanel | — | `MIXPANEL_SERVICE_ACCOUNT` + secret | mixpanel.com | Event trends, funnels |
+| intercom | — | `INTERCOM_API_TOKEN` | app.intercom.com | Conversations, support themes |
+| hubspot | — | `HUBSPOT_API_KEY` | app.hubspot.com | Deals, pipeline, ICP signal |
+| jira | (preview) | `JIRA_DOMAIN` + `JIRA_API_TOKEN` | atlassian.net | Active sprint, blockers |
+| google-drive | `mcp__google_drive__*` | OAuth v3 | drive.google.com | PRDs, research docs, strategy |
+| slack | `mcp__slack__*` | `SLACK_API_TOKEN` | — | Channel decisions, customer mentions |

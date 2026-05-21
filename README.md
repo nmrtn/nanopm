@@ -103,6 +103,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 
 ## All skills
 
+**Planning pipeline:**
 ```
 /pm-run              → full pipeline in one command
 /pm-scan             → read an existing codebase to understand what it actually does before planning
@@ -118,6 +119,14 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-retro            → compare roadmap vs commits, surface what drifted
 ```
 
+**Daily ops:**
+```
+/pm-standup          → morning briefing — what shipped, today's meetings, top 1-3 priorities
+/pm-interview        → prepare a user interview guide, or debrief a transcript from Granola
+/pm-weekly-update    → draft stakeholder update email (CEO, investor, or team), adapted to audience
+/pm-data             → answer a product question using PostHog or Amplitude — trends, funnels, retention
+```
+
 The pipeline compounds. Every skill also works standalone.
 
 ---
@@ -131,7 +140,11 @@ graph LR
     SCAN["/pm-scan"]:::entry -->|existing codebase| AUDIT["/pm-audit"]
     DISC["/pm-discovery"]:::entry -->|greenfield| AUDIT
     UF["/pm-user-feedback"] --> AUDIT
-    UF --> OBJ["/pm-objectives"]
+    INT["/pm-interview"]:::daily --> FEEDBACK[(FEEDBACK.md)]
+    DATA["/pm-data"]:::daily --> AUDIT
+    FEEDBACK --> AUDIT
+    FEEDBACK --> OBJ["/pm-objectives"]
+    UF --> OBJ
     AUDIT --> OBJ
     OBJ --> STRAT["/pm-strategy"]
     UF --> STRAT
@@ -139,13 +152,18 @@ graph LR
     CI["/pm-competitors-intel"] --> STRAT
     STRAT --> ROAD
     ROAD --> PRD["/pm-prd"]
+    DATA --> PRD
     PRD --> BREAK["/pm-breakdown"]
     BREAK --> SHIP(["ship"])
     SHIP --> RETRO["/pm-retro"]
     RETRO -.->|next cycle| AUDIT
 
+    STAND["/pm-standup"]:::daily -.->|reads| AUDIT
+    WEEKLY["/pm-weekly-update"]:::daily -.->|reads| RETRO
+
     classDef runner fill:#f5f5f5,stroke:#aaa,stroke-dasharray:5 5
     classDef entry fill:#e8f4e8,stroke:#5a9e5a
+    classDef daily fill:#e8f0fa,stroke:#5a7ab0
 ```
 
 ---
@@ -185,7 +203,27 @@ nanopm tries each tier in order, uses the highest available:
 
 No integrations required. Tier 4 always works.
 
-Connectors: Linear, GitHub Issues, Notion, Dovetail, Productboard.
+**Connectors:**
+
+| Connector | Primary use | Tier 1 (MCP) | Tier 2 (API key) |
+|-----------|------------|-------------|-----------------|
+| Linear | Sprint, issues, roadmap | ✅ | `LINEAR_API_KEY` |
+| GitHub Issues | PRs, releases, issues | ✅ | `GITHUB_TOKEN` |
+| Notion | Pages, databases | ✅ | `NOTION_API_KEY` |
+| Dovetail | Insights, themes | — | `DOVETAIL_API_KEY` |
+| Productboard | Features, user notes | — | `PRODUCTBOARD_API_KEY` |
+| PostHog | Trends, funnels, retention | ✅ | `POSTHOG_API_KEY` |
+| Amplitude | Trends, funnels, retention | — | `AMPLITUDE_API_KEY` |
+| Mixpanel | Event trends, funnels | — | `MIXPANEL_SERVICE_ACCOUNT` |
+| Google Calendar | Today's meetings | ✅ | — |
+| Granola | Meeting transcripts | ✅ | — |
+| Intercom | Support tickets, themes | — | `INTERCOM_API_TOKEN` |
+| HubSpot | Pipeline, ICP signal | — | `HUBSPOT_API_KEY` |
+| Jira | Sprint, blockers | (preview) | `JIRA_API_TOKEN` |
+| Google Drive | PRDs, research docs | ✅ | — |
+| Slack | Channel decisions | ✅ | `SLACK_API_TOKEN` |
+
+See [`connectors/README.md`](connectors/README.md) for full setup details per connector.
 
 ---
 

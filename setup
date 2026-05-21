@@ -5,7 +5,7 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.5.1"
+NANOPM_VERSION="0.5.2"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
@@ -272,7 +272,7 @@ ok "Connectors installed"
 
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel"
+_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
 
 for skill in $_SKILL_LIST; do
   # Download/copy source SKILL.md to a temp file once
@@ -442,6 +442,12 @@ echo "   /pm-breakdown   — break PRD into tasks, create tickets in Linear / Gi
 echo "   /pm-retro       — compare roadmap vs commits, surfaces drift"
 echo "   /pm-upgrade     — upgrade nanopm to the latest version"
 echo "   /pm-competitors-intel — monitor competitor changelogs, API docs, and product updates"
+echo
+echo "  Daily ops:"
+echo "   /pm-standup     — morning briefing: what shipped, today's meetings, top priorities"
+echo "   /pm-interview   — user interview guide or transcript debrief → FEEDBACK.md"
+echo "   /pm-weekly-update — draft stakeholder update email"
+echo "   /pm-data        — answer a product question with PostHog or Amplitude"
 echo
 echo "  Start with:"
 echo "   $(_bold '/pm-run')  — or  $(_bold '/pm-discovery')  if you're not sure what to build"

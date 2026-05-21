@@ -1,19 +1,21 @@
 # nanopm
 
-nanopm is an AI-powered product management CLI for Claude Code. It automates the full product planning cycle — audit, objectives, strategy, roadmap, PRD, and tickets — directly inside your editor, with persistent memory across sessions.
+nanopm is an AI-powered product management skill pack for AI coding agents. It automates the full product planning cycle — audit, objectives, strategy, roadmap, PRD, and tickets — directly inside your editor, with persistent memory across sessions.
 
 ## What it is
 
-nanopm is a set of Claude Code skills (slash commands) that run a structured PM workflow. Each skill is a markdown file containing instructions for Claude. Skills chain together: each one writes a markdown artifact that the next one reads, so context compounds automatically.
+nanopm is a set of skills (slash commands) that run a structured PM workflow inside AI coding agents. Each skill is a markdown file containing instructions for the agent. Skills chain together: each one writes a markdown artifact that the next one reads, so context compounds automatically.
 
-It is not a SaaS tool. It is not a web app. It runs entirely inside your terminal via Claude Code.
+It is not a SaaS tool. It is not a web app. It runs entirely inside your terminal via any compatible AI coding agent.
+
+Works with Claude Code, Mistral Vibe, and OpenAI Codex.
 
 ## Who it is for
 
 - Solo founders acting as their own product manager
 - Engineers doing product work without a dedicated PM
 - Small teams that want a repeatable, structured planning process
-- AI-native builders using Claude Code who want product planning next to their code
+- AI-native builders who want product planning next to their code
 
 ## What problems it solves
 
@@ -28,20 +30,21 @@ Install with:
 curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
 ```
 
-Skills appear as `/pm-*` commands in Claude Code. One command runs the full pipeline:
+Skills appear as `/pm-*` commands. One command runs the full pipeline:
 ```
 /pm-run
 ```
 
-The full pipeline:
+The full planning pipeline:
 ```
-feedback → audit → objectives → strategy → roadmap → PRD → tickets
+interviews → data → audit → objectives → strategy → roadmap → PRD → tickets
 ```
 
 Each skill also works standalone.
 
 ## Skills
 
+**Planning pipeline:**
 - `/pm-run` — full pipeline in one command
 - `/pm-scan` — read an existing codebase to understand what it does before planning
 - `/pm-discovery` — figure out WHAT to build before planning HOW (pre-product / greenfield)
@@ -56,9 +59,15 @@ Each skill also works standalone.
 - `/pm-retro` — compare roadmap vs commits, surface what drifted
 - `/pm-upgrade` — upgrade nanopm to the latest version
 
+**Daily ops:**
+- `/pm-standup` — morning briefing: what shipped yesterday, today's meetings, top 1-3 priorities
+- `/pm-interview` — prepare a user interview guide, or debrief a Granola transcript into FEEDBACK.md
+- `/pm-weekly-update` — draft stakeholder update email (CEO, investor, or team), adapted to audience
+- `/pm-data` — answer a product question using PostHog or Amplitude (trends, funnels, retention)
+
 ## Memory system
 
-Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`. The next skill reads this file to understand what was tried before. Re-running `/pm-audit` six months later gives Claude the full history of prior decisions.
+Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`. The next skill reads this file to understand what was tried before. Re-running `/pm-audit` six months later gives the agent the full history of prior decisions.
 
 ## Key differentiators
 
@@ -68,18 +77,21 @@ Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`
 - Zero-config — works with no integrations (tier 4 always available)
 - Adapts to Shape Up, Scrum, Kanban, or no methodology
 - Full pipeline: context compounds from audit through to tickets
+- Daily ops loop: standup, interview debriefs, and weekly updates feed back into planning
 
 ## How it gets data
 
 nanopm tries each tier in order, uses the highest available:
-1. MCP — direct tool calls (Linear, Notion, GitHub)
+1. MCP — direct tool calls (Linear, Notion, GitHub, PostHog, Google Calendar, Granola, Slack...)
 2. API — REST/GraphQL via environment variables
 3. Browser — headless scrape
 4. Manual — user provides input directly (always works, zero setup)
 
+Connectors: Linear, GitHub, Notion, Dovetail, Productboard, PostHog, Amplitude, Mixpanel, Google Calendar, Granola, Intercom, HubSpot, Jira, Google Drive, Slack.
+
 ## Requirements
 
-- Claude Code
+- One of: Claude Code, Mistral Vibe, or OpenAI Codex
 - python3 (standard on macOS/Linux)
 - No integrations required
 

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.5.2 — 2026-05-21
+
+### Daily ops layer (from PRs #6 and #7 by @alexhumeau)
+
+**New skills:**
+- **`/pm-standup`** — morning briefing that reads recent commits, Google Calendar events, and Granola meeting notes. Surfaces what shipped, today's meetings, and top 1-3 priorities. Works standalone from a Product OS folder (no codebase required).
+- **`/pm-interview`** — user interview guide generator and transcript debrief. Draws on Teresa Torres (story-based), Rob Fitzpatrick (Mom Test), Bob Moesta (JTBD Switch), and Cindy Alvarez (Lean Customer Dev). Imports transcripts from Granola automatically. Writes signal to `FEEDBACK.md`.
+- **`/pm-weekly-update`** — drafts stakeholder update email adapted to audience (CEO, investor, or team). Reads ROADMAP.md, RETRO.md, and recent commits. Adapts tone per audience.
+- **`/pm-data`** — answers a specific product question using PostHog or Amplitude (trends, funnels, retention, paths). Writes findings to `DATA.md`. Consumed by `/pm-audit` and `/pm-prd`.
+
+**New connectors (6):**
+- **`connectors/intercom.md`** — conversations, support themes (Tier 2 API)
+- **`connectors/slack.md`** — channel decisions and customer mentions (Tier 1 MCP + Tier 2 API)
+- **`connectors/mixpanel.md`** — event trends, funnels (Tier 2 API)
+- **`connectors/jira.md`** — active sprint, blockers (Tier 1 MCP preview + Tier 2 API)
+- **`connectors/google-drive.md`** — PRDs, research docs, strategy docs (Tier 1 MCP)
+- **`connectors/hubspot.md`** — pipeline, ICP signal, deal notes (Tier 2 API)
+
+**Existing connectors added (from PRs #6 and #7):**
+- **`connectors/google-calendar.md`** — today's events and meeting prep signal for `/pm-standup`
+- **`connectors/granola.md`** — meeting transcripts for `/pm-standup` and `/pm-interview`
+- **`connectors/posthog.md`** — trends, funnels, retention for `/pm-data`
+- **`connectors/amplitude.md`** — trends, funnels, retention for `/pm-data`
+
+**Skill integrations:**
+- **`/pm-audit`** now reads `DATA.md` if present — quantitative findings are folded into Phase 4 synthesis. Contradictions between quanti and quali are flagged explicitly. Removed SCAN.md pre-fill block (simplified).
+- **`/pm-prd`** now reads `DATA.md` if present — 🟢 high-confidence metrics used in Problem Statement and Success Criteria.
+
+**README and docs:**
+- All-skills section split into "Planning pipeline" and "Daily ops" groups
+- Pipeline diagram updated with daily ops layer (pm-standup, pm-interview, pm-weekly-update, pm-data)
+- Connectors table expanded from 5 to 15 connectors
+- `llms.txt` updated with new skills and connector list
+- `CLAUDE.md` updated: header changed to "AI coding agents", new skills added
+
 ## 0.5.1 — 2026-05-21
 
 ### Multi-host support (Mistral Vibe + OpenAI Codex)
