@@ -150,10 +150,6 @@ if [ -t 0 ]; then
       echo "telemetry=off" >> "$_CONFIG"
       ok "Telemetry disabled — local analytics still available"
       ;;
-    community|COMMUNITY)
-      echo "telemetry=community" >> "$_CONFIG"
-      ok "Community telemetry enabled — thank you for helping improve nanopm!"
-      ;;
     *)
       echo "telemetry=anonymous" >> "$_CONFIG"
       ok "Anonymous telemetry enabled — thank you!"

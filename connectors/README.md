@@ -33,3 +33,4 @@ That's it. No code changes needed.
 | notion | `mcp__notion__*` | `NOTION_API_KEY` | notion.so | Pages, databases |
 | dovetail | — | `DOVETAIL_API_KEY` | dovetail.com | Insights, themes, tags |
 | github | `mcp__github__*` | `GITHUB_TOKEN` | github.com | Issues, PRs, releases |
+| productboard | — | `PRODUCTBOARD_API_KEY` | app.productboard.com | Features, insights, user notes |

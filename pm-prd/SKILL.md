@@ -269,7 +269,7 @@ The "What will be different in commits?" row is REQUIRED. If you cannot answer i
 
 ```bash
 _PRD_FILE="$_PRD_DIR/${_SLUG_FEATURE}.md"
-nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $_FEATURE | tr '\"' \"'\")\",\"file\":\"$_PRD_FILE\",\"status\":\"DRAFT\",\"next\":\"implement\"}}"
+nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $_FEATURE | tr '\"' \"'\")\",\"file\":\"$_PRD_FILE\",\"status\":\"DRAFT\",\"next\":\"pm-breakdown\"}}"
 ```
 
 ## Completion

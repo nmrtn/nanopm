@@ -32,7 +32,7 @@ One command runs the full pipeline:
 ```
 
 ```
-audit → objectives → strategy → roadmap → PRD → tickets
+feedback → audit → objectives → strategy → roadmap → PRD → tickets
 ```
 
 Each skill writes a markdown artifact. The next skill reads it. Context compounds — the strategy knows the audit, the PRD knows the strategy, the tickets know the PRD. Re-run `/pm-audit` six months later and it knows what you tried before.
@@ -78,11 +78,11 @@ nanopm:  AUDIT.md written.
 curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
 ```
 
-Installs to `~/.claude/skills/nanopm/`. Skills appear as `/pm-*` commands in Claude Code.
+Installs to `~/.claude/skills/`. Skills appear as `/pm-*` commands in Claude Code.
 
 **Requirements:** Claude Code. `python3` (standard on macOS/Linux).
 
-**Note:** During setup, you'll choose a telemetry tier (off/anonymous/community). See [Analytics & Telemetry](#analytics--telemetry) for details.
+**Note:** During setup, you'll choose a telemetry tier (off/anonymous). See [Analytics & Telemetry](#analytics--telemetry) for details.
 
 ---
 
@@ -115,11 +115,14 @@ graph LR
 
     SCAN["/pm-scan"]:::entry -->|existing codebase| AUDIT["/pm-audit"]
     DISC["/pm-discovery"]:::entry -->|greenfield| AUDIT
-    AUDIT --> OBJ["/pm-objectives"]
+    UF["/pm-user-feedback"] --> AUDIT
+    UF --> OBJ["/pm-objectives"]
+    AUDIT --> OBJ
     OBJ --> STRAT["/pm-strategy"]
-    UF["/pm-user-feedback"] --> STRAT
+    UF --> STRAT
+    UF --> ROAD["/pm-roadmap"]
     CI["/pm-competitors-intel"] --> STRAT
-    STRAT --> ROAD["/pm-roadmap"]
+    STRAT --> ROAD
     ROAD --> PRD["/pm-prd"]
     PRD --> BREAK["/pm-breakdown"]
     BREAK --> SHIP(["ship"])
@@ -166,7 +169,7 @@ nanopm tries each tier in order, uses the highest available:
 
 No integrations required. Tier 4 always works.
 
-Connectors: Linear, GitHub Issues, Notion, Dovetail.
+Connectors: Linear, GitHub Issues, Notion, Dovetail, Productboard.
 
 ---
 

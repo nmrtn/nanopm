@@ -116,7 +116,7 @@ rm -f ~/.nanopm/update-snoozed
 
 ### Step 6: Show what's new
 
-Read `~/.claude/skills/pm-upgrade/../CHANGELOG.md` if it exists (installed alongside the skills), or fetch from GitHub:
+Fetch the changelog from GitHub:
 
 ```bash
 _CHANGELOG=$(curl -fsSL --max-time 5 \

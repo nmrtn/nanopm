@@ -157,7 +157,7 @@ Output a summary table:
   OBJECTIVES.md ✅  .nanopm/OBJECTIVES.md
   STRATEGY.md   ✅  .nanopm/STRATEGY.md
   ROADMAP.md    ✅  .nanopm/ROADMAP.md
-  PRD           ✅  .nanopm/PRD-{feature}.md
+  PRD           ✅  .nanopm/prds/{feature}.md
 
 Key outputs:
   Top user signal: {top unaddressed theme from FEEDBACK.md}

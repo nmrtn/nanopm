@@ -32,6 +32,14 @@ Read all prior context to inform the audit:
 nanopm_context_all
 ```
 
+Also check for a codebase scan:
+
+```bash
+[ -f ".nanopm/SCAN.md" ] && echo "SCAN_EXISTS" || echo "SCAN_MISSING"
+```
+
+**If SCAN.md exists:** Read it. Use the "Pre-filled for pm-audit" section to pre-populate Q1–Q4 in CONTEXT.md. Tell the user: "Found SCAN.md — pre-filling Q1–Q4 from codebase scan. Verify before accepting."
+
 ## Phase 1: Website bootstrap (optional)
 
 Check if a company website is already stored:

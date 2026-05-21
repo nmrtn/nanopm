@@ -296,7 +296,7 @@ Tell the user:
 - How many material changes were found, and for which competitors
 - Any pages that failed to fetch (with actionable fix — e.g., "competitor.com/docs requires login — add session cookies or switch to manual")
 - The single most important strategic implication (if any)
-- Recommended next: "Run `/pm-strategy` to adjust your bet based on competitive moves
+- Recommended next: run `/pm-strategy` to adjust your bet based on competitive moves
 
 ## Telemetry
 

@@ -35,7 +35,7 @@ Skills appear as `/pm-*` commands in Claude Code. One command runs the full pipe
 
 The full pipeline:
 ```
-audit → objectives → strategy → roadmap → PRD → tickets
+feedback → audit → objectives → strategy → roadmap → PRD → tickets
 ```
 
 Each skill also works standalone.
@@ -54,6 +54,7 @@ Each skill also works standalone.
 - `/pm-prd` — full PRD or Shape Up pitch, adapts to your methodology
 - `/pm-breakdown` — break PRD into tasks, create tickets in Linear / GitHub Issues
 - `/pm-retro` — compare roadmap vs commits, surface what drifted
+- `/pm-upgrade` — upgrade nanopm to the latest version
 
 ## Memory system
 

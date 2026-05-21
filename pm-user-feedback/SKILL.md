@@ -315,8 +315,7 @@ If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy s
 ## Phase 6: Save context
 
 ```bash
-_TOP_THEME=$(grep "^TOP_UNADDRESSED:" /tmp/nanopm-feedback-cluster.txt 2>/dev/null | cut -d: -f2- | xargs || \
-             grep "## Top Unaddressed Signal" .nanopm/FEEDBACK.md -A2 | tail -1 | xargs)
+_TOP_THEME=$(grep "## Top Unaddressed Signal" .nanopm/FEEDBACK.md -A2 2>/dev/null | tail -1 | xargs)
 nanopm_context_append "{\"skill\":\"pm-user-feedback\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"top_unaddressed\":\"$(echo $_TOP_THEME | head -c 100 | tr '\"' \"'\")\",\"sources\":\"${_SOURCES_USED:-manual}\",\"next\":\"pm-audit\"}}"
 ```
 

@@ -25,8 +25,7 @@ Data ingestion: MCP → API → browser → CONTEXT.md manual fallback.
 ## Development
 
 ```bash
-./setup          # install skills to ~/.claude/skills/nanopm/
-./setup --local  # install to .claude/skills/nanopm/ (project-local)
+./setup          # install skills to ~/.claude/skills/
 ```
 
 ## Testing

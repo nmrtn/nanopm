@@ -74,7 +74,7 @@ $B snapshot  # read insight list
 ## Tier 4 (Manual fallback)
 
 **CONTEXT.md questions this connector answers:**
-- Q6: "What feedback have you received that surprised you?"
+- Q6: "What are your users doing RIGHT NOW when your product doesn't cover their need?"
 - Q8: "Who are your 3 most important users/customers right now?"
 
 If no tier is available, ask the user to paste 2-3 key feedback themes or
