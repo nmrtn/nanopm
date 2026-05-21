@@ -158,7 +158,7 @@ Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill k
 
 ## How it compares
 
-| | nanopm | Claude Code alone | Notion / Linear | ChatGPT |
+| | nanopm | AI agent alone | Notion / Linear | ChatGPT |
 |---|---|---|---|---|
 | Lives in your editor | ✅ | ✅ | ❌ | ❌ |
 | Persistent memory across sessions | ✅ | ❌ | ⚠️ manual | ❌ |
