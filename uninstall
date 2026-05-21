@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# nanopm uninstall — remove nanopm skills from Claude Code
+# nanopm uninstall — remove nanopm skills from all installed agents
 # Usage: bash uninstall
 #        bash uninstall --purge   (also removes ~/.nanopm config and memory)
 set -euo pipefail
 
-INSTALL_DIR="$HOME/.claude/skills/nanopm"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
+_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel"
 
 # ── colors ────────────────────────────────────────────────────────────────────
 _bold()  { printf '\033[1m%s\033[0m' "$*"; }
@@ -27,41 +27,30 @@ echo
 echo "  $(_bold 'nanopm uninstall')"
 echo
 
-# ── remove installed skills ───────────────────────────────────────────────────
-step "Removing skills from $INSTALL_DIR"
-if [ -d "$INSTALL_DIR" ]; then
-  rm -rf "$INSTALL_DIR"
-  ok "Skills removed"
-else
-  warn "Install directory not found — already uninstalled?"
-fi
+# ── remove installed skills from all known host directories ──────────────────
+step "Removing skills"
+_REMOVED=0
+for _dir in \
+  "$HOME/.claude/skills" \
+  "$HOME/.vibe/skills" \
+  "$HOME/.codex/skills" \
+  "$HOME/.agents/skills"
+do
+  [ -d "$_dir" ] || continue
+  _host=$(basename "$(dirname "$_dir")" | tr -d '.')
+  _found=0
+  for skill in $_SKILL_LIST; do
+    if [ -d "$_dir/$skill" ]; then
+      rm -rf "$_dir/$skill"
+      _found=$(( _found + 1 ))
+      _REMOVED=$(( _REMOVED + 1 ))
+    fi
+  done
+  [ "$_found" -gt 0 ] && ok "[$_host] removed $_found skills from $_dir"
+done
 
-# ── remove git hooks (in current repo, if any) ────────────────────────────────
-step "Checking for pm-watch hooks in current repo"
-_GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-if [ -n "$_GIT_ROOT" ]; then
-  _HOOK_FILE="$_GIT_ROOT/.git/hooks/post-commit"
-  if [ -f "$_HOOK_FILE" ] && grep -q "nanopm" "$_HOOK_FILE" 2>/dev/null; then
-    # Remove only the nanopm block — leave other hooks intact
-    _TMP=$(mktemp "${_HOOK_FILE}.tmp.XXXXXX")
-    # Strip lines between "# nanopm pm-watch" and the end of the nanopm block
-    awk '
-      /# nanopm pm-watch/ { skip=1; next }
-      skip && /^fi$/ { skip=0; next }
-      skip { next }
-      { print }
-    ' "$_HOOK_FILE" > "$_TMP" && mv "$_TMP" "$_HOOK_FILE" || rm -f "$_TMP"
-    ok "nanopm block removed from .git/hooks/post-commit"
-  else
-    ok "No pm-watch hook found in this repo"
-  fi
-  # Remove watch script if present
-  if [ -f "$_GIT_ROOT/.nanopm/watch.sh" ]; then
-    rm -f "$_GIT_ROOT/.nanopm/watch.sh"
-    ok "watch.sh removed"
-  fi
-else
-  ok "Not in a git repo — skipping hook removal"
+if [ "$_REMOVED" -eq 0 ]; then
+  warn "No nanopm skills found in any agent directory"
 fi
 
 # ── purge global config and memory (opt-in only) ──────────────────────────────
@@ -72,7 +61,8 @@ if [ "$_PURGE" -eq 1 ]; then
     _MEMORY_SIZE=$(du -sh "$GLOBAL_CONFIG_DIR/memory" 2>/dev/null | cut -f1 || echo "0")
     echo "  Memory size: $_MEMORY_SIZE"
     echo
-    read -r -p "  This will permanently delete all nanopm memory and config. Continue? [y/N] " _CONFIRM
+    printf "  This will permanently delete all nanopm memory and config. Continue? [y/N] "
+    read -r _CONFIRM
     if [ "$_CONFIRM" = "y" ] || [ "$_CONFIRM" = "Y" ]; then
       rm -rf "$GLOBAL_CONFIG_DIR"
       ok "~/.nanopm removed"

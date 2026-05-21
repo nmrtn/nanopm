@@ -4,9 +4,11 @@
 
 **You think. nanopm structures it.**
 
-Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is an AI-powered product management CLI for Claude Code — it automates the full planning cycle (audit → strategy → roadmap → PRD) directly in your editor and remembers everything across sessions.
+Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is an AI-powered product management skill pack for AI coding agents — it automates the full planning cycle (audit → strategy → roadmap → PRD) directly in your editor and remembers everything across sessions.
 
-Inspired by [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC CEO), which proved you can give Claude Code a full engineering team via the SKILL.md standard. nanopm is the PM layer on top of that idea.
+Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command auto-detects which agents you have.
+
+Inspired by [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC CEO), which proved you can give an AI coding agent a full engineering team via the SKILL.md standard. nanopm is the PM layer on top of that idea.
 
 ---
 
@@ -68,7 +70,7 @@ nanopm:  AUDIT.md written.
 - **Solo founders acting as their own PM** — structured product thinking without leaving the terminal
 - **Engineers doing product work** — go from codebase to roadmap without context-switching
 - **Small teams without a dedicated PM** — a repeatable process that compounds over time
-- **AI-native builders using Claude Code** — product planning that lives next to your code, not in a separate tab
+- **AI-native builders using Vibe, Codex, or Claude Code** — product planning that lives next to your code, not in a separate tab
 
 ---
 
@@ -150,7 +152,7 @@ graph LR
 
 ## Memory
 
-Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill knows what was tried before. Re-run `/pm-audit` six months later — it knows the history. No other PM tool does this because no other PM tool lives in your editor.
+Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill knows what was tried before. Re-run `/pm-audit` six months later — it knows the history. No other PM tool does this because no other PM tool lives inside your coding agent.
 
 ---
 
@@ -166,7 +168,7 @@ Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill k
 | Adapts to Shape Up / Scrum / Kanban | ✅ | ⚠️ if you prompt it | ✅ | ❌ |
 | Outputs tickets & engineering specs | ✅ Linear, GitHub, OpenSpec | ⚠️ ad-hoc | ⚠️ Linear only | ❌ |
 
-Claude Code alone is powerful but stateless — context resets every session, there's no structured pipeline, and methodology has to be re-explained each time. nanopm is what you add to Claude Code when you want the PM workflow to be repeatable, not improvised.
+AI coding agents are powerful but stateless — context resets every session, there's no structured pipeline, and methodology has to be re-explained each time. nanopm is what you add when you want the PM workflow to be repeatable, not improvised.
 
 ---
 
@@ -176,7 +178,7 @@ nanopm tries each tier in order, uses the highest available:
 
 | Tier | How | Setup |
 |------|-----|-------|
-| 1 — MCP | Direct tool calls | Add `mcp__linear__*` etc. to your Claude config |
+| 1 — MCP | Direct tool calls | Add `mcp__linear__*` etc. to your agent's config |
 | 2 — API | REST/GraphQL | Set `LINEAR_API_KEY`, `NOTION_API_KEY`, `GITHUB_TOKEN`, etc. |
 | 3 — Browser | Headless scrape | Install browse binary, sign in once in your browser |
 | 4 — Manual | You fill it in | Always works, zero setup |
