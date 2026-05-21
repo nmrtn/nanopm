@@ -14,7 +14,7 @@ interface TelemetryEvent {
   ts: string
 }
 
-// Allowlist of valid skill names
+// Allowlist of valid skill names — keep in sync with supabase/migrations/20260521_security_fixes.sql
 const VALID_SKILLS = [
   'pm-scan',
   'pm-discovery',
@@ -29,6 +29,10 @@ const VALID_SKILLS = [
   'pm-upgrade',
   'pm-user-feedback',
   'pm-competitors-intel',
+  'pm-interview',
+  'pm-standup',
+  'pm-weekly-update',
+  'pm-data',
 ]
 
 // Validate event

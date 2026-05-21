@@ -3,3 +3,6 @@
 .DS_Store
 .gstack/
 supabase/.temp/
+.env
+.env.local
+.env.*.local

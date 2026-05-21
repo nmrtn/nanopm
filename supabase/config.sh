@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Supabase project config for nanopm telemetry
 # These are PUBLIC keys — safe to commit (like Firebase public config).
-# RLS denies all access to the anon key. All reads and writes go through
-# edge functions (which use SUPABASE_SERVICE_ROLE_KEY server-side).
+# All writes go through the edge function using SUPABASE_SERVICE_ROLE_KEY,
+# which bypasses RLS entirely. The anon key is used only for SDK initialization
+# in nanopm-telemetry-sync. The anon role has no insert policy on telemetry_events.
 
 NANOPM_SUPABASE_URL="https://kvjidbknhaxsnikimakv.supabase.co"
 NANOPM_SUPABASE_ANON_KEY="sb_publishable_GlqSD3ixgftMoECE5YBjIQ_-t5WgA6_"
