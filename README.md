@@ -287,10 +287,20 @@ Add a skill: copy any `pm-*/SKILL.md`, follow the preamble pattern in `lib/nanop
 ## Tests
 
 ```bash
-bash test/skill-syntax.sh          # static checks (no LLM needed)
-bash test/context-threading.e2e.sh # context plumbing E2E
-bash test/website-bootstrap.e2e.sh # browser tier scenarios
-bash test/adversarial.e2e.sh       # adversarial subagent gate (needs claude CLI)
+bash test/run-all.sh               # run the full local suite (no LLM, no network)
+bash test/run-all.sh --with-llm    # also run the adversarial e2e (needs claude CLI)
+```
+
+Individual suites:
+
+```bash
+bash test/skill-syntax.sh           # static checks: frontmatter, gates, state binaries, telemetry purge
+bash test/state-layer.sh            # nanopm-state-log/read validators (25 checks)
+bash test/multi-host.sh             # NANOPM_HOST detection + nanopm_skill_path resolution (14 checks)
+bash test/gates.sh                  # ETHOS gates wired in pm-audit / pm-roadmap / pm-prd (29 checks)
+bash test/context-threading.e2e.sh  # legacy context append plumbing
+bash test/website-bootstrap.e2e.sh  # browse + connector tier detection
+bash test/adversarial.e2e.sh        # adversarial subagent gate (needs claude CLI)
 ```
 
 ---

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.1 — 2026-05-22
+
+### Tests caught up with v0.6.0; partial typed-state migration
+
+**Added — test coverage for v0.6.0:**
+- `test/state-layer.sh` (25 checks): validates `bin/nanopm-state-log` and `bin/nanopm-state-read` end-to-end. Asserts valid records pass for each of the 4 types, invalid records (bad enum, missing required, oversized insight, bad key chars, out-of-range confidence) are rejected with non-zero exit and stderr message. Confirms `ts`/`slug` auto-injection. Validates the reader's `--latest`, `--filter KEY=VAL`, `--limit N` paths.
+- `test/multi-host.sh` (14 checks): runs `lib/nanopm.sh` in isolated environments to verify `NANOPM_HOST` and `NANOPM_SKILLS_DIR` are set correctly under default (Claude), `VIBE_VERSION`, `CODEX_VERSION`, and `VIBE_SKILLS_DIR` override. Asserts `nanopm_skill_path` resolves to the right host and that `pm-run` has zero hardcoded `~/.claude/skills/` references left.
+- `test/gates.sh` (29 checks): verifies the structural gate pattern is wired into `pm-audit` (`kind=question`), `pm-roadmap` (`kind=target`), `pm-prd` (`kind=bet` + `prd` record). Checks rubric output formats, falsifiability markers, `nanopm_state_log` calls, regression on `pm-strategy`'s 3-question rubric, and all 5 handoff targets in `pm-breakdown`.
+- `test/run-all.sh`: single runner that executes all 6 local suites (excludes `adversarial.e2e.sh` which calls the live `claude` CLI; pass `--with-llm` to include it).
+
+**Changed — `test/skill-syntax.sh`:**
+- `_SKILLS` list now covers all 17 skills (was 13). The 4 daily-ops skills (`pm-interview`, `pm-standup`, `pm-weekly-update`, `pm-data`) were missing from the static checks.
+- New v0.6.0 checks: gated skills call `nanopm_state_log`, no telemetry references leak through, state binaries are executable, `nanopm_skill_path()` is defined.
+- 60 checks pass (was 44).
+
+**Partial migration to typed state:**
+- `/pm-strategy` Phase 8 now writes a typed `decision` of `kind=bet` (and one `kind=scope-out` per "What we're saying no to" item) before the legacy `nanopm_context_append`. Downstream skills can read the bet via `nanopm_state_read --type decision --filter kind=bet --latest` instead of grep on STRATEGY.md.
+- Added `nanopm_skill_started` and `nanopm_skill_completed` helpers in `lib/nanopm.sh` for opt-in timeline events. Skills can adopt these one at a time without a forced sweep.
+
+**Deferred (follow-up work):**
+- Full typed-state migration of `pm-objectives` (per-KR `target` decisions), `pm-discovery` (early assumption `bet` decisions), `pm-user-feedback` (top unaddressed signal as `gap` decision), `pm-retro` (timeline events on shipped items).
+- Live Vibe / Codex e2e — `test/multi-host.sh` validates the wiring without needing those CLIs installed. A real `claude` / `vibe` / `codex` invocation matrix is the next layer up; not in this release.
+
 ## 0.6.0 — 2026-05-22
 
 ### Sharpened scope: nanopm = the PM half, with symmetric handoffs

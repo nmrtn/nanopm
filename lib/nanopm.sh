@@ -138,6 +138,38 @@ nanopm_state_read() {
   fi
 }
 
+# Convenience: log a skill 'started' timeline event. Skills should call this
+# from their preamble after nanopm_preamble. Best-effort — failure is silent.
+#
+# Usage in a skill: nanopm_skill_started pm-audit
+nanopm_skill_started() {
+  local skill="$1"
+  [ -z "$skill" ] && return 0
+  [ -x "$HOME/.nanopm/bin/nanopm-state-log" ] || return 0
+  local branch
+  branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+  "$HOME/.nanopm/bin/nanopm-state-log" --type timeline \
+    "{\"skill\":\"$skill\",\"event\":\"started\",\"branch\":\"$branch\"}" \
+    >/dev/null 2>&1 || true
+}
+
+# Convenience: log a skill 'completed' timeline event with duration.
+# Pass the start timestamp captured at preamble time.
+#
+# Usage in a skill: nanopm_skill_completed pm-audit "$_SKILL_START" success
+nanopm_skill_completed() {
+  local skill="$1" start_ts="$2" outcome="${3:-success}"
+  [ -z "$skill" ] && return 0
+  [ -x "$HOME/.nanopm/bin/nanopm-state-log" ] || return 0
+  local now duration branch
+  now=$(date +%s)
+  duration=$(( now - ${start_ts:-now} ))
+  branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+  "$HOME/.nanopm/bin/nanopm-state-log" --type timeline \
+    "{\"skill\":\"$skill\",\"event\":\"completed\",\"branch\":\"$branch\",\"outcome\":\"$outcome\",\"duration_s\":$duration}" \
+    >/dev/null 2>&1 || true
+}
+
 nanopm_context_summary() {
   # Returns one-line summary per skill: skill → last run ts + key output
   local file

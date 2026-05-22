@@ -197,6 +197,46 @@ If B or C: take the user's input, update the relevant section(s), re-run the adv
 
 ## Phase 8: Save context
 
+### 8a. Typed state write — the bet (v0.6.0+)
+
+After the user has approved the strategy in Phase 7, record the bet as a typed `decision` so downstream skills (`pm-roadmap`, `pm-prd`) can read it via the schema-validated state layer instead of grepping markdown.
+
+Extract the bet line from `.nanopm/STRATEGY.md` (the single sentence under `## The Bet`). Derive a kebab-case `key` (alphanumeric + hyphens, ≤60 chars) summarizing the bet. The bet is `user-stated` (user approved in Phase 7); if the adversarial gate rewrote it, use `adversarial`.
+
+```bash
+# _BET_TEXT and _BET_KEY are derived from STRATEGY.md
+python3 -c "
+import json, os
+print(json.dumps({
+    'kind': 'bet',
+    'key': os.environ['_BET_KEY'],
+    'insight': os.environ['_BET_TEXT'],
+    'confidence': 8,
+    'source': 'user-stated',
+    'skill': 'pm-strategy',
+}))" | nanopm_state_log --type decision
+```
+
+If `nanopm_state_log` exits non-zero the bet failed schema validation — show the user the stderr and ask them to re-state more concisely. Likely cause: bet too long for `insight`'s 1000-char cap, or key has invalid chars.
+
+Also write one `scope-out` decision per item under `## What We're Saying No To`:
+
+```bash
+# Iterate each "**Not {thing}**" line; derive _SCOPE_KEY and _SCOPE_REASON
+python3 -c "
+import json, os
+print(json.dumps({
+    'kind': 'scope-out',
+    'key': os.environ['_SCOPE_KEY'],
+    'insight': os.environ['_SCOPE_REASON'],
+    'confidence': 8,
+    'source': 'user-stated',
+    'skill': 'pm-strategy',
+}))" | nanopm_state_log --type decision
+```
+
+### 8b. Legacy context append (back-compat)
+
 ```bash
 nanopm_context_append "{\"skill\":\"pm-strategy\",\"outputs\":{\"bet\":\"$(grep -A1 '## The Bet' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"risk\":\"$(grep -A1 '## The Risk' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-roadmap\"}}"
 ```

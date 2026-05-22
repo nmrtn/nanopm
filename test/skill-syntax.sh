@@ -38,7 +38,7 @@ fi
 # ── 3. SKILL.md frontmatter validation ───────────────────────────────────────
 echo
 echo "  SKILL.md frontmatter"
-_SKILLS=(pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel)
+_SKILLS=(pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data)
 for skill in "${_SKILLS[@]}"; do
   _FILE="$_REPO_ROOT/$skill/SKILL.md"
   if [ ! -f "$_FILE" ]; then
@@ -116,6 +116,58 @@ if [ -f "$_FILE" ]; then
   else
     fail "pm-strategy — STRATEGY.md 'Challenged by adversarial review' section missing (V1 gate)"
   fi
+fi
+
+# ── 6b. ETHOS gates write via nanopm_state_log (v0.6.0+) ──────────────────────
+echo
+echo "  Structural gates (v0.6.0)"
+_GATED_SKILLS=(pm-audit pm-roadmap pm-prd pm-breakdown)
+for skill in "${_GATED_SKILLS[@]}"; do
+  _FILE="$_REPO_ROOT/$skill/SKILL.md"
+  [ ! -f "$_FILE" ] && continue
+  if grep -q "nanopm_state_log" "$_FILE"; then
+    ok "$skill — calls nanopm_state_log (typed state write)"
+  else
+    fail "$skill — missing nanopm_state_log call (gate not structural)"
+  fi
+done
+
+# ── 6c. No leftover telemetry refs (v0.6.0 deletion) ──────────────────────────
+# Tighter patterns — only flag actual *use* (function calls, var assignments,
+# bin invocations, markdown sections), NOT mentions in deprecation-cleanup loops.
+echo
+echo "  Telemetry purge (v0.6.0)"
+_LEFTOVERS=""
+for f in "$_REPO_ROOT"/pm-*/SKILL.md "$_REPO_ROOT"/lib/nanopm.sh "$_REPO_ROOT"/setup; do
+  [ -f "$f" ] || continue
+  if grep -E "^## Telemetry|nanopm_telemetry_pending|^_TEL_SESSION_ID=|^_TEL_START=|/nanopm-telemetry-log[[:space:]]|/nanopm-telemetry-sync[[:space:]]|/nanopm-analytics[[:space:]]" "$f" >/dev/null 2>&1; then
+    _LEFTOVERS="$_LEFTOVERS $f"
+  fi
+done
+if [ -z "$_LEFTOVERS" ]; then
+  ok "No telemetry references left in skills, lib, or setup"
+else
+  fail "Telemetry leftovers found in:$_LEFTOVERS"
+fi
+
+# ── 6d. State binaries shipped ────────────────────────────────────────────────
+echo
+echo "  State binaries"
+for bin in nanopm-state-log nanopm-state-read; do
+  if [ -x "$_REPO_ROOT/bin/$bin" ]; then
+    ok "bin/$bin present and executable"
+  else
+    fail "bin/$bin missing or not executable"
+  fi
+done
+
+# ── 6e. nanopm_skill_path defined ─────────────────────────────────────────────
+echo
+echo "  Multi-host helper"
+if grep -q "^nanopm_skill_path()" "$_REPO_ROOT/lib/nanopm.sh"; then
+  ok "nanopm_skill_path() defined in lib"
+else
+  fail "nanopm_skill_path() missing from lib — multi-host orchestration broken"
 fi
 
 # ── 7. Connector files ────────────────────────────────────────────────────────
