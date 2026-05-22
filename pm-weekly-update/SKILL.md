@@ -12,7 +12,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-nanopm_telemetry_pending "pm-weekly-update"
 _UPDATE_FILE=".nanopm/WEEKLY_UPDATE.md"
 ```
 
@@ -187,23 +186,5 @@ Tell the user:
 - Draft written to `.nanopm/WEEKLY_UPDATE.md`
 - Remind them to check the "NEEDS YOUR INPUT" section before sending — that's the most actionable part
 - If anything slipped: "The slippage is in the update. Don't soften it — your stakeholders will respect the honesty more than the spin."
-
-## Telemetry
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
-
-_OUTCOME="success"
-
-if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
-  ~/.nanopm/bin/nanopm-telemetry-log \
-    --skill "pm-weekly-update" \
-    --duration "$_TEL_DUR" \
-    --outcome "$_OUTCOME" \
-    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
-fi
-```
 
 **STATUS: DONE**

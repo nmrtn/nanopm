@@ -1,7 +1,7 @@
 ---
 name: pm-breakdown
-version: 0.1.0
-description: "Break a PRD into engineering tasks and create tickets in Linear or GitHub Issues. Shows a draft first, asks for confirmation, then creates. Always outputs a markdown task list regardless of ticket creation."
+version: 0.2.0
+description: "Break a PRD into engineering tasks and hand off to one of five peer targets: Linear, GitHub Issues, OpenSpec, gstack, or Human-readable markdown. No preferred default — you pick the target."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
@@ -22,31 +22,20 @@ echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 
 ```bash
 nanopm_context_read pm-breakdown
-```
-
-Read all prior context for team/repo config already stored:
-```bash
 nanopm_context_all
 ```
 
 ## Phase 1: Identify the PRD
 
-List available PRDs:
-
 ```bash
 ls .nanopm/prds/*.md 2>/dev/null || echo "NO_PRDS"
 ```
 
-**If NO_PRDS:** "No PRDs found in `.nanopm/prds/`. Run `/pm-prd` first to create one."
-Exit.
+**If NO_PRDS:** "No PRDs found in `.nanopm/prds/`. Run `/pm-prd` first to create one." Exit.
 
 **If one PRD exists:** use it automatically, tell the user: "Using PRD: {filename}"
 
-**If multiple PRDs exist:** ask via AskUserQuestion:
-"Which PRD do you want to break down into tasks?
-{list filenames with titles extracted from each file}"
-
-Store the selected PRD path as `_PRD_FILE`.
+**If multiple PRDs exist:** ask via AskUserQuestion which one. Store path as `_PRD_FILE`.
 
 ## Phase 2: Read the PRD
 
@@ -58,80 +47,50 @@ Read `_PRD_FILE`. Extract:
 - Ties to (objective/KR)
 - For Shape Up pitches: appetite, solution sketch, rabbit holes, no-gos
 
-## Phase 3: Detect write targets
+Derive the feature slug from the PRD filename: lowercase, hyphens, max 40 chars. Store as `_FEATURE_SLUG`.
+
+## Phase 3: Pick the handoff target
+
+nanopm produces the breakdown; the handoff target is where the work actually goes. The five targets are peers — pick whichever fits how this team or project ships work.
+
+Always ask via AskUserQuestion (no preferred default):
+
+**"Where should this breakdown become work?**
+
+A) **Linear** — issues created in a Linear team, with priority and labels
+B) **GitHub Issues** — issues in the repo, with linked body and acceptance
+C) **OpenSpec** — write `openspec/changes/{feature}/` (proposal + design + tasks + specs)
+D) **gstack** — write `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` (pickable by `/plan-ceo-review`)
+E) **Human** — single markdown file with PRD body + copy-paste-ready ticket list, no external system touched"
+
+Store choice as `_TARGET` (linear / github / openspec / gstack / human).
+
+If the user picks a target that requires availability (Linear or GitHub) and we don't have it, fall back gracefully (Phase 4 handles that).
+
+## Phase 4: Target-specific setup
+
+### If `_TARGET=linear`:
 
 ```bash
 _TIER_LINEAR=$(nanopm_has_connector linear)
-_TIER_GITHUB=$(nanopm_has_connector github)
-echo "LINEAR: $_TIER_LINEAR | GITHUB: $_TIER_GITHUB"
+echo "LINEAR_TIER: $_TIER_LINEAR"
 ```
 
-Also detect OpenSpec:
+- If tier 1 (MCP) or 2 (API): proceed. If team not stored, look up via `mcp__linear__list_teams` (MCP) or GraphQL (API):
+  ```bash
+  curl -s -X POST https://api.linear.app/graphql \
+    -H "Authorization: $LINEAR_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"query": "{ teams { nodes { id name } } }"}'
+  ```
+  Ask user to pick a team, then store:
+  ```bash
+  nanopm_config_set "linear_team_id"   "{id}"
+  nanopm_config_set "linear_team_name" "{name}"
+  ```
+- If tier 3 or 4: tell the user "Linear write isn't available without `LINEAR_API_KEY` or the Linear MCP. Want me to fall back to Human-readable markdown instead?" — if yes, set `_TARGET=human` and continue. Otherwise exit.
 
-```bash
-command -v openspec >/dev/null 2>&1 && echo "OPENSPEC_CLI=yes" || echo "OPENSPEC_CLI=no"
-[ -d "openspec" ] && echo "OPENSPEC_PROJECT=yes" || echo "OPENSPEC_PROJECT=no"
-```
-
-Store as `_OPENSPEC_AVAILABLE` (yes if CLI installed or project already uses OpenSpec).
-
-Also check for stored project config:
-```bash
-_LINEAR_TEAM=$(nanopm_config_get "linear_team_id")
-_LINEAR_TEAM_NAME=$(nanopm_config_get "linear_team_name")
-_GITHUB_REPO=$(nanopm_config_get "github_repo")
-echo "LINEAR_TEAM: ${_LINEAR_TEAM:-not set}"
-echo "GITHUB_REPO: ${_GITHUB_REPO:-not set}"
-```
-
-Determine write capability:
-
-- **Linear write available** if `_TIER_LINEAR` is 1 or 2
-- **GitHub write available** if `_TIER_GITHUB` is 1 or 2
-- **Markdown only** if both are tier 3/4
-
-**If both write targets available and OpenSpec available:** ask via AskUserQuestion:
-"Where should I create the tickets?
-A) Linear
-B) GitHub Issues
-C) Both
-D) OpenSpec change folder — use with /opsx:apply
-E) Markdown only — I'll create tickets myself"
-
-**If both write targets available, no OpenSpec:** ask A / B / C / D (markdown only).
-
-**If only one write target available:** use it, tell the user. Still offer OpenSpec as an additional output if available.
-
-**If markdown only and OpenSpec available:** ask:
-"A) OpenSpec change folder — use with /opsx:apply
-B) Markdown only"
-
-**If markdown only, no OpenSpec:** proceed, output markdown task list only.
-
-Store choice as `_WRITE_TARGET` (linear / github / both / openspec / markdown).
-
-## Phase 4: Project setup (first write, only if needed)
-
-**Linear setup (skip if `_LINEAR_TEAM` already stored):**
-
-If tier 1 (MCP): call `mcp__linear__list_teams` or `mcp__linear__get_viewer` to list available teams.
-If tier 2 (API):
-```bash
-curl -s -X POST https://api.linear.app/graphql \
-  -H "Authorization: $LINEAR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ teams { nodes { id name } } }"}'
-```
-
-Present teams via AskUserQuestion: "Which Linear team should these tickets go to? {list team names}"
-
-Store selection:
-```bash
-nanopm_config_set "linear_team_id"   "{selected_id}"
-nanopm_config_set "linear_team_name" "{selected_name}"
-```
-
-**GitHub setup (skip if `_GITHUB_REPO` already stored):**
+### If `_TARGET=github`:
 
 Derive from git remote:
 ```bash
@@ -140,39 +99,69 @@ _GITHUB_REPO=$(echo "$_REMOTE" | sed 's/.*github\.com[:/]//' | sed 's/\.git$//')
 echo "GITHUB_REPO: $_GITHUB_REPO"
 ```
 
-If derivable, confirm with user. If not, ask: "What is the GitHub repo? (format: owner/repo)"
-
-Store:
+If derivable, confirm with user. Otherwise ask for `owner/repo`. Store:
 ```bash
 nanopm_config_set "github_repo" "$_GITHUB_REPO"
 ```
 
+If neither MCP nor `GITHUB_TOKEN` is available: same fallback offer as Linear.
+
+### If `_TARGET=openspec`:
+
+```bash
+_CHANGE_DIR="openspec/changes/${_FEATURE_SLUG}"
+mkdir -p "${_CHANGE_DIR}/specs/${_FEATURE_SLUG}"
+echo "OPENSPEC_DIR: $_CHANGE_DIR"
+```
+
+No external dependency — OpenSpec writes are pure filesystem.
+
+### If `_TARGET=gstack`:
+
+```bash
+_GSTACK_PROJ="$HOME/.gstack/projects/$_SLUG/ceo-plans"
+mkdir -p "$_GSTACK_PROJ"
+_GSTACK_DATE=$(date +%Y-%m-%d)
+_GSTACK_FILE="$_GSTACK_PROJ/${_GSTACK_DATE}-${_FEATURE_SLUG}.md"
+echo "GSTACK_FILE: $_GSTACK_FILE"
+```
+
+No external dependency — gstack writes are a markdown file at the path `/plan-ceo-review` reads from.
+
+### If `_TARGET=human`:
+
+```bash
+_HUMAN_FILE=".nanopm/handoffs/${_FEATURE_SLUG}.md"
+mkdir -p ".nanopm/handoffs"
+echo "HUMAN_FILE: $_HUMAN_FILE"
+```
+
+Always available.
+
 ## Phase 5: Generate task breakdown draft
 
-Decompose the PRD into engineering tasks. Use `_METHODOLOGY` to determine format and granularity.
+Decompose the PRD into engineering tasks. Use `_METHODOLOGY` to pick the format.
 
 **Decomposition rules (all methodologies):**
-- Each task must be independently shippable (not "build the whole feature")
-- Granularity: 1-3 days of engineering work per task
-- Every functional requirement from the PRD should map to at least one task
+- Each task independently shippable (not "build the whole feature")
+- Granularity: 1-3 days per task
+- Every functional requirement maps to at least one task
 - Out-of-scope items from the PRD must NOT appear as tasks
-- Avoid tasks that are just "write tests for X" — testing should be part of the implementation task
+- Testing is part of the implementation task, not a separate task
 
 **Shape Up** (`_METHODOLOGY` contains "shape"):
-- Tasks are called "scope items" — named after the outcome, not the action
-- Group related scope items if they're logically one unit of work
-- Include the appetite as a constraint: "Total appetite: {X weeks}. Flag any scope items that individually risk more than 20% of appetite."
-- Do NOT add story point estimates
+- "Scope items" named after the outcome
+- Include the appetite as a constraint: "Total appetite: {X weeks}. Flag any scope items risking >20% of appetite."
+- No story points
 
 **Scrum/Agile** (`_METHODOLOGY` contains "scrum", "agile", or "sprint"):
-- Tasks are user stories where appropriate: "As a [user], I want [action] so that [outcome]"
-- Add rough story point estimates: 1 / 2 / 3 / 5 / 8 (Fibonacci, no higher than 8 — split anything larger)
-- Group under the feature as a parent epic
+- User stories where appropriate: "As [user], I want [action] so that [outcome]"
+- Fibonacci story points: 1 / 2 / 3 / 5 / 8 (split anything larger)
+- Group under feature as parent epic
 
-**All other methodologies (Kanban, hybrid, none, not set):**
-- Tasks are plain engineering tasks with action verbs: "Implement X", "Add Y", "Refactor Z"
-- Effort sizing: S (half-day), M (1 day), L (2-3 days)
-- No story points
+**Kanban / hybrid / none / not set:**
+- Plain engineering tasks with action verbs: "Implement X", "Add Y", "Refactor Z"
+- Effort: S (half-day), M (1 day), L (2-3 days)
 
 **Format each task as:**
 ```
@@ -183,68 +172,63 @@ Task N: {title}
   Ties to: {PRD requirement number or section}
 ```
 
-Hold the full task list in memory. Do NOT write to disk yet.
+Hold the full task list in memory.
 
 ## Phase 6: Show draft and confirm
 
-Present the full task breakdown to the user via AskUserQuestion:
+Present the full task breakdown via AskUserQuestion:
 
-"Here's the breakdown for **{feature name}** ({N} tasks, total effort: {sum}):
+"Here's the breakdown for **{feature name}** ({N} tasks, total effort: {sum}) — handoff target: **{_TARGET}**:
 
 {formatted task list}
 
 ---
-A) Create tickets as shown
-B) Edit the list first — paste your modified version
-C) Skip ticket creation — save markdown only"
+A) Looks right — proceed with handoff
+B) Edit the list first — I'll paste my modified version
+C) Save markdown only — skip the target write"
 
-**If B:** Accept the user's modified list. Re-parse it as the task list. Show the final version: "Updated. Creating {N} tasks." then proceed to Phase 7.
+**If B:** Accept the user's modified list. Re-parse. Show: "Updated. Proceeding."
+**If C:** Skip Phase 7's external write, still do Phase 8 (markdown) and log a handoff with `target=human`.
 
-**If C:** Skip to Phase 8 (markdown output only).
+## Phase 7: Write to the chosen target
 
-## Phase 7: Create tickets
+### Phase 7a — Linear
 
-Create tasks one by one. For each task:
-
-Show progress: "Creating: {task title}..."
-
-### Linear (tier 1 — MCP)
-
+For each task (tier 1 — MCP):
 ```
 mcp__linear__create_issue(
   title: "{task title}",
   description: "{description}\n\nAcceptance: {acceptance}\nTies to: {requirement}",
-  teamId: "{_LINEAR_TEAM}",
+  teamId: "{_LINEAR_TEAM_ID}",
   estimate: {story_points_if_scrum_else_omit}
 )
 ```
 
-### Linear (tier 2 — API)
-
+For tier 2 (API):
 ```bash
 curl -s -X POST https://api.linear.app/graphql \
   -H "Authorization: $LINEAR_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{
-    \"query\": \"mutation { issueCreate(input: { title: \\\"${_TASK_TITLE}\\\", description: \\\"${_TASK_DESC}\\\", teamId: \\\"${_LINEAR_TEAM}\\\" }) { issue { id identifier url } } }\"
+    \"query\": \"mutation { issueCreate(input: { title: \\\"${_TASK_TITLE}\\\", description: \\\"${_TASK_DESC}\\\", teamId: \\\"${_LINEAR_TEAM_ID}\\\" }) { issue { id identifier url } } }\"
   }"
 ```
 
-Extract and record the created issue URL for the output summary.
+Record created URLs.
 
-### GitHub Issues (tier 1 — MCP)
+### Phase 7b — GitHub Issues
 
+Tier 1 (MCP):
 ```
 mcp__github__create_issue(
-  owner: "{owner from _GITHUB_REPO}",
-  repo: "{repo from _GITHUB_REPO}",
+  owner: "{owner}",
+  repo: "{repo}",
   title: "{task title}",
   body: "{description}\n\n**Acceptance:** {acceptance}\n**Ties to:** {requirement}\n\n*Created by nanopm /pm-breakdown*"
 )
 ```
 
-### GitHub Issues (tier 2 — API)
-
+Tier 2 (API):
 ```bash
 _OWNER=$(echo "$_GITHUB_REPO" | cut -d/ -f1)
 _REPO=$(echo  "$_GITHUB_REPO" | cut -d/ -f2)
@@ -254,64 +238,11 @@ curl -s -X POST "https://api.github.com/repos/${_OWNER}/${_REPO}/issues" \
   -d "{\"title\": \"${_TASK_TITLE}\", \"body\": \"${_TASK_BODY}\"}"
 ```
 
-**Error handling:** If any individual ticket creation fails (auth error, API limit, network):
-- Record the failure with the error message
-- Continue creating remaining tickets (don't abort the whole batch)
-- Report failures in the completion summary
-- Always fall through to Phase 8 to write the markdown file
+Record created URLs.
 
-## Phase 8: Write task markdown
+### Phase 7c — OpenSpec
 
-Always write `.nanopm/tasks/{slug-feature}.md` regardless of whether tickets were created:
-
-```markdown
-# Tasks: {feature name}
-Generated by /pm-breakdown on {date}
-Project: {slug}
-PRD: {_PRD_FILE}
-Methodology: {_METHODOLOGY or "default"}
-Tickets: {linear/github/markdown-only}
-
----
-
-{for each task:}
-## Task N: {title}
-
-**Effort:** {size/points}
-**Ties to:** {requirement}
-{if ticket created: **Ticket:** [{identifier}]({url})}
-{if creation failed: **Ticket:** creation failed — {error}}
-
-{description}
-
-**Acceptance:** {acceptance}
-
----
-
-## Summary
-
-- Total tasks: {N}
-- Total effort: {sum}
-- Tickets created: {count} / {N}
-{if any failures: - Failed: {list}}
-
----
-
-*Source: {_PRD_FILE}*
-```
-
-## Phase 8b: Write OpenSpec change folder (if chosen)
-
-Skip this phase if `_WRITE_TARGET` is not `openspec`.
-
-Derive the feature slug from the PRD filename: lowercase, hyphens, max 40 chars.
-Set `_CHANGE_DIR="openspec/changes/${_FEATURE_SLUG}"`.
-
-```bash
-mkdir -p "${_CHANGE_DIR}/specs/${_FEATURE_SLUG}"
-```
-
-**Write `${_CHANGE_DIR}/proposal.md`:**
+Write `${_CHANGE_DIR}/proposal.md`:
 ```markdown
 # {feature name}
 
@@ -321,11 +252,11 @@ mkdir -p "${_CHANGE_DIR}/specs/${_FEATURE_SLUG}"
 
 ## What's changing
 
-{summary of functional requirements from PRD as a bulleted list}
+{summary of functional requirements as a bulleted list}
 
 ## What's not changing
 
-{out of scope items from PRD}
+{out of scope items}
 
 ## Ties to
 
@@ -336,7 +267,7 @@ mkdir -p "${_CHANGE_DIR}/specs/${_FEATURE_SLUG}"
 *Source: {_PRD_FILE}*
 ```
 
-**Write `${_CHANGE_DIR}/design.md`:**
+Write `${_CHANGE_DIR}/design.md`:
 ```markdown
 # Technical Design: {feature name}
 
@@ -356,14 +287,9 @@ mkdir -p "${_CHANGE_DIR}/specs/${_FEATURE_SLUG}"
 *Generated by nanopm /pm-breakdown on {date}*
 ```
 
-**Write `${_CHANGE_DIR}/tasks.md`:**
+Write `${_CHANGE_DIR}/tasks.md` — same content as the Phase 8 markdown file (full task list).
 
-Same content as the `.nanopm/tasks/{feature}.md` file — the full task list in the same format.
-
-**Write `${_CHANGE_DIR}/specs/{_FEATURE_SLUG}/spec.md`:**
-
-Convert each functional requirement from the PRD into OpenSpec SHALL format:
-
+Write `${_CHANGE_DIR}/specs/${_FEATURE_SLUG}/spec.md` — convert each functional requirement to OpenSpec SHALL format:
 ```markdown
 # {feature name} Specification
 
@@ -374,65 +300,200 @@ Convert each functional requirement from the PRD into OpenSpec SHALL format:
 
 {for each functional requirement:}
 ### Requirement: {requirement name — short noun phrase}
-The system SHALL {requirement rewritten as a normative statement}.
+The system SHALL {requirement rewritten as normative}.
 
 #### Scenario: {primary scenario name}
 - GIVEN {precondition}
-- WHEN {action taken by user or system}
+- WHEN {action}
 - THEN {expected outcome}
-
-{add a second scenario if the requirement has an important edge case}
 ```
 
-After writing all files, tell the user:
+If `openspec` CLI is on PATH, offer to run `openspec update`.
+
+### Phase 7d — gstack
+
+Write `$_GSTACK_FILE` with this format (matches what `/plan-ceo-review` reads from `~/.gstack/projects/{slug}/ceo-plans/`):
+
+```markdown
+---
+status: ACTIVE
+source: nanopm
+created: {iso timestamp}
+---
+# CEO Plan: {feature name}
+Generated by nanopm /pm-breakdown on {date}
+Repo: {_SLUG}
+Source PRD: {_PRD_FILE}
+
+## Vision
+
+{problem statement from PRD — 2-3 sentences. Frame as the strategic outcome, not the feature.}
+
+## Why now
+
+{ties to (objective/KR) + the gap or signal driving this feature, if available from prior nanopm context}
+
+## Scope
+
+{functional requirements from PRD as a numbered list — what's in}
+
+## NOT in scope
+
+{out of scope items from PRD}
+
+## Tasks
+
+{the full task list from Phase 5, same format as the markdown}
+
+## Acceptance
+
+{1-3 bullets describing how we know the feature is shipped successfully — from PRD success criteria}
+
+## Open questions
+
+{any unresolved items — rabbit holes / risks / unknowns}
+
+---
+*Source: nanopm v{version} → gstack. Drop into a gstack session and run `/plan-ceo-review` to lock the plan, or `/autoplan` for the full review pipeline.*
 ```
-OpenSpec change folder written to {_CHANGE_DIR}/
 
-  proposal.md  ✓
-  design.md    ✓
-  tasks.md     ✓
-  specs/       ✓  ({N} requirements as SHALL statements)
+After writing, tell the user:
+```
+gstack ceo-plan written: {_GSTACK_FILE}
 
-Run: /opsx:apply
+  Pick this up in a gstack session with:
+    /plan-ceo-review     (sectional review)
+    /autoplan            (full review pipeline)
 ```
 
-If openspec CLI is available, offer to run it:
+### Phase 7e — Human
+
+Write `$_HUMAN_FILE` — a single self-contained markdown that travels anywhere:
+
+```markdown
+# {feature name}
+Generated by nanopm /pm-breakdown on {date}
+Source PRD: {_PRD_FILE}
+
+## Why we're doing this
+
+{problem statement}
+
+## Functional scope
+
+{functional requirements as bullets}
+
+## NOT in scope
+
+{out of scope items}
+
+---
+
+## Tickets
+
+Copy-paste each block into your tracker of choice. Each ticket is independently shippable.
+
+### Ticket 1: {title}
+**Effort:** {size/points}
+**Ties to:** {requirement}
+
+{description}
+
+**Acceptance:** {acceptance}
+
+---
+
+### Ticket 2: {title}
+{...}
+
+---
+
+{repeat for all tasks}
+
+---
+
+*Source: nanopm v{version} — markdown handoff. Paste into Linear, Jira, Notion, or any tracker.*
+```
+
+## Phase 8: Always write task markdown
+
+Regardless of target, write `.nanopm/tasks/{_FEATURE_SLUG}.md`:
+
+```markdown
+# Tasks: {feature name}
+Generated by /pm-breakdown on {date}
+Project: {_SLUG}
+PRD: {_PRD_FILE}
+Methodology: {_METHODOLOGY or "default"}
+Handoff target: {_TARGET}
+
+---
+
+{for each task:}
+## Task N: {title}
+
+**Effort:** {size/points}
+**Ties to:** {requirement}
+{if Linear/GitHub ticket created: **Ticket:** [{identifier}]({url})}
+{if creation failed: **Ticket:** creation failed — {error}}
+
+{description}
+
+**Acceptance:** {acceptance}
+
+---
+
+## Summary
+
+- Total tasks: {N}
+- Total effort: {sum}
+- Handoff target: {_TARGET}
+- Handoff path: {_HANDOFF_PATH}
+{if Linear/GitHub: - Tickets created: {count} / {N}}
+{if any failures: - Failed: {list}}
+
+---
+
+*Source: {_PRD_FILE}*
+```
+
+## Phase 9: Log the handoff
+
 ```bash
-openspec update 2>/dev/null && echo "OPENSPEC_UPDATED" || echo "OPENSPEC_UPDATE_SKIPPED"
+# Determine handoff path written for this target
+case "$_TARGET" in
+  linear)   _HANDOFF_PATH="linear://team/${_LINEAR_TEAM_NAME}" ;;
+  github)   _HANDOFF_PATH="github://${_GITHUB_REPO}" ;;
+  openspec) _HANDOFF_PATH="${_CHANGE_DIR}" ;;
+  gstack)   _HANDOFF_PATH="${_GSTACK_FILE}" ;;
+  human)    _HANDOFF_PATH="${_HUMAN_FILE}" ;;
+esac
+
+# Validated state write
+nanopm_state_log --type handoff \
+  "{\"feature\":\"${_FEATURE_SLUG}\",\"target\":\"${_TARGET}\",\"path\":\"${_HANDOFF_PATH}\"}"
+
+# Update PRD status to handed-off
+nanopm_state_log --type prd \
+  "{\"feature\":\"${_FEATURE_SLUG}\",\"status\":\"handed-off\",\"target\":\"${_TARGET}\",\"path\":\"${_HANDOFF_PATH}\",\"skill\":\"pm-breakdown\"}"
 ```
 
-## Phase 9: Save context
+## Phase 10: Save legacy context (back-compat)
 
 ```bash
-nanopm_context_append "{\"skill\":\"pm-breakdown\",\"outputs\":{\"feature\":\"$(basename $_PRD_FILE .md)\",\"task_count\":\"${_TASK_COUNT}\",\"write_target\":\"${_WRITE_TARGET}\",\"tasks_file\":\"${_TASKS_FILE}\"}}"
+nanopm_context_append "{\"skill\":\"pm-breakdown\",\"outputs\":{\"feature\":\"${_FEATURE_SLUG}\",\"task_count\":\"${_TASK_COUNT}\",\"target\":\"${_TARGET}\",\"handoff_path\":\"${_HANDOFF_PATH}\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- Tasks file written to `.nanopm/tasks/{feature}.md`
-- How many tickets were created and where
-- Any failures (with actionable next steps — e.g., "check that your LINEAR_API_KEY has write scope")
-- The created ticket URLs (list them)
+- Tasks file: `.nanopm/tasks/{_FEATURE_SLUG}.md`
+- Handoff target + path
+- For Linear/GitHub: created tickets count + URLs; any failures with actionable fix
+- For OpenSpec: change folder location + next command (`/opsx:apply`)
+- For gstack: ceo-plan path + next command (`/plan-ceo-review` or `/autoplan`)
+- For Human: single markdown file path — paste blocks into any tracker
 
-Next: Start building, or `/pm-retro` after shipping to compare plan vs reality
-
-## Telemetry
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
-
-_OUTCOME="success"
-
-if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
-  ~/.nanopm/bin/nanopm-telemetry-log \
-    --skill "pm-breakdown" \
-    --duration "$_TEL_DUR" \
-    --outcome "$_OUTCOME" \
-    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
-fi
-```
+Next: start building, or `/pm-retro` after shipping to compare plan vs reality.
 
 **STATUS: DONE**

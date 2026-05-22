@@ -12,7 +12,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-nanopm_telemetry_pending "pm-data"
 _DATA_FILE=".nanopm/DATA.md"
 ```
 
@@ -190,23 +189,5 @@ Tell the user:
 - Whether this data suggests running more interviews (/pm-interview) or moving to planning (/pm-audit)
 
 If the data reveals a clear problem with quantified size: "This is now ready to feed into /pm-audit — the quantitative problem size strengthens the audit's strategic recommendations."
-
-## Telemetry
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
-
-_OUTCOME="success"
-
-if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
-  ~/.nanopm/bin/nanopm-telemetry-log \
-    --skill "pm-data" \
-    --duration "$_TEL_DUR" \
-    --outcome "$_OUTCOME" \
-    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
-fi
-```
 
 **STATUS: DONE**

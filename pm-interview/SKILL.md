@@ -12,7 +12,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-nanopm_telemetry_pending "pm-interview"
 _FEEDBACK_FILE=".nanopm/FEEDBACK.md"
 _INTERVIEW_FILE=".nanopm/INTERVIEW.md"
 ```
@@ -329,23 +328,5 @@ Tell the user:
 - Current signal reliability level (N interviews done, how many more needed)
 - If any hypothesis was REFUTED: "This is valuable — a refuted assumption before you built saves weeks. Run /pm-discovery to reframe."
 - Recommended next skill
-
-## Telemetry
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
-
-_OUTCOME="success"
-
-if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
-  ~/.nanopm/bin/nanopm-telemetry-log \
-    --skill "pm-interview" \
-    --duration "$_TEL_DUR" \
-    --outcome "$_OUTCOME" \
-    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
-fi
-```
 
 **STATUS: DONE**

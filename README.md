@@ -1,43 +1,28 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](CHANGELOG.md)
 
-**You think. nanopm structures it.**
+A PM skill pack for AI coding agents. Runs the planning cycle (audit, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
-Solo founders and small teams don't have a PM. They have a backlog, some instincts, and a nagging feeling they're building the wrong thing. nanopm is an AI-powered product management skill pack for AI coding agents — it automates the full planning cycle (audit → strategy → roadmap → PRD) directly in your editor and remembers everything across sessions.
+Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have.
 
-Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command auto-detects which agents you have.
-
-Inspired by [gstack](https://github.com/garrytan/gstack) by Garry Tan (YC CEO), which proved you can give an AI coding agent a full engineering team via the SKILL.md standard. nanopm is the PM layer on top of that idea.
-
----
-
-## The problem
-
-Product work with AI is fragmented:
-
-- You prompt ChatGPT for a strategy. Context is gone next session.
-- You track roadmap in Notion. It doesn't know your codebase.
-- You write PRDs in Linear. They don't feed back into your next audit.
-- You switch between tools constantly. Nothing compounds.
-
-No existing tool runs the full planning cycle, persists memory, and lives where you code.
+Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack). nanopm is the PM layer.
 
 ---
 
-## What it does
+## Why this exists
 
-One command runs the full pipeline:
+Building the wrong thing fast is the failure mode AI coding agents make easy. They'll ship whatever you describe — they don't ask if it's the right thing.
 
-```
-/pm-run
-```
+The PM work that catches that (audit, strategy, falsification, roadmap, retro) usually lives in tools that don't know your code, lose context between sessions, and don't talk to each other. ChatGPT for the strategy. Notion for the PRD. Linear for the tickets. Nothing compounds.
 
-```
-feedback → audit → objectives → strategy → roadmap → PRD → tickets
-```
+nanopm runs the whole cycle where you already work, with two structural properties:
 
-Each skill writes a markdown artifact. The next skill reads it. Context compounds — the strategy knows the audit, the PRD knows the strategy, the tickets know the PRD. Re-run `/pm-audit` six months later and it knows what you tried before.
+1. **Every artifact lands in typed, schema-validated state.** Each skill writes to `~/.nanopm/projects/{slug}/{type}.jsonl`. The next skill reads from there. No grep on markdown, no silent corruption, no `tail -1 | cut -d'|'` parsing.
+2. **Adversarial gates on the claims that matter.** Every strategy needs a falsifiable bet. Every NOW roadmap item needs a measurable outcome with a timeframe. Every PRD needs a paragraph stating what would prove it wrong. Each gate is a subagent against a rubric plus a state validator. A skill cannot complete unless a well-formed record actually lands.
+
+One command runs the full pipeline: `/pm-run`. Or invoke any skill standalone.
 
 ---
 
@@ -71,10 +56,11 @@ nanopm:  AUDIT.md written.
 
 ## Who it's for
 
-- **Solo founders acting as their own PM** — structured product thinking without leaving the terminal
-- **Engineers doing product work** — go from codebase to roadmap without context-switching
-- **Small teams without a dedicated PM** — a repeatable process that compounds over time
-- **AI-native builders using Vibe, Codex, or Claude Code** — product planning that lives next to your code, not in a separate tab
+- **Solo founder running PM yourself.** Audit your own product before you keep building.
+- **Engineer without a PM partner.** Strategy, roadmap and PRDs in your editor, not in a separate tab.
+- **Small team without a dedicated PM seat.** A repeatable cycle that doesn't depend on a hire.
+
+If you already have a polished product process and a PM you trust, you don't need this.
 
 ---
 
@@ -101,8 +87,6 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 
 **Requirements:** One of: Claude Code, Mistral Vibe, or OpenAI Codex. `python3` (standard on macOS/Linux).
 
-**Note:** During setup, you'll choose a telemetry tier (off/anonymous). See [Analytics & Telemetry](#analytics--telemetry) for details.
-
 ---
 
 ## All skills
@@ -119,7 +103,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-strategy         → strategy + mandatory adversarial challenge (assumption, test, cost)
 /pm-roadmap          → outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
 /pm-prd              → full PRD or Shape Up pitch, adapts to your methodology
-/pm-breakdown        → break PRD into tasks, create tickets in Linear / GitHub Issues
+/pm-breakdown        → break PRD into tasks, hand off to Linear / GitHub / OpenSpec / gstack / Human
 /pm-retro            → compare roadmap vs commits, surface what drifted
 ```
 
@@ -137,60 +121,77 @@ The pipeline compounds. Every skill also works standalone.
 
 ## Pipeline
 
+Three zones: signal in, nanopm cycle, delivery out.
+
 ```mermaid
 graph LR
-    RUN(["/pm-run"]):::runner -.->|orchestrates| AUDIT
+    subgraph IN["INPUTS — signal"]
+      direction TB
+      SCAN["/pm-scan<br/><i>codebase</i>"]
+      DISC["/pm-discovery<br/><i>greenfield</i>"]
+      UF["/pm-user-feedback"]
+      INT["/pm-interview"]
+      DATA["/pm-data"]
+      CI["/pm-competitors-intel"]
+    end
 
-    SCAN["/pm-scan"]:::entry -->|existing codebase| AUDIT["/pm-audit"]
-    DISC["/pm-discovery"]:::entry -->|greenfield| AUDIT
-    UF["/pm-user-feedback"] --> AUDIT
-    INT["/pm-interview"]:::daily --> FEEDBACK[(FEEDBACK.md)]
-    DATA["/pm-data"]:::daily --> AUDIT
-    FEEDBACK --> AUDIT
-    FEEDBACK --> OBJ["/pm-objectives"]
-    UF --> OBJ
-    AUDIT --> OBJ
-    OBJ --> STRAT["/pm-strategy"]
-    UF --> STRAT
-    UF --> ROAD["/pm-roadmap"]
-    CI["/pm-competitors-intel"] --> STRAT
-    STRAT --> ROAD
-    ROAD --> PRD["/pm-prd"]
-    DATA --> PRD
-    PRD --> BREAK["/pm-breakdown"]
-    BREAK --> SHIP(["ship"])
-    SHIP --> RETRO["/pm-retro"]
-    RETRO -.->|next cycle| AUDIT
+    subgraph PIPE["PIPELINE — nanopm"]
+      direction LR
+      AUD[audit] --> OBJ[objectives] --> STR[strategy] --> RM[roadmap] --> PRD[PRD] --> BD[breakdown]
+    end
 
-    STAND["/pm-standup"]:::daily -.->|reads| AUDIT
-    WEEKLY["/pm-weekly-update"]:::daily -.->|reads| RETRO
+    subgraph OUT["HANDOFFS — delivery"]
+      direction TB
+      LIN[Linear]
+      GH[GitHub]
+      OS[OpenSpec]
+      GS[gstack]
+      HU[Human markdown]
+    end
 
-    classDef runner fill:#f5f5f5,stroke:#aaa,stroke-dasharray:5 5
-    classDef entry fill:#e8f4e8,stroke:#5a9e5a
-    classDef daily fill:#e8f0fa,stroke:#5a7ab0
+    IN --> PIPE
+    PIPE --> OUT
+
+    classDef zone fill:#fafafa,stroke:#ccc
+    class IN,PIPE,OUT zone
 ```
+
+Every committed roadmap item, every PRD bet, and every strategic question lands as a typed record in `~/.nanopm/projects/{slug}/decision.jsonl`. The next skill reads from there.
 
 ---
 
 ## Memory
 
-Every skill run appends to `~/.nanopm/memory/{project}.jsonl`. Every new skill knows what was tried before. Re-run `/pm-audit` six months later — it knows the history. No other PM tool does this because no other PM tool lives inside your coding agent.
+State lives in `~/.nanopm/projects/{slug}/` as append-only, schema-validated JSONL — one file per record type:
+
+| File | What it holds |
+|---|---|
+| `decision.jsonl` | Typed PM decisions: `bet`, `antigoal`, `target`, `methodology`, `gap`, `question`, `scope-in`, `scope-out`. Each carries confidence 1–10 and provenance (`observed`, `user-stated`, `inferred`, `derived`, `adversarial`). |
+| `prd.jsonl` | Per-feature metadata: status (`draft`, `ready`, `handed-off`, `shipped`, `abandoned`), target, path. |
+| `handoff.jsonl` | Which target each PRD went to, when, where. |
+| `timeline.jsonl` | Skill run events: started, completed, outcome, duration. |
+
+Every write goes through `bin/nanopm-state-log`, which enforces the schema before append — required fields, enum allowlists, key format, confidence range, length caps. Bad records fail loud with a non-zero exit. There are no silent appends.
+
+Re-run `/pm-audit` six months later and it reads the prior decisions before asking anything new.
 
 ---
 
 ## How it compares
 
-| | nanopm | AI agent alone | Notion / Linear | ChatGPT |
+| | nanopm | DIY prompts in your agent | Notion / Linear | ChatGPT |
 |---|---|---|---|---|
 | Lives in your editor | ✅ | ✅ | ❌ | ❌ |
-| Persistent memory across sessions | ✅ | ❌ | ⚠️ manual | ❌ |
-| Full pipeline (audit → PRD) | ✅ | ❌ | ❌ | ❌ |
+| Typed memory across sessions | ✅ schema-validated JSONL | ❌ | ⚠️ manual writes | ❌ |
+| Full PM pipeline (audit → PRD) | ✅ | ⚠️ if you reprompt every time | ❌ | ❌ |
 | Reads your codebase | ✅ | ✅ | ❌ | ❌ |
-| Zero-config (no integrations required) | ✅ | ✅ | ❌ | ✅ |
+| Adversarial gates on bets & outcomes | ✅ subagent + state validator | ❌ | ❌ | ❌ |
+| Peer handoff targets | ✅ Linear / GitHub / OpenSpec / gstack / human | ⚠️ ad-hoc | ⚠️ Linear only | ❌ |
+| Multi-host (Claude / Vibe / Codex) | ✅ | n/a | n/a | n/a |
 | Adapts to Shape Up / Scrum / Kanban | ✅ | ⚠️ if you prompt it | ✅ | ❌ |
-| Outputs tickets & engineering specs | ✅ Linear, GitHub, OpenSpec | ⚠️ ad-hoc | ⚠️ Linear only | ❌ |
+| Zero-config — works without integrations | ✅ tier 4 manual | ✅ | ❌ | ✅ |
 
-AI coding agents are powerful but stateless — context resets every session, there's no structured pipeline, and methodology has to be re-explained each time. nanopm is what you add when you want the PM workflow to be repeatable, not improvised.
+The point isn't to replace your tracker. The point is to make the decisions *before* the tracker — and make sure those decisions are typed, falsifiable, and still here next session.
 
 ---
 
@@ -251,73 +252,21 @@ Every skill run warns if your AUDIT.md or STRATEGY.md is more than 20 commits ol
 
 ---
 
-## Analytics & Telemetry
+## Handoffs
 
-nanopm collects anonymous usage data to understand which skills are most useful.
+nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the breakdown to one of five peer targets — no preferred default, you pick the one that fits how the project actually ships.
 
-**What's collected:**
-- Skill name (e.g., `pm-audit`, `pm-strategy`)
-- Duration in seconds
-- Outcome (`success`, `error`, `abort`)
-- OS and architecture (e.g., `darwin`, `arm64`)
-- nanopm version
+**Linear** — issues created in a Linear team via MCP or `LINEAR_API_KEY`. Each ticket carries the acceptance criteria and ties back to the PRD requirement.
 
-### What's NOT collected
+**GitHub Issues** — issues in the repo via MCP or `GITHUB_TOKEN`. Body links the PRD and embeds acceptance.
 
-- Your code
-- Project names
-- File paths
-- Personal data
-- IP addresses (not logged server-side)
-- Installation IDs or any tracking identifier
+**OpenSpec** — writes `openspec/changes/{feature}/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/{feature}/spec.md` (requirements as SHALL statements). Pick this up with `/opsx:apply` to implement. If your repo already uses OpenSpec, `/pm-scan` will read `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
 
-### View your local analytics
+**gstack** — writes `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` with a `status: ACTIVE` frontmatter. Pick this up in a [gstack](https://github.com/garrytan/gstack) session with `/plan-ceo-review` or `/autoplan` — the file is read directly from gstack's plan glob.
 
-```bash
-~/.nanopm/bin/nanopm-analytics        # last 7 days
-~/.nanopm/bin/nanopm-analytics 30d    # last 30 days
-~/.nanopm/bin/nanopm-analytics all    # all time
-```
+**Human** — single self-contained markdown at `.nanopm/handoffs/{feature}.md`. PRD body plus copy-paste-ready ticket blocks. Paste into Notion, Jira, a Slack thread, an email, anything. No external system touched.
 
-### Change telemetry tier
-
-```bash
-# View current setting
-grep telemetry ~/.nanopm/config
-
-# Change tier
-echo "telemetry=off" >> ~/.nanopm/config        # disable
-echo "telemetry=anonymous" >> ~/.nanopm/config  # anonymous
-```
-
-Local analytics (`~/.nanopm/analytics/skill-usage.jsonl`) always work regardless of tier.
-
----
-
-## Works with OpenSpec
-
-[OpenSpec](https://openspec.dev) is a spec-driven development framework — specs live as markdown in your repo, and `/opsx:propose` turns a feature description into a proposal + design + tasks that any AI coding agent can execute.
-
-nanopm and OpenSpec are complementary layers:
-
-| Layer | Tool | Answers |
-|-------|------|---------|
-| PM | **nanopm** | Why to build, what to build, for whom, strategy, roadmap |
-| Engineering | **OpenSpec** | How to build it, what are the requirements, what are the tasks |
-
-**nanopm ends where OpenSpec begins.** `/pm-breakdown` can write an OpenSpec-compatible change folder directly — so your PRD becomes immediately executable:
-
-```
-openspec/changes/my-feature/
-├── proposal.md   ← from the PRD
-├── design.md     ← technical decisions
-├── tasks.md      ← the breakdown
-└── specs/        ← requirements as SHALL statements
-```
-
-Then run `/opsx:apply` to implement. No copy-paste.
-
-If your repo already uses OpenSpec, `/pm-scan` will read your `openspec/specs/` files automatically — they describe intended behavior more accurately than a README.
+Every handoff is recorded in `~/.nanopm/projects/{slug}/handoff.jsonl` — typed, schema-validated, queryable later.
 
 ---
 
@@ -346,4 +295,4 @@ bash test/adversarial.e2e.sh       # adversarial subagent gate (needs claude CLI
 
 ---
 
-*Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack) — thank you Garry for proving that AI can own an entire function end-to-end.*
+*Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack).*

@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""nanopm-state-log — append a typed, validated record to project state.
+
+Usage:
+  nanopm-state-log --type TYPE JSON
+  echo JSON | nanopm-state-log --type TYPE
+
+Types and schemas:
+
+  timeline     skill events (per skill invocation)
+    skill        required  string, alphanumeric/hyphens
+    event        required  enum: started | completed | error | abort
+    branch       optional  string
+    outcome      optional  enum: success | error | abort | unknown
+    duration_s   optional  int >= 0
+    session      optional  string
+
+  decision     PM decisions (latest-wins by key)
+    kind         required  enum: bet | antigoal | target | methodology |
+                                  gap | question | scope-in | scope-out
+    key          required  alphanumeric/hyphens (uniqueness key)
+    insight      required  string, max 1000 chars
+    confidence   required  int 1-10
+    source       required  enum: observed | user-stated | inferred |
+                                  derived | adversarial
+    skill        optional  string — which skill recorded this
+    feature      optional  string — which feature it applies to
+
+  prd          PRD metadata (latest-wins by feature)
+    feature      required  alphanumeric/hyphens
+    status       required  enum: draft | ready | handed-off | shipped | abandoned
+    target       optional  enum: linear | github | openspec | gstack | human | none
+    path         optional  file path written
+    skill        optional  string
+
+  handoff      output handoffs (append-only, full history)
+    feature      required  alphanumeric/hyphens
+    target       required  enum: linear | github | openspec | gstack | human
+    path         required  string
+
+Output: writes to ~/.nanopm/projects/{slug}/{type}.jsonl
+        Injects ts (ISO 8601 UTC) and slug automatically.
+        Exits 0 on success; non-zero with stderr on validation failure.
+
+Storage shape mirrors gstack's append-only JSONL convention.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+
+KEY_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+MAX_INSIGHT_LEN = 1000
+MAX_PATH_LEN = 500
+MAX_STRING_LEN = 500
+
+
+SCHEMAS: dict[str, dict[str, Any]] = {
+    "timeline": {
+        "required": {"skill", "event"},
+        "fields": {
+            "skill": {"type": "key"},
+            "event": {"type": "enum", "values": {"started", "completed", "error", "abort"}},
+            "branch": {"type": "string", "optional": True},
+            "outcome": {"type": "enum", "values": {"success", "error", "abort", "unknown"}, "optional": True},
+            "duration_s": {"type": "int_nonneg", "optional": True},
+            "session": {"type": "string", "optional": True},
+        },
+    },
+    "decision": {
+        "required": {"kind", "key", "insight", "confidence", "source"},
+        "fields": {
+            "kind": {"type": "enum", "values": {
+                "bet", "antigoal", "target", "methodology",
+                "gap", "question", "scope-in", "scope-out",
+            }},
+            "key": {"type": "key"},
+            "insight": {"type": "string", "max": MAX_INSIGHT_LEN},
+            "confidence": {"type": "int_range", "min": 1, "max": 10},
+            "source": {"type": "enum", "values": {
+                "observed", "user-stated", "inferred", "derived", "adversarial",
+            }},
+            "skill": {"type": "key", "optional": True},
+            "feature": {"type": "key", "optional": True},
+        },
+    },
+    "prd": {
+        "required": {"feature", "status"},
+        "fields": {
+            "feature": {"type": "key"},
+            "status": {"type": "enum", "values": {
+                "draft", "ready", "handed-off", "shipped", "abandoned",
+            }},
+            "target": {"type": "enum", "values": {
+                "linear", "github", "openspec", "gstack", "human", "none",
+            }, "optional": True},
+            "path": {"type": "string", "max": MAX_PATH_LEN, "optional": True},
+            "skill": {"type": "key", "optional": True},
+        },
+    },
+    "handoff": {
+        "required": {"feature", "target", "path"},
+        "fields": {
+            "feature": {"type": "key"},
+            "target": {"type": "enum", "values": {
+                "linear", "github", "openspec", "gstack", "human",
+            }},
+            "path": {"type": "string", "max": MAX_PATH_LEN},
+        },
+    },
+}
+
+
+def die(msg: str, code: int = 1) -> None:
+    sys.stderr.write(f"nanopm-state-log: {msg}\n")
+    sys.exit(code)
+
+
+def slug() -> str:
+    """Repo name or cwd name."""
+    try:
+        root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        if root:
+            return os.path.basename(root)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return os.path.basename(os.getcwd())
+
+
+def validate_field(name: str, value: Any, spec: dict[str, Any]) -> None:
+    ftype = spec["type"]
+
+    if ftype == "key":
+        if not isinstance(value, str) or not KEY_RE.match(value):
+            die(f"field '{name}' must be alphanumeric/hyphens/underscores, got: {value!r}")
+        if len(value) > 100:
+            die(f"field '{name}' too long (max 100 chars)")
+
+    elif ftype == "enum":
+        if value not in spec["values"]:
+            allowed = ", ".join(sorted(spec["values"]))
+            die(f"field '{name}' must be one of [{allowed}], got: {value!r}")
+
+    elif ftype == "string":
+        if not isinstance(value, str):
+            die(f"field '{name}' must be a string")
+        maxlen = spec.get("max", MAX_STRING_LEN)
+        if len(value) > maxlen:
+            die(f"field '{name}' too long (max {maxlen} chars, got {len(value)})")
+
+    elif ftype == "int_nonneg":
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            die(f"field '{name}' must be non-negative integer")
+
+    elif ftype == "int_range":
+        if not isinstance(value, int) or isinstance(value, bool):
+            die(f"field '{name}' must be an integer")
+        if value < spec["min"] or value > spec["max"]:
+            die(f"field '{name}' must be in [{spec['min']}..{spec['max']}], got {value}")
+
+    else:
+        die(f"internal: unknown field type {ftype!r}")
+
+
+def validate(record: dict[str, Any], type_name: str) -> dict[str, Any]:
+    if type_name not in SCHEMAS:
+        die(f"unknown type {type_name!r}. Valid: {', '.join(sorted(SCHEMAS))}")
+    schema = SCHEMAS[type_name]
+
+    missing = schema["required"] - set(record.keys())
+    if missing:
+        die(f"missing required field(s): {', '.join(sorted(missing))}")
+
+    unknown = set(record.keys()) - set(schema["fields"]) - {"ts", "slug", "type"}
+    if unknown:
+        die(f"unknown field(s) for type {type_name!r}: {', '.join(sorted(unknown))}")
+
+    for name, spec in schema["fields"].items():
+        if name in record:
+            validate_field(name, record[name], spec)
+        elif not spec.get("optional", False) and name not in schema["required"]:
+            die(f"internal: required field {name!r} not in required set")
+
+    return record
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Append a typed record to nanopm project state")
+    ap.add_argument("--type", required=True, choices=sorted(SCHEMAS.keys()))
+    ap.add_argument("json", nargs="?", help="JSON record (omit to read from stdin)")
+    args = ap.parse_args()
+
+    if args.json is None:
+        if sys.stdin.isatty():
+            die("no JSON provided (pass as argv or stdin)")
+        raw = sys.stdin.read()
+    else:
+        raw = args.json
+
+    raw = raw.strip()
+    if not raw:
+        die("empty input")
+
+    try:
+        record = json.loads(raw)
+    except json.JSONDecodeError as e:
+        die(f"invalid JSON: {e}")
+
+    if not isinstance(record, dict):
+        die("record must be a JSON object")
+
+    validate(record, args.type)
+
+    # Inject metadata
+    record.setdefault("ts", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    record["slug"] = slug()
+
+    # Write
+    home = os.environ.get("HOME") or os.path.expanduser("~")
+    out_dir = Path(home) / ".nanopm" / "projects" / record["slug"]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{args.type}.jsonl"
+
+    line = json.dumps(record, separators=(",", ":"), ensure_ascii=False)
+    try:
+        with open(out_file, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError as e:
+        die(f"could not write state file: {e}", code=2)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

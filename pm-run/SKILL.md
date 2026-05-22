@@ -56,8 +56,8 @@ A) **Existing project** — there's already code. I'll scan the codebase to unde
 B) **Greenfield / pre-product** — nothing built yet. I'll run discovery to map the opportunity first, then plan.
 C) **Skip straight to audit** — I know what I'm building, just run the pipeline."
 
-If A: run pm-scan inline (read and follow `~/.claude/skills/pm-scan/SKILL.md`, skipping its preamble) before Phase 2. After scan completes: "✅ Codebase scanned. Moving to feedback..."
-If B: run pm-discovery inline (read and follow `~/.claude/skills/pm-discovery/SKILL.md`, skipping its preamble) before Phase 2. After discovery completes: "✅ Discovery done. Moving to feedback..."
+If A: run pm-scan inline (read and follow `$(nanopm_skill_path pm-scan)`, skipping its preamble) before Phase 2. After scan completes: "✅ Codebase scanned. Moving to feedback..."
+If B: run pm-discovery inline (read and follow `$(nanopm_skill_path pm-discovery)`, skipping its preamble) before Phase 2. After discovery completes: "✅ Discovery done. Moving to feedback..."
 If C: proceed directly to Phase 1.
 
 ## Phase 1: Confirm pipeline
@@ -89,7 +89,7 @@ If E: exit.
 
 ## Phase 2: Run pm-user-feedback inline
 
-Read and follow `~/.claude/skills/pm-user-feedback/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-user-feedback)` inline, skipping:
 - Its own "Preamble (run first)" (already sourced above)
 
 Complete all phases through **Phase 6: Save context**.
@@ -100,7 +100,7 @@ If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-au
 
 ## Phase 3: Run pm-audit inline
 
-Read and follow `~/.claude/skills/pm-audit/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-audit)` inline, skipping:
 - Its own "Preamble (run first)" (already sourced above)
 
 Complete all phases of pm-audit through **Phase 7: Save context**.
@@ -111,7 +111,7 @@ If user chose B: stop here. Output: "Pipeline stopped after audit. Run /pm-objec
 
 ## Phase 4: Run pm-objectives inline
 
-Read and follow `~/.claude/skills/pm-objectives/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-objectives)` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context.
@@ -120,7 +120,7 @@ After pm-objectives completes: "✅ Objectives set. Moving to strategy..."
 
 ## Phase 5: Run pm-strategy inline
 
-Read and follow `~/.claude/skills/pm-strategy/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-strategy)` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context. This includes the adversarial challenge.
@@ -129,7 +129,7 @@ After pm-strategy completes: "✅ Strategy locked (adversarial review done). Mov
 
 ## Phase 6: Run pm-roadmap inline
 
-Read and follow `~/.claude/skills/pm-roadmap/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-roadmap)` inline, skipping:
 - Its own "Preamble (run first)"
 
 Complete all phases through save context.
@@ -140,7 +140,7 @@ After pm-roadmap completes: "✅ Roadmap built. Moving to PRD for top NOW item..
 
 Read the roadmap NOW section and identify the top priority item. Run pm-prd for that item.
 
-Read and follow `~/.claude/skills/pm-prd/SKILL.md` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-prd)` inline, skipping:
 - Its own "Preamble (run first)"
 
 After pm-prd completes: "✅ PRD written."
@@ -169,24 +169,6 @@ Next: /pm-breakdown to create tickets from the PRD
       /pm-competitors-intel to monitor what competitors shipped this cycle
       /pm-retro after your next sprint to compare plan vs reality
 ================================
-```
-
-## Telemetry
-
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
-
-_OUTCOME="success"
-
-if [ -x ~/.nanopm/bin/nanopm-telemetry-log ]; then
-  ~/.nanopm/bin/nanopm-telemetry-log \
-    --skill "pm-run" \
-    --duration "$_TEL_DUR" \
-    --outcome "$_OUTCOME" \
-    --session-id "$_TEL_SESSION_ID" 2>/dev/null || true
-fi
 ```
 
 **STATUS: DONE**

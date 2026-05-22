@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""nanopm-state-read — read typed records from project state.
+
+Usage:
+  nanopm-state-read --type TYPE [--latest] [--filter KEY=VAL ...] [--limit N]
+
+Examples:
+  # All decisions
+  nanopm-state-read --type decision
+
+  # Latest bet for the project
+  nanopm-state-read --type decision --filter kind=bet --latest
+
+  # Latest decision by key (latest-wins read pattern)
+  nanopm-state-read --type decision --filter key=onboarding-friction --latest
+
+  # PRD metadata for a specific feature, latest
+  nanopm-state-read --type prd --filter feature=user-onboarding --latest
+
+  # Last 5 timeline events
+  nanopm-state-read --type timeline --limit 5
+
+  # All handoffs for a feature
+  nanopm-state-read --type handoff --filter feature=user-onboarding
+
+Output: one JSON object per line. Empty if no matches.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+VALID_TYPES = {"timeline", "decision", "prd", "handoff"}
+
+
+def slug() -> str:
+    try:
+        root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+        if root:
+            return os.path.basename(root)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return os.path.basename(os.getcwd())
+
+
+def parse_filter(items: list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in items:
+        if "=" not in item:
+            sys.stderr.write(f"nanopm-state-read: bad filter {item!r}, expected KEY=VALUE\n")
+            sys.exit(2)
+        k, v = item.split("=", 1)
+        out[k] = v
+    return out
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Read typed records from nanopm project state")
+    ap.add_argument("--type", required=True, choices=sorted(VALID_TYPES))
+    ap.add_argument("--filter", action="append", default=[],
+                    help="KEY=VAL filter (repeatable, ANDed)")
+    ap.add_argument("--latest", action="store_true",
+                    help="Return only the most recent matching record")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="Return at most N records (most recent first)")
+    args = ap.parse_args()
+
+    filters = parse_filter(args.filter)
+
+    home = os.environ.get("HOME") or os.path.expanduser("~")
+    state_file = Path(home) / ".nanopm" / "projects" / slug() / f"{args.type}.jsonl"
+
+    if not state_file.exists():
+        return 0
+
+    records: list[dict] = []
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if all(str(rec.get(k, "")) == v for k, v in filters.items()):
+                    records.append(rec)
+    except OSError as e:
+        sys.stderr.write(f"nanopm-state-read: {e}\n")
+        return 2
+
+    if args.latest:
+        if records:
+            print(json.dumps(records[-1], separators=(",", ":"), ensure_ascii=False))
+        return 0
+
+    if args.limit > 0:
+        records = records[-args.limit:]
+
+    for rec in records:
+        print(json.dumps(rec, separators=(",", ":"), ensure_ascii=False))
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

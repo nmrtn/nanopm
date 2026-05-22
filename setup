@@ -5,7 +5,7 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.5.2"
+NANOPM_VERSION="0.6.0"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
@@ -252,17 +252,22 @@ chmod +x "$GLOBAL_CONFIG_DIR/lib/nanopm.sh"
 _install_file "ETHOS.md" "$GLOBAL_CONFIG_DIR/ETHOS.md"
 ok "lib/nanopm.sh and ETHOS.md installed"
 
-step "Installing telemetry binaries"
+step "Installing state binaries"
 mkdir -p "$GLOBAL_CONFIG_DIR/bin"
-_install_file "bin/nanopm-telemetry-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-log"
-_install_file "bin/nanopm-telemetry-sync" "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-sync"
-_install_file "bin/nanopm-analytics" "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
-chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-log"
-chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-telemetry-sync"
-chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-analytics"
-mkdir -p "$GLOBAL_CONFIG_DIR/supabase"
-_install_file "supabase/config.sh" "$GLOBAL_CONFIG_DIR/supabase/config.sh"
-ok "Telemetry binaries installed"
+# Remove deprecated binaries from prior versions (v0.6.0 dropped telemetry)
+for _stale in nanopm-telemetry-log nanopm-telemetry-sync nanopm-analytics; do
+  [ -e "$GLOBAL_CONFIG_DIR/bin/$_stale" ] && rm -f "$GLOBAL_CONFIG_DIR/bin/$_stale"
+done
+# Remove deprecated supabase config dir
+[ -d "$GLOBAL_CONFIG_DIR/supabase" ] && rm -rf "$GLOBAL_CONFIG_DIR/supabase"
+# Remove deprecated analytics/sessions dirs
+[ -d "$GLOBAL_CONFIG_DIR/analytics" ] && rm -rf "$GLOBAL_CONFIG_DIR/analytics"
+[ -d "$GLOBAL_CONFIG_DIR/sessions" ] && rm -rf "$GLOBAL_CONFIG_DIR/sessions"
+_install_file "bin/nanopm-state-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
+_install_file "bin/nanopm-state-read" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
+ok "State binaries installed (typed JSONL under ~/.nanopm/projects/)"
 
 step "Installing connectors"
 for connector in README.md linear.md notion.md dovetail.md github.md productboard.md; do
@@ -322,40 +327,6 @@ fi
 # Write installed version to ~/.nanopm/VERSION (used by update check)
 echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
 ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION"
-
-# ── telemetry opt-in ──────────────────────────────────────────────────────────
-step "Telemetry preferences"
-echo
-echo "  nanopm collects anonymous usage data to understand which skills are most useful."
-echo
-echo "  Two tiers:"
-echo "    off        — no data sent (local analytics still work)"
-echo "    anonymous  — skill usage only (skill name, duration, outcome, OS, arch, version)"
-echo
-echo "  NOT collected: code, project names, personal data, IP addresses, installation IDs."
-echo
-echo "  Local analytics (~/.nanopm/analytics/) always work regardless of this setting."
-echo
-if [ -t 0 ]; then
-  # Interactive terminal — ask
-  printf "  Choose telemetry tier [off/anonymous] (default: anonymous): "
-  read -r _tel_choice
-  case "$_tel_choice" in
-    off|OFF)
-      echo "telemetry=off" >> "$_CONFIG"
-      ok "Telemetry disabled — local analytics still available"
-      ;;
-    *)
-      echo "telemetry=anonymous" >> "$_CONFIG"
-      ok "Anonymous telemetry enabled — thank you!"
-      ;;
-  esac
-else
-  # Non-interactive (piped install) — default to anonymous
-  echo "telemetry=anonymous" >> "$_CONFIG"
-  ok "Anonymous telemetry enabled by default"
-fi
-echo "  (Change anytime: grep telemetry ~/.nanopm/config)"
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
 # Only if we're inside a git repo right now (running from a project directory)

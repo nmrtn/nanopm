@@ -3,7 +3,7 @@
 # Source this from every skill preamble:
 #   source ~/.nanopm/lib/nanopm.sh
 #
-# Provides: config, context/memory, connectors, browser, gitignore check, telemetry
+# Provides: config, context/memory, connectors, browser, gitignore check
 
 # ── Host detection ───────────────────────────────────────────────────────────
 # Detects which AI coding agent is running nanopm and exports NANOPM_HOST.
@@ -12,11 +12,24 @@
 
 if [ -n "${VIBE_VERSION:-}" ] || [ -n "${VIBE_SKILLS_DIR:-}" ]; then
   export NANOPM_HOST="vibe"
+  export NANOPM_SKILLS_DIR="${VIBE_SKILLS_DIR:-$HOME/.vibe/skills}"
 elif [ -n "${CODEX_VERSION:-}" ] || [ -n "${CODEX_SKILLS_DIR:-}" ]; then
   export NANOPM_HOST="codex"
+  export NANOPM_SKILLS_DIR="${CODEX_SKILLS_DIR:-$HOME/.codex/skills}"
 else
   export NANOPM_HOST="claude"
+  export NANOPM_SKILLS_DIR="$HOME/.claude/skills"
 fi
+
+# Resolve absolute path to a sibling skill's SKILL.md for the current host.
+# Skills that orchestrate other skills inline must use this instead of
+# hardcoding ~/.claude/skills/, otherwise the pipeline breaks on Vibe/Codex.
+#
+# Usage: source "$(nanopm_skill_path pm-audit)"  # or just read/follow it
+nanopm_skill_path() {
+  local skill="$1"
+  echo "$NANOPM_SKILLS_DIR/$skill/SKILL.md"
+}
 
 # ── Config ──────────────────────────────────────────────────────────────────
 # Key-value store in ~/.nanopm/config (one KEY=VALUE per line)
@@ -95,6 +108,34 @@ nanopm_context_all() {
   local file
   file=$(_nanopm_memory_file)
   [ -f "$file" ] && cat "$file" || true
+}
+
+# ── Typed state (v0.6.0+) ────────────────────────────────────────────────────
+# Schema-validated JSONL under ~/.nanopm/projects/{slug}/{type}.jsonl
+# Types: timeline | decision | prd | handoff
+# Skills should prefer these over the legacy nanopm_context_append above.
+
+nanopm_state_log() {
+  # Usage: nanopm_state_log --type TYPE '{"...":"..."}'
+  # Validates against the schema in bin/nanopm-state-log and appends on success.
+  # Exits 0 on success, non-zero with stderr on validation failure.
+  if [ -x "$HOME/.nanopm/bin/nanopm-state-log" ]; then
+    "$HOME/.nanopm/bin/nanopm-state-log" "$@"
+  else
+    echo "nanopm: bin/nanopm-state-log not installed; run setup" >&2
+    return 127
+  fi
+}
+
+nanopm_state_read() {
+  # Usage: nanopm_state_read --type TYPE [--filter KEY=VAL] [--latest] [--limit N]
+  # Prints matching records as JSONL. Empty output = no matches.
+  if [ -x "$HOME/.nanopm/bin/nanopm-state-read" ]; then
+    "$HOME/.nanopm/bin/nanopm-state-read" "$@"
+  else
+    echo "nanopm: bin/nanopm-state-read not installed; run setup" >&2
+    return 127
+  fi
 }
 
 nanopm_context_summary() {
@@ -372,29 +413,17 @@ nanopm_preamble() {
   _VERSION=$(cat ~/.nanopm/VERSION 2>/dev/null || \
              cat "$(dirname "$0")/../VERSION" 2>/dev/null || echo "unknown")
   mkdir -p ~/.nanopm/memory
-  mkdir -p ~/.nanopm/analytics
-  mkdir -p ~/.nanopm/sessions
+  mkdir -p ~/.nanopm/projects/"$_SLUG"
   mkdir -p .nanopm
   nanopm_find_browse > /dev/null  # sets $B
   nanopm_check_gitignore
   nanopm_staleness_check
   nanopm_update_check             # prints UPGRADE_AVAILABLE if a new version exists
-  
-  # Initialize telemetry session
-  _TEL_SESSION_ID="$(date +%s)-$$-$RANDOM"
-  _TEL_START=$(date +%s)
-  
-  # Write session marker (for concurrent session count)
-  echo "$_TEL_SESSION_ID" > ~/.nanopm/sessions/"$_TEL_SESSION_ID" 2>/dev/null || true
-  
-  # Clean up old session markers (>2h old)
-  find ~/.nanopm/sessions -type f -mmin +120 -delete 2>/dev/null || true
-  
+
   echo "SLUG: $_SLUG"
   echo "BRANCH: $_BRANCH"
   echo "VERSION: $_VERSION"
   echo "BROWSE: ${B:-not available}"
-  echo "SESSION: $_TEL_SESSION_ID"
   # Voice directive — all nanopm skills follow this register
   # Load ethos (shapes advisor voice across all skills)
   # Installed at ~/.nanopm/ETHOS.md by setup
@@ -404,18 +433,4 @@ nanopm_preamble() {
   else
     echo "VOICE: Direct, adversarial PM advisor. No hedging, no corporate speak. Name the real problem, not the comfortable one. Call out gaps specifically. If the answer is obvious from context, skip the question. Short sentences."
   fi
-}
-
-# Write pending marker for crash recovery (called from skill preamble after nanopm_preamble)
-nanopm_telemetry_pending() {
-  local skill="$1"
-  local ts
-  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%S 2>/dev/null)
-  local ver
-  ver=$(cat ~/.nanopm/VERSION 2>/dev/null | tr -d '[:space:]' || echo "unknown")
-  
-  mkdir -p ~/.nanopm/analytics
-  printf '{"skill":"%s","ts":"%s","session_id":"%s","nanopm_version":"%s"}' \
-    "$skill" "$ts" "$_TEL_SESSION_ID" "$ver" \
-    > ~/.nanopm/analytics/.pending-"$_TEL_SESSION_ID" 2>/dev/null || true
 }

@@ -13,7 +13,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-strategy | `/pm-strategy` | Strategy with structured adversarial challenge |
 | pm-roadmap | `/pm-roadmap` | Outcome-driven roadmap |
 | pm-prd | `/pm-prd` | Full PRD (or Shape Up pitch) |
-| pm-breakdown | `/pm-breakdown` | Break PRD into tasks, create tickets in Linear / GitHub Issues |
+| pm-breakdown | `/pm-breakdown` | Break PRD into tasks, hand off to Linear / GitHub / OpenSpec / gstack / Human |
 | pm-retro | `/pm-retro` | Compare roadmap vs commits, surface drift |
 | pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
 | pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |

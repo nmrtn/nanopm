@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.6.0 — 2026-05-22
+
+### Sharpened scope: nanopm = the PM half, with symmetric handoffs
+
+nanopm now explicitly owns the PM layer (audit → strategy → roadmap → PRD) and hands off cleanly to whatever delivers the work. Five peer handoff targets, no preferred default.
+
+**Removed:**
+- Entire telemetry stack (`bin/nanopm-telemetry-log`, `bin/nanopm-telemetry-sync`, `bin/nanopm-analytics`, `supabase/` directory with the edge function + migrations, and ~250 lines of per-skill `## Telemetry` boilerplate). Pre-PMF infrastructure that didn't earn its weight.
+- `nanopm_telemetry_pending` from `lib/nanopm.sh`. Telemetry session/start variables stripped from `nanopm_preamble`. `~/.nanopm/sessions/` and `~/.nanopm/analytics/` no longer created or referenced.
+- The "Analytics & Telemetry" section from `README.md`.
+- Telemetry opt-in prompt from `setup`.
+- On upgrade, `setup` proactively removes deprecated binaries and dirs (`bin/nanopm-telemetry-*`, `bin/nanopm-analytics`, `supabase/`, `analytics/`, `sessions/`).
+
+**Added:**
+- **Typed state layer** under `~/.nanopm/projects/{slug}/`. Schema-validated JSONL via two new binaries: `bin/nanopm-state-log` (write + validate) and `bin/nanopm-state-read` (latest-wins / filtered read). Mirrors gstack's append-only JSONL pattern, implemented in pure python3 (no new deps).
+  - **Types:** `timeline` (skill events), `decision` (typed PM decisions: bet/antigoal/target/methodology/gap/question/scope-in/scope-out), `prd` (per-feature metadata + status), `handoff` (which target each artifact went to, when).
+  - **Schema enforcement at write time:** required-field checks, enum allowlists, alphanumeric key validation, confidence range 1–10, length caps. Bad JSON is rejected with a clear stderr message and non-zero exit — no silent appends.
+  - Shell convenience wrappers: `nanopm_state_log` and `nanopm_state_read` in `lib/nanopm.sh`.
+- **`nanopm_skill_path` helper** in `lib/nanopm.sh`. Resolves a sibling skill's `SKILL.md` to the active host (`~/.claude/skills/`, `~/.vibe/skills/`, or `~/.codex/skills/`). Replaces every hardcoded `~/.claude/skills/...` reference in `pm-run` — the pipeline inline-orchestration now works on Vibe and Codex, not just Claude.
+- **`NANOPM_SKILLS_DIR`** environment variable exported by host detection. Vibe/Codex installs can override via `VIBE_SKILLS_DIR` / `CODEX_SKILLS_DIR`.
+
+**Changed:**
+- **`/pm-breakdown` is now symmetric across five peer handoff targets**: Linear, GitHub Issues, OpenSpec, gstack, Human-readable markdown. Phase 3 asks once which target to use — no preferred recommendation, no "additional output" framing.
+  - **New gstack target:** writes `~/.gstack/projects/{slug}/ceo-plans/{YYYY-MM-DD}-{feature}.md` with `status: ACTIVE` frontmatter matching what gstack's `/plan-ceo-review` reads from its `gbrain.context_queries` glob. Output includes a Vision section, NOT-in-scope, full task list, acceptance, open questions.
+  - **New Human target:** writes `.nanopm/handoffs/{feature}.md` — a single self-contained markdown with the PRD body plus copy-paste-ready ticket blocks. Pastes anywhere (Notion, Jira, Slack, email).
+  - Every successful handoff logs to `~/.nanopm/projects/{slug}/handoff.jsonl` via validated state write, and updates `prd.jsonl` status to `handed-off`.
+- **README "Works with OpenSpec" section replaced with "Handoffs"** — five peers, one paragraph each, no preferred default. OpenSpec is now described at the same tier as Linear, GitHub, gstack, and Human.
+- All-skills list line for `/pm-breakdown` updated in `README.md`, `llms.txt`, `CLAUDE.md`.
+- `setup` no longer asks about telemetry. Default install is faster (no opt-in prompt) and quieter.
+
+**ETHOS principles → structural gates:**
+The principles in `~/.nanopm/ETHOS.md` are no longer prose hopes — three skills now enforce them with a two-layer gate: an adversarial subagent against a strict rubric, plus the typed state validator. A skill cannot complete unless a well-formed record lands in `decision.jsonl`.
+
+- **`/pm-audit`** — replaces the old "Adversarial self-challenge" with a gated *"Question You're Avoiding"* (ETHOS §3). Subagent must emit `QUESTION:` / `KEY:` / `CONFIDENCE:` / `RATIONALE:` lines that pass a rubric (ends in `?`, starts with Is/Does/Will/Would/Can/Should/Are, ≤200 chars, named actor or behavior). On pass, writes a typed `decision` of kind `question`. Two failed retries abort the audit.
+- **`/pm-roadmap`** — new Phase 4b iterates every committed item (NOW row, Shape Up Bet, or Scrum sprint focus row). One batched subagent checks each outcome statement for 4 elements (SEGMENT, BEHAVIOR, METRIC, TIMEFRAME). Failed items are rewritten in-place with a `⚠ rewritten by gate` tag. Every committed item writes a typed `decision` of kind `target` via `nanopm_state_log`. Vague outcomes don't ship.
+- **`/pm-prd`** — both Shape Up pitch and standard PRD formats now require a `## Falsification` section. New Phase 4b validates it against the same 4-element rubric (NUMBER + SEGMENT + BEHAVIOR + TIMEFRAME), rewrites the paragraph on FAIL, and writes typed records: a `decision` of kind `bet` (keyed by feature slug) and a `prd` row with `status: ready`. The PRD lands as ready-for-handoff in state — `/pm-breakdown` will read this on the next call.
+
+The state validator's enum allowlists are the gate's structural backbone: if the LLM tries to write an invalid kind, source, or out-of-range confidence, `nanopm_state_log` rejects with a clear stderr message and non-zero exit. The skill must retry or escalate — there is no silent append.
+
+**Migration notes:**
+- Old `~/.nanopm/memory/{slug}.jsonl` is left untouched. Skills still write to it via the legacy `nanopm_context_append` shim for back-compat. Future work will migrate skills to the typed state layer; until then both paths coexist.
+- If you previously enabled telemetry, the `telemetry=anonymous` line in `~/.nanopm/config` is now ignored — nothing reads it. You can leave it or remove it.
+
 ## 0.5.2 — 2026-05-21
 
 ### Daily ops layer (from PRs #6 and #7 by @alexhumeau)
