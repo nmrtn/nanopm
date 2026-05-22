@@ -5,7 +5,7 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.6.1"
+NANOPM_VERSION="0.6.2"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
@@ -321,12 +321,50 @@ if [ ! -f "$_CONFIG" ]; then
 EOF
   ok "Config initialized at ~/.nanopm/config"
 else
-  ok "Config already exists — skipping"
+  # Clean up duplicate lines (legacy setup scripts appended on each run instead
+  # of deduping) and prune deprecated keys (telemetry was removed in v0.6.0).
+  _CONFIG_TMP=$(mktemp "${_CONFIG}.tmp.XXXXXX") || _CONFIG_TMP=""
+  if [ -n "$_CONFIG_TMP" ]; then
+    # Single-pass awk:
+    #   - Drop deprecated keys (telemetry=...)
+    #   - Pass through comments and blank lines
+    #   - Dedupe KEY=VALUE lines (last write wins, original order preserved)
+    if awk -F= '
+        BEGIN { n = 0 }
+        # Deprecated keys to strip
+        /^telemetry=/ { next }
+        # Comments and blank lines pass through immediately
+        /^#/ { print; next }
+        /^$/ { print; next }
+        # Valid key=value: stash latest, remember first-seen order
+        /^[A-Za-z_][A-Za-z0-9_]*=/ {
+          if (!(($1) in seen)) { order[++n] = $1; seen[$1] = 1 }
+          last[$1] = $0
+          next
+        }
+        # Anything else: pass through unchanged
+        { print }
+        END {
+          for (i = 1; i <= n; i++) print last[order[i]]
+        }
+      ' "$_CONFIG" > "$_CONFIG_TMP" 2>/dev/null; then
+      mv "$_CONFIG_TMP" "$_CONFIG"
+      ok "Config preserved (deprecated keys pruned, duplicates collapsed)"
+    else
+      rm -f "$_CONFIG_TMP"
+      ok "Config preserved (cleanup skipped — awk unavailable?)"
+    fi
+  else
+    ok "Config preserved"
+  fi
 fi
 
-# Write installed version to ~/.nanopm/VERSION (used by update check)
+# Write installed version to ~/.nanopm/VERSION (used by update check).
+# Clear the update-check cache so the next preamble does a fresh fetch
+# instead of comparing against a stale cached remote version.
 echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
-ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION"
+rm -f "$GLOBAL_CONFIG_DIR/last-update-check"
+ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION (update cache cleared)"
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
 # Only if we're inside a git repo right now (running from a project directory)

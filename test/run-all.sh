@@ -18,6 +18,7 @@ _TESTS=(
   "state-layer.sh"
   "multi-host.sh"
   "gates.sh"
+  "update-check.sh"
   "context-threading.e2e.sh"
   "website-bootstrap.e2e.sh"
 )

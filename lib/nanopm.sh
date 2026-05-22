@@ -372,16 +372,87 @@ nanopm_staleness_check() {
 # Snooze state: ~/.nanopm/update-snoozed  format: "{version} {level} {timestamp}"
 #   Level 1 → 24h backoff, level 2 → 48h, level 3+ → 1 week
 
+# Compare two semver strings. Returns 0 (true) if $1 is strictly greater than $2.
+# Handles versions like "0.6.1", "1.42.2", "0.10.0". Non-numeric components
+# (e.g. pre-release suffixes) compare as 0.
+nanopm_semver_gt() {
+  local a="$1" b="$2"
+  [ -z "$a" ] && return 1
+  [ -z "$b" ] && return 0
+  python3 - "$a" "$b" <<'PYEOF' 2>/dev/null
+import sys
+def parts(v):
+    out = []
+    for p in v.split("."):
+        try:
+            out.append(int(p))
+        except ValueError:
+            # Strip any non-digit tail (e.g. "1-rc1" → 1)
+            num = ""
+            for ch in p:
+                if ch.isdigit():
+                    num += ch
+                else:
+                    break
+            out.append(int(num) if num else 0)
+    return out
+pa, pb = parts(sys.argv[1]), parts(sys.argv[2])
+maxlen = max(len(pa), len(pb))
+pa += [0] * (maxlen - len(pa))
+pb += [0] * (maxlen - len(pb))
+sys.exit(0 if pa > pb else 1)
+PYEOF
+}
+
 nanopm_update_check() {
-  # Respect disable flag
+  # Outputs (to stdout, for skill preambles to capture):
+  #   UPGRADE_AVAILABLE {local_ver} {remote_ver}   when remote > local AND not snoozed
+  #   (nothing)                                    otherwise
+  #
+  # Order matters: we resolve remote first, then compare, then check snooze
+  # against the resolved remote version. Earlier versions of this function
+  # compared snooze against local, which silenced upgrades incorrectly.
+
+  # 1. Respect disable flag
   local _disabled
   _disabled=$(nanopm_config_get "update_check_disabled" 2>/dev/null || true)
   [ "$_disabled" = "1" ] && return 0
 
   local _now
   _now=$(date +%s)
+  local _local_ver
+  _local_ver=$(cat "$HOME/.nanopm/VERSION" 2>/dev/null || echo "0.0.0")
 
-  # Check snooze
+  # 2. Resolve remote version: cache if fresh (<24h), else fetch
+  local _cache="$HOME/.nanopm/last-update-check"
+  local _remote_ver=""
+
+  if [ -f "$_cache" ]; then
+    local _cts _crv
+    _cts=$(awk '{print $1}' "$_cache" 2>/dev/null || echo "0")
+    _crv=$(awk '{print $2}' "$_cache" 2>/dev/null || echo "")
+    case "$_cts" in *[!0-9]*) _cts=0 ;; esac
+    if [ $(( _now - _cts )) -lt 86400 ] && [ -n "$_crv" ]; then
+      _remote_ver="$_crv"
+    fi
+  fi
+
+  if [ -z "$_remote_ver" ]; then
+    _remote_ver=$(curl -fsSL --max-time 3 \
+      "https://raw.githubusercontent.com/nmrtn/nanopm/main/VERSION" 2>/dev/null \
+      | tr -d '[:space:]' || echo "")
+    [ -z "$_remote_ver" ] && return 0
+    mkdir -p "$HOME/.nanopm"
+    echo "$_now $_remote_ver" > "$_cache"
+  fi
+
+  # 3. No upgrade if remote is not strictly newer (semver, not string compare)
+  if ! nanopm_semver_gt "$_remote_ver" "$_local_ver"; then
+    return 0
+  fi
+
+  # 4. Snooze: suppress notification if the user previously dismissed THIS
+  #    remote version and we're within the backoff window.
   local _snooze="$HOME/.nanopm/update-snoozed"
   if [ -f "$_snooze" ]; then
     local _sv _sl _st
@@ -392,43 +463,12 @@ nanopm_update_check() {
     case "$_st" in *[!0-9]*) _st=0 ;; esac
     local _backoff=86400
     case "$_sl" in 2) _backoff=172800 ;; 3) _backoff=604800 ;; esac
-    if [ $(( _now - _st )) -lt $_backoff ]; then
-      # Still snoozed — check if a newer version than the snoozed one exists
-      local _lv
-      _lv=$(cat "$HOME/.nanopm/VERSION" 2>/dev/null || echo "0.0.0")
-      [ "$_sv" = "$_lv" ] && return 0  # snoozed version matches local; stay quiet
+    if [ "$_sv" = "$_remote_ver" ] && [ $(( _now - _st )) -lt $_backoff ]; then
+      return 0  # snoozed this specific version, still in backoff
     fi
   fi
 
-  # Cache: ~/.nanopm/last-update-check  format: "{timestamp} {remote_version}"
-  local _cache="$HOME/.nanopm/last-update-check"
-  local _local_ver
-  _local_ver=$(cat "$HOME/.nanopm/VERSION" 2>/dev/null || echo "0.0.0")
-
-  if [ -f "$_cache" ]; then
-    local _cts _crv
-    _cts=$(awk '{print $1}' "$_cache" 2>/dev/null || echo "0")
-    _crv=$(awk '{print $2}' "$_cache" 2>/dev/null || echo "")
-    case "$_cts" in *[!0-9]*) _cts=0 ;; esac
-    if [ $(( _now - _cts )) -lt 86400 ] && [ -n "$_crv" ]; then
-      # Use cached result
-      [ "$_crv" != "$_local_ver" ] && echo "UPGRADE_AVAILABLE $_local_ver $_crv"
-      return 0
-    fi
-  fi
-
-  # Fetch remote version (3s timeout, silent fail)
-  local _remote_ver
-  _remote_ver=$(curl -fsSL --max-time 3 \
-    "https://raw.githubusercontent.com/nmrtn/nanopm/main/VERSION" 2>/dev/null \
-    | tr -d '[:space:]' || echo "")
-  [ -z "$_remote_ver" ] && return 0
-
-  # Write cache
-  mkdir -p "$HOME/.nanopm"
-  echo "$_now $_remote_ver" > "$_cache"
-
-  [ "$_remote_ver" != "$_local_ver" ] && echo "UPGRADE_AVAILABLE $_local_ver $_remote_ver"
+  echo "UPGRADE_AVAILABLE $_local_ver $_remote_ver"
   return 0
 }
 

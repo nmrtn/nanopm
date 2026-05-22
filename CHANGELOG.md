@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.6.2 — 2026-05-22
+
+### Hotfix: auto-upgrade bugs + README pipeline rewrite
+
+**Fixed — `nanopm_update_check` was misfiring (could suggest a downgrade):**
+- Old logic compared cached remote vs local with `!=`. If a stale cache held an older remote version than the now-bumped local (e.g. cache says `0.5.2` but local is `0.6.0`), the check fired `UPGRADE_AVAILABLE 0.6.0 0.5.2` — telling the user to install an older version.
+- New helper `nanopm_semver_gt` does proper component-by-component comparison (so `0.10.0 > 0.9.0` and `1.42.2 > 0.15.16` work correctly).
+- `nanopm_update_check` rewritten to: resolve remote (cache or fetch) → compare semver-strictly-greater → only then check snooze.
+- Test `test/update-check.sh` (16 checks) covers the regression: stale-cache downgrade scenario, equal versions stay silent, disabled flag honored, snooze active/expired.
+
+**Fixed — snooze compared against the wrong version:**
+- The "Not now" snooze stored the remote version the user dismissed. But the check then compared against the *local* version. Two bugs in one: if the user snoozed `0.7.0` and then `0.8.0` came out, the snooze comparison didn't fire correctly.
+- Now snooze suppresses notifications only when the snoozed version equals the currently-resolved remote version, and we're still within the backoff window. Different remote → user gets notified.
+
+**Fixed — `setup` accumulated duplicate `telemetry=anonymous` lines:**
+- Pre-v0.6.0 setup runs appended on each install. My local `~/.nanopm/config` had 13 copies after testing.
+- Setup now does a single-pass awk cleanup on every install: strip deprecated keys (telemetry=), dedupe remaining KEY=VALUE lines (last write wins, original order preserved), pass comments through unchanged.
+- One subtle bug caught and fixed during this work: the first cleanup attempt used `grep -v | awk` and the `pipefail` shell flag killed the pipeline when grep returned 1 (no lines left after filtering). Folded into a single awk pass.
+
+**Fixed — setup now clears `~/.nanopm/last-update-check` on every install:**
+- This prevents a fresh install from inheriting a stale cache from a prior version that's about to be replaced.
+
+**Changed — README "Pipeline" section rewritten in markdown:**
+- The mermaid diagram is gone. Replaced with a 3-zone table summary + drill-down sections for Inputs, Pipeline, Handoffs, plus a callout for the parallel daily ops skills (`/pm-standup`, `/pm-weekly-update`, `/pm-retro`).
+- Each pipeline step now names its typed-state output (kind, source) inline. Each input skill names its artifact. Each handoff target gets a one-line spec.
+
 ## 0.6.1 — 2026-05-22
 
 ### Tests caught up with v0.6.0; partial typed-state migration

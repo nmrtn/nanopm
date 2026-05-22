@@ -121,42 +121,61 @@ The pipeline compounds. Every skill also works standalone.
 
 ## Pipeline
 
-Three zones: signal in, nanopm cycle, delivery out.
+nanopm runs in three zones. Signal in. Planning cycle. Delivery out.
 
-```mermaid
-graph LR
-    subgraph IN["INPUTS — signal"]
-      direction TB
-      SCAN["/pm-scan<br/><i>codebase</i>"]
-      DISC["/pm-discovery<br/><i>greenfield</i>"]
-      UF["/pm-user-feedback"]
-      INT["/pm-interview"]
-      DATA["/pm-data"]
-      CI["/pm-competitors-intel"]
-    end
+| Zone | Skills | Purpose |
+|---|---|---|
+| **1. Inputs** | `/pm-scan` · `/pm-discovery` · `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull signal: codebase, users, analytics, competitors |
+| **2. Pipeline** | `/pm-audit` → `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Six skills run in sequence; each reads typed state from the prior |
+| **3. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
 
-    subgraph PIPE["PIPELINE — nanopm"]
-      direction LR
-      AUD[audit] --> OBJ[objectives] --> STR[strategy] --> RM[roadmap] --> PRD[PRD] --> BD[breakdown]
-    end
+---
 
-    subgraph OUT["HANDOFFS — delivery"]
-      direction TB
-      LIN[Linear]
-      GH[GitHub]
-      OS[OpenSpec]
-      GS[gstack]
-      HU[Human markdown]
-    end
+### 1. Inputs — where signal comes from
 
-    IN --> PIPE
-    PIPE --> OUT
+Each input skill produces an artifact the pipeline reads. They're independent. Run only the ones you have data for.
 
-    classDef zone fill:#fafafa,stroke:#ccc
-    class IN,PIPE,OUT zone
-```
+- **`/pm-scan`** — reads your codebase (routes, models, tests, git history) → `SCAN.md`. Use when joining an existing project.
+- **`/pm-discovery`** — opportunity mapping for pre-product or pivots → `DISCOVERY.md`. Use when you don't yet know what to build.
+- **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `FEEDBACK.md`. Clusters themes, surfaces top unaddressed signal.
+- **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
+- **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by audit and PRD.
+- **`/pm-competitors-intel`** — snapshots competitor pages, diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`.
 
-Every committed roadmap item, every PRD bet, and every strategic question lands as a typed record in `~/.nanopm/projects/{slug}/decision.jsonl`. The next skill reads from there.
+### 2. Pipeline — the planning cycle
+
+Each skill writes a markdown artifact for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone.
+
+1. **`/pm-audit`** → `.nanopm/AUDIT.md` — what you're actually building, who for, the biggest gap. The adversarial gate writes a typed `question` decision (`kind=question, source=adversarial`).
+2. **`/pm-objectives`** → `.nanopm/OBJECTIVES.md` — OKRs with anti-goals and measurable KRs anchored to top signal.
+3. **`/pm-strategy`** → `.nanopm/STRATEGY.md` — the bet, the risk, what you're saying no to. Adversarial review forces a falsifiable claim. Writes typed `bet` and `scope-out` decisions.
+4. **`/pm-roadmap`** → `.nanopm/ROADMAP.md` — NOW/NEXT/LATER, Shape Up bets, or Scrum sprints. The gate writes one typed `target` per committed item (each must contain segment, behavior, metric, timeframe).
+5. **`/pm-prd`** → `.nanopm/prds/{feature}.md` — full PRD or Shape Up pitch. Required Falsification section, gated on 4 elements. Writes a typed `bet` decision + a `prd` status record.
+6. **`/pm-breakdown`** — tasks + handoff. See zone 3.
+
+State lives in `~/.nanopm/projects/{slug}/{type}.jsonl` (typed, schema-validated). The next skill reads from there.
+
+### 3. Handoffs — where work lands
+
+`/pm-breakdown` writes the tasks to one of five peer targets. No preferred default. See the [Handoffs](#handoffs) section below for the full per-target output spec.
+
+| Target | What gets written |
+|---|---|
+| **Linear** | Issues in a Linear team, with acceptance + PRD link |
+| **GitHub Issues** | Repo issues, with body linking the PRD |
+| **OpenSpec** | `openspec/changes/{feature}/` — pick up with `/opsx:apply` |
+| **gstack** | `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` — pick up with `/plan-ceo-review` |
+| **Human** | `.nanopm/handoffs/{feature}.md` — paste into any tracker |
+
+Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl`.
+
+### Daily ops (parallel to the pipeline)
+
+Three skills run on a daily cadence without going through the planning sequence:
+
+- **`/pm-standup`** — morning briefing: commits, calendar, meeting notes.
+- **`/pm-weekly-update`** — stakeholder update email adapted to audience.
+- **`/pm-retro`** — compares roadmap commitments to actual commits, surfaces drift.
 
 ---
 
@@ -295,9 +314,10 @@ Individual suites:
 
 ```bash
 bash test/skill-syntax.sh           # static checks: frontmatter, gates, state binaries, telemetry purge
-bash test/state-layer.sh            # nanopm-state-log/read validators (25 checks)
-bash test/multi-host.sh             # NANOPM_HOST detection + nanopm_skill_path resolution (14 checks)
-bash test/gates.sh                  # ETHOS gates wired in pm-audit / pm-roadmap / pm-prd (29 checks)
+bash test/state-layer.sh            # nanopm-state-log/read validators
+bash test/multi-host.sh             # NANOPM_HOST detection + nanopm_skill_path resolution
+bash test/gates.sh                  # ETHOS gates wired in pm-audit / pm-roadmap / pm-prd
+bash test/update-check.sh           # semver comparison, stale-cache regression, snooze
 bash test/context-threading.e2e.sh  # legacy context append plumbing
 bash test/website-bootstrap.e2e.sh  # browse + connector tier detection
 bash test/adversarial.e2e.sh        # adversarial subagent gate (needs claude CLI)
