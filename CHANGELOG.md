@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.6.3 — 2026-05-22
+
+### Hotfix: Mistral Vibe AskUserQuestion header crash
+
+**Bug report (from a user testing on Mistral Vibe):**
+
+```
+ask_user_question: Invalid arguments: 1 validation error for AskUserQuestionArgs
+questions.0.header
+  String should have at most 12 characters [type=string_too_long,
+                                            input_value='Starting point']
+```
+
+**Root cause:**
+Mistral Vibe's `ask_user_question` tool validates `header ≤ 12 chars`. Claude Code allows longer. nanopm SKILL.md files didn't prescribe a `header` value — they left the LLM to pick one. On Vibe, the LLM read the phase heading `## Phase 0b: Starting point` and used "Starting point" (14 chars) as the header. Crash.
+
+**Three-layer fix:**
+1. **Explicit prescribed headers** added to `pm-run` Phase 0b (`Start`) and Phase 1 (`Pipeline`) — the call sites the user actually hit.
+2. **Global portability rule** injected at the top of every SKILL.md (17 files) right after the YAML frontmatter, as a `<!-- portability-v1 -->` block. Tells the LLM: *"`header` field MUST be ≤ 12 characters (Mistral Vibe rejects longer with string_too_long)"* with example values. The LLM sees this before reading any AskUserQuestion instruction in the body.
+3. **Preamble hint** in `nanopm_preamble` echoes `PORTABILITY: AskUserQuestion 'header' MUST be a short noun phrase ≤12 chars` on every skill invocation. Adds `HOST: claude/vibe/codex` to the preamble output so the LLM knows which host it's on.
+
+**Added — `test/headers.sh` (3 checks + per-skill coverage warnings):**
+- Audits every prescribed header in every SKILL.md and fails on any >12 chars.
+- Per-skill coverage warning: lists skills where AskUserQuestion call count exceeds prescribed-header count (LLM picks the rest, still at risk).
+- Regression check: `pm-run` Phase 0b prescribes a `Start*` header.
+
+`test/run-all.sh` now runs 8 suites.
+
+**Still soft-enforced (warning level):** 9 skills (`pm-audit`, `pm-competitors-intel`, `pm-data`, `pm-discovery`, `pm-interview`, `pm-objectives`, `pm-prd`, `pm-roadmap`, `pm-weekly-update`) still have AskUserQuestion calls without explicit prescribed headers. The portability note at the top of each file plus the preamble hint reduce the failure risk substantially, but explicit prescription would be belt-and-suspenders. Follow-up work tracked in the test output.
+
 ## 0.6.2 — 2026-05-22
 
 ### Hotfix: auto-upgrade bugs + README pipeline rewrite

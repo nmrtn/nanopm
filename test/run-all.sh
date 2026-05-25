@@ -19,6 +19,7 @@ _TESTS=(
   "multi-host.sh"
   "gates.sh"
   "update-check.sh"
+  "headers.sh"
   "context-threading.e2e.sh"
   "website-bootstrap.e2e.sh"
 )

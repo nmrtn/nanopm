@@ -5,6 +5,13 @@ description: "Daily standup briefing. Pulls commits from all your active GitHub 
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_Google_Calendar__gcal_list_events, mcp__claude_ai_Google_Calendar__gcal_list_calendars, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash

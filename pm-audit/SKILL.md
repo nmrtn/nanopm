@@ -5,6 +5,13 @@ description: "Deep product audit. Brutal honest assessment of what you're buildi
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash

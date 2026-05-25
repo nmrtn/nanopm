@@ -5,7 +5,7 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.6.2"
+NANOPM_VERSION="0.6.3"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"

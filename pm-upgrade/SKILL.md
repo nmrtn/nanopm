@@ -5,6 +5,13 @@ description: "Upgrade nanopm to the latest version. Detects install type, runs t
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash

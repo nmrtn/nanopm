@@ -5,6 +5,13 @@ description: "User interview guide based on Teresa Torres (story-based), Rob Fit
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__get_meeting_transcript, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash

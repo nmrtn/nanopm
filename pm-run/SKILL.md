@@ -5,6 +5,13 @@ description: "Run the full nanopm PM pipeline: feedback → audit → objectives
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash
@@ -48,13 +55,15 @@ If any artifacts already exist, tell the user: "Existing artifacts found — thi
 
 **Skip this phase if** SCAN.md, AUDIT.md, or DISCOVERY.md already exist — context is established, proceed to Phase 1.
 
-**If none exist**, ask via AskUserQuestion before anything else:
+**If none exist**, ask via AskUserQuestion before anything else.
 
-**"How are you starting?**
-
-A) **Existing project** — there's already code. I'll scan the codebase to understand what's been built, then run the full pipeline. *(recommended for most projects)*
-B) **Greenfield / pre-product** — nothing built yet. I'll run discovery to map the opportunity first, then plan.
-C) **Skip straight to audit** — I know what I'm building, just run the pipeline."
+- **question:** "How are you starting?"
+- **header:** `Start` (must be ≤12 chars — Mistral Vibe constraint)
+- **multiSelect:** false
+- **options:**
+  - A) "Existing project" — code already exists. Run pm-scan first.
+  - B) "Greenfield" — nothing built. Run pm-discovery first.
+  - C) "Skip to audit" — I know what I'm building.
 
 If A: run pm-scan inline (read and follow `$(nanopm_skill_path pm-scan)`, skipping its preamble) before Phase 2. After scan completes: "✅ Codebase scanned. Moving to feedback..."
 If B: run pm-discovery inline (read and follow `$(nanopm_skill_path pm-discovery)`, skipping its preamble) before Phase 2. After discovery completes: "✅ Discovery done. Moving to feedback..."
@@ -62,25 +71,17 @@ If C: proceed directly to Phase 1.
 
 ## Phase 1: Confirm pipeline
 
-Ask via AskUserQuestion:
+Ask via AskUserQuestion.
 
-**"Ready to run the full PM pipeline for: {slug}**
-
-This will:
-1. **Feedback** — pull from Dovetail, Productboard, Notion, Linear, GitHub (or manual paste)
-2. **Audit** — 11 questions about your product (Q6 pre-filled from feedback)
-3. **Objectives** — OKRs anchored to top feedback themes
-4. **Strategy** — strategic position + adversarial challenge
-5. **Roadmap** — NOW/NEXT/LATER with signal-backed priority markers
-6. **PRD** — spec for the top NOW item, with real user quotes
-
-Takes 15-25 minutes depending on how much context you already have.
-
-A) Run the full pipeline (Recommended)
-B) Skip feedback collection — run audit → PRD only
-C) Feedback only (stops after FEEDBACK.md)
-D) Skip to strategy (assumes feedback + audit + objectives exist)
-E) Cancel"
+- **question:** "Ready to run the full PM pipeline for {slug}? It will run feedback → audit → objectives → strategy → roadmap → PRD. Takes 15-25 min."
+- **header:** `Pipeline` (must be ≤12 chars — Mistral Vibe constraint)
+- **multiSelect:** false
+- **options:**
+  - A) "Run full pipeline" (Recommended)
+  - B) "Skip feedback" — audit → PRD only
+  - C) "Feedback only" — stops after FEEDBACK.md
+  - D) "Skip to strategy" — assumes feedback + audit + objectives exist
+  - E) "Cancel"
 
 If B: skip Phase 2 (feedback), run Phases 3–7.
 If C: run only pm-user-feedback inline (Phase 2), then stop.

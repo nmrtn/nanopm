@@ -5,6 +5,13 @@ description: "Quantitative data analysis for PMs. Answers a specific product que
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_PostHog__query-trends, mcp__claude_ai_PostHog__query-funnel, mcp__claude_ai_PostHog__query-retention, mcp__claude_ai_PostHog__query-paths, mcp__claude_ai_PostHog__query-stickiness, mcp__claude_ai_PostHog__insight-query, mcp__claude_ai_PostHog__projects-get, mcp__claude_ai_PostHog__event-definitions-list, mcp__claude_ai_PostHog__persons-list
 ---
 
+<!-- portability-v1 -->
+> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
+> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
+> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
+> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+
+
 ## Preamble (run first)
 
 ```bash

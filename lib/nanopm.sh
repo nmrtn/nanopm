@@ -495,7 +495,12 @@ nanopm_preamble() {
   echo "SLUG: $_SLUG"
   echo "BRANCH: $_BRANCH"
   echo "VERSION: $_VERSION"
+  echo "HOST: $NANOPM_HOST"
   echo "BROWSE: ${B:-not available}"
+  # Multi-host portability hint — Mistral Vibe rejects AskUserQuestion calls
+  # with header field >12 chars. Claude tolerates longer but renders better short.
+  # Use a short noun-phrase header per call.
+  echo "PORTABILITY: AskUserQuestion 'header' MUST be a short noun phrase ≤12 chars"
   # Voice directive — all nanopm skills follow this register
   # Load ethos (shapes advisor voice across all skills)
   # Installed at ~/.nanopm/ETHOS.md by setup
