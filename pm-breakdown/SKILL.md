@@ -5,11 +5,14 @@ description: "Break a PRD into engineering tasks and hand off to one of five pee
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -28,6 +31,7 @@ echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-breakdown
 nanopm_context_all
 ```
@@ -79,12 +83,14 @@ If the user picks a target that requires availability (Linear or GitHub) and we 
 ### If `_TARGET=linear`:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_LINEAR=$(nanopm_has_connector linear)
 echo "LINEAR_TIER: $_TIER_LINEAR"
 ```
 
 - If tier 1 (MCP) or 2 (API): proceed. If team not stored, look up via `mcp__linear__list_teams` (MCP) or GraphQL (API):
   ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
   curl -s -X POST https://api.linear.app/graphql \
     -H "Authorization: $LINEAR_API_KEY" \
     -H "Content-Type: application/json" \
@@ -108,6 +114,7 @@ echo "GITHUB_REPO: $_GITHUB_REPO"
 
 If derivable, confirm with user. Otherwise ask for `owner/repo`. Store:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_config_set "github_repo" "$_GITHUB_REPO"
 ```
 
@@ -467,6 +474,7 @@ Handoff target: {_TARGET}
 ## Phase 9: Log the handoff
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # Determine handoff path written for this target
 case "$_TARGET" in
   linear)   _HANDOFF_PATH="linear://team/${_LINEAR_TEAM_NAME}" ;;
@@ -488,6 +496,7 @@ nanopm_state_log --type prd \
 ## Phase 10: Save legacy context (back-compat)
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-breakdown\",\"outputs\":{\"feature\":\"${_FEATURE_SLUG}\",\"task_count\":\"${_TASK_COUNT}\",\"target\":\"${_TARGET}\",\"handoff_path\":\"${_HANDOFF_PATH}\"}}"
 ```
 

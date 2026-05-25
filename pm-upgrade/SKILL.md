@@ -5,11 +5,14 @@ description: "Upgrade nanopm to the latest version. Detects install type, runs t
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -30,6 +33,7 @@ This section is followed by all skill preambles when they detect `UPGRADE_AVAILA
 Check if auto-upgrade is configured:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _AUTO=$(nanopm_config_get "auto_upgrade")
 echo "AUTO_UPGRADE=${_AUTO:-false}"
 ```
@@ -48,6 +52,7 @@ echo "AUTO_UPGRADE=${_AUTO:-false}"
 
 **If "Always keep me up to date":**
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_config_set "auto_upgrade" "true"
 ```
 Tell user: "Auto-upgrade enabled — future updates will install automatically." Then proceed to Step 2.
@@ -72,6 +77,7 @@ Tell user the snooze duration: level 1 → "next reminder in 24h"; level 2 → "
 
 **If "Never ask again":**
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_config_set "update_check_disabled" "1"
 rm -f "$HOME/.nanopm/update-snoozed"
 ```

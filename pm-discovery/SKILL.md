@@ -5,11 +5,14 @@ description: "Product discovery. Figures out WHAT to build before you plan HOW t
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -35,6 +38,7 @@ Run `/pm-audit` when you already know what you're building and want to assess it
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-discovery
 nanopm_context_all
 ```
@@ -43,16 +47,20 @@ If prior discovery entry found: "Prior discovery from {ts}. This run will build 
 
 ## Phase 1: Scope the discovery
 
-Ask via AskUserQuestion — ONE question:
+Ask via AskUserQuestion to frame the discovery question. Multi-host hosts (Vibe, Codex) require ≥2 options — provide a category picker, then collect the specific question as free-text in the chat after.
 
-**"What are you trying to figure out? Be specific.**
+- **question:** "What kind of discovery are you running? After you pick, I'll ask for your specific question."
+- **header:** `Scope` (≤12 chars)
+- **multiSelect:** false
+- **options:**
+  - A) "Build-vs-don't" — should we build X feature, and if so for whom?
+  - B) "Why users churn" — why are users dropping at step N or stage Z?
+  - C) "Market exists?" — is there demand for product Y at a price?
+  - D) "What next?" — among several candidates, what's the highest-value to build?
+  - E) "Direction check" — is our current strategy still right given new signal?
+  - F) "Other (specify)" — describe your discovery question in the next message
 
-Examples:
-- 'Should we build X feature, and if so, for whom?'
-- 'Why are users churning at step 3?'
-- 'Is there a market for Y?'
-- 'What should we build next?'
-- 'Is our current direction right?'"
+After the choice, prompt directly (no tool call): *"OK, you picked {category}. Now state the specific question this discovery should answer, in one sentence."* Capture that as `_DISCOVERY_QUESTION`.
 
 This answer scopes everything that follows. Don't proceed with a vague answer — push for a specific question the discovery should answer.
 
@@ -221,6 +229,7 @@ of who the user is and what they actually need. The audit will be significantly 
 ## Phase 7: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 .nanopm/DISCOVERY.md | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' .nanopm/DISCOVERY.md | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-audit\"}}"
 ```
 

@@ -5,11 +5,14 @@ description: "Deep product audit. Brutal honest assessment of what you're buildi
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -28,6 +31,7 @@ _CONTEXT_FILE="CONTEXT.md"
 Check if this project has been audited before:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-audit
 ```
 
@@ -35,6 +39,7 @@ If a prior audit entry exists, show: "Prior audit found from {ts}. Running a fre
 
 Read all prior context to inform the audit:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_all
 ```
 
@@ -43,6 +48,7 @@ nanopm_context_all
 Check if a company website is already stored:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _WEBSITE=$(nanopm_config_get "company_website")
 echo "WEBSITE: ${_WEBSITE:-none}"
 ```
@@ -94,6 +100,7 @@ Check for FEEDBACK.md first — if it exists, it's the primary feedback source a
 For each connector, check available tier and collect data:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_LINEAR=$(nanopm_has_connector linear)
 _TIER_NOTION=$(nanopm_has_connector notion)
 _TIER_DOVETAIL=$(nanopm_has_connector dovetail)
@@ -183,6 +190,7 @@ Ask remaining unanswered questions one at a time using free-text input (no prese
 After Q11 is answered, store the methodology so downstream skills can adapt their output:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _METHODOLOGY=$(grep -A1 "^11\." CONTEXT.md | tail -1 | xargs)
 [ -n "$_METHODOLOGY" ] && nanopm_config_set "methodology" "$_METHODOLOGY"
 ```
@@ -240,6 +248,7 @@ If the second attempt also fails, STOP. Tell the user: *"Adversarial gate failed
 Extract the four values into shell variables (`_Q_TEXT`, `_Q_KEY`, `_Q_CONF`, `_Q_RATIONALE`). Then write the typed decision — the `nanopm-state-log` schema validator is the second gate layer:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 python3 -c "
 import json, os
 print(json.dumps({
@@ -340,6 +349,7 @@ If biggest unknown is flagged: "Run /pm-interview to answer {question} before /p
 ## Phase 7: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-audit\",\"outputs\":{\"gap\":\"$(head -1 .nanopm/AUDIT.md | tr '\"' \"'\")\",\"next\":\"$(grep 'Run:' .nanopm/AUDIT.md | head -1 | sed 's/.*\///;s/\*//g' | xargs)\"}}"
 ```
 

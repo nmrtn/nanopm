@@ -5,11 +5,14 @@ description: "PM retrospective. Compares ROADMAP.md NOW items against actual com
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -25,6 +28,7 @@ _RETRO_FILE=".nanopm/RETRO.md"
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-retro
 nanopm_context_all
 ```
@@ -173,6 +177,7 @@ Update your roadmap with carry-forward items and new priorities from this retro.
 ## Phase 7: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-retro\",\"outputs\":{\"shipped\":\"$(grep -c '✅' .nanopm/RETRO.md 2>/dev/null || echo 0) items shipped\",\"window_commits\":\"${_COMMIT_COUNT:-?} commits\",\"next\":\"pm-roadmap\"}}"
 ```
 

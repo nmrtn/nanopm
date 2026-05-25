@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# nanopm v0.6.3+ — AskUserQuestion header portability test
+# nanopm v0.6.3+ — AskUserQuestion portability test
 #
-# Mistral Vibe's ask_user_question tool validates: header ≤ 12 chars.
-# Claude Code allows longer. To be portable across hosts, every prescribed
-# header in a SKILL.md must be ≤12 chars.
+# Mistral Vibe's ask_user_question tool validates:
+#   - header ≤ 12 chars
+#   - options list MUST have ≥ 2 items (no free-text-only questions)
+# Claude Code is more permissive. To be portable across hosts, SKILL.md
+# files must respect both rules.
 #
 # This test parses each SKILL.md and finds lines of the form:
 #   - **header:** `<value>`
@@ -97,6 +99,62 @@ if awk '/^## Phase 0b/{found=1; n=0} found && n<20 {print; n++}' \
   ok "pm-run Phase 0b prescribes a short header (regression fixed)"
 else
   fail "pm-run Phase 0b has no short prescribed header (Vibe will rebreak on 'Starting point')"
+fi
+
+# ── 4. Regression: pm-discovery Phase 1 has ≥2 options (no free-text crash) ──
+echo
+echo "  Regression: pm-discovery Phase 1 'options=[]' bug"
+# Phase 1 should now use a multi-choice scoping question instead of pure free-text.
+if awk '/^## Phase 1: Scope the discovery/{found=1; n=0} found && n<30 {print; n++}' \
+      "$_REPO_ROOT/pm-discovery/SKILL.md" | grep -qiE "options:|^[[:space:]]*- A\)|^[[:space:]]*- B\)"; then
+  ok "pm-discovery Phase 1 provides ≥2 options (regression fixed)"
+else
+  fail "pm-discovery Phase 1 still uses free-text-only question (Vibe will reject options=[])"
+fi
+
+# ── 5. Portability rule is v2 (covers both header and options constraints) ──
+echo
+echo "  Portability rule version"
+_V2_COUNT=$(grep -l "portability-v2" "$_REPO_ROOT"/pm-*/SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+_V1_REMAINING=$(grep -l "portability-v1" "$_REPO_ROOT"/pm-*/SKILL.md 2>/dev/null | wc -l | tr -d ' ')
+if [ "$_V2_COUNT" -ge 17 ]; then
+  ok "All 17 skills carry portability-v2 rule (header + options constraints)"
+else
+  fail "Only $_V2_COUNT/17 skills have portability-v2 (rest are still on v1 or missing)"
+fi
+if [ "$_V1_REMAINING" -gt 0 ]; then
+  fail "$_V1_REMAINING skill(s) still on portability-v1 — should be upgraded to v2"
+else
+  ok "No leftover portability-v1 blocks"
+fi
+
+# ── 6. Lib source is present in bash blocks that call nanopm_* functions ──
+echo
+echo "  Bash blocks source the lib before calling nanopm_* functions"
+_MISSING=0
+for skill in "$_REPO_ROOT"/pm-*/SKILL.md; do
+  _NAME=$(basename "$(dirname "$skill")")
+  # python3 inline check
+  _N=$(python3 - "$skill" <<'PYEOF'
+import re, sys
+text = open(sys.argv[1]).read()
+n = 0
+for block in re.findall(r'```bash\s*\n(.*?)\n```', text, re.DOTALL):
+    calls = re.search(r'\bnanopm_[a-z_]+\b', block)
+    has_source = re.search(r'^\s*(?:source|\.)\s+[^\n]*nanopm\.sh', block, re.MULTILINE)
+    is_preamble = 'nanopm_preamble' in block and 'source' in block
+    if calls and not has_source and not is_preamble:
+        n += 1
+print(n)
+PYEOF
+)
+  if [ "$_N" != "0" ]; then
+    fail "$_NAME: $_N bash block(s) call nanopm_* without sourcing the lib (Vibe will fail)"
+    _MISSING=$(( _MISSING + 1 ))
+  fi
+done
+if [ "$_MISSING" = "0" ]; then
+  ok "All bash blocks that use nanopm_* functions source the lib"
 fi
 
 # ── summary ───────────────────────────────────────────────────────────────────

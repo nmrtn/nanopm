@@ -5,11 +5,14 @@ description: "Build product roadmap. Reads strategy + objectives + connector dat
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -27,6 +30,7 @@ echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-roadmap
 ```
 
@@ -34,6 +38,7 @@ If found: "Prior roadmap found from {ts}. This run will produce an updated roadm
 
 Read all prior context:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_all
 ```
 
@@ -57,6 +62,7 @@ Read any that exist. A roadmap without strategy is a to-do list. Warn if STRATEG
 Check for connector data (especially backlog/issues):
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_LINEAR=$(nanopm_has_connector linear)
 _TIER_NOTION=$(nanopm_has_connector notion)
 _TIER_GITHUB=$(nanopm_has_connector github)
@@ -323,6 +329,7 @@ For each item:
 For every committed item — whether it passed or was rewritten — write a typed `target` decision. The validator gates the structure:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # For each item — example for ITEM=onboarding-wizard
 python3 -c "
 import json, os
@@ -353,6 +360,7 @@ If `m > 0`, prompt: *"{m} item(s) were rewritten by the gate to be falsifiable. 
 ## Phase 5: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-roadmap\",\"outputs\":{\"now_count\":\"$(grep -c '^| ' .nanopm/ROADMAP.md | head -1)\",\"top_now_item\":\"$(grep -A2 '## NOW' .nanopm/ROADMAP.md | grep '^| ' | head -1 | cut -d'|' -f2 | xargs | tr '\"' \"'\")\",\"next\":\"pm-prd\"}}"
 ```
 

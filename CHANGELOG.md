@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.6.4 — 2026-05-25
+
+### Hotfix: two more Mistral Vibe portability bugs
+
+Both reported by a user running `/pm-discovery` on Vibe.
+
+**Bug A — `nanopm_context_append: command not found`**
+
+The legacy `nanopm_context_append` (and 8 other lib helpers — `nanopm_context_read`, `nanopm_context_all`, `nanopm_config_get`, `nanopm_config_set`, `nanopm_has_connector`, `nanopm_state_log`, `nanopm_state_read`, `nanopm_skill_path`) are shell functions defined in `lib/nanopm.sh`. The preamble sources the lib once, but on Vibe each subsequent bash code block runs in a fresh subshell — the functions aren't defined. Claude Code preserves state across blocks and didn't expose the bug.
+
+Audit found **61 bash blocks across 16 skills** that called `nanopm_*` functions without re-sourcing the lib. All 61 now have a guarded source line prepended:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+```
+
+Idempotent injector preserved as `/tmp/inject_lib_source.py`. The injector skips blocks that already source, and skips the preamble block itself (which is the source).
+
+**Bug B — `ask_user_question: options too_short, must be at least 2 items`**
+
+Vibe's `ask_user_question` validates `len(options) ≥ 2`. Claude Code permits empty options (treats them as free-text). `/pm-discovery` Phase 1 used `Ask via AskUserQuestion — ONE question:` with no enumerated options — the Vibe LLM passed `options: []` and got rejected.
+
+Fix:
+- `/pm-discovery` Phase 1 restructured. Now provides 6 framing options (Build-vs-don't / Why users churn / Market exists? / What next? / Direction check / Other), then prompts for the specific question as free-text in chat after the choice. Multi-host hosts get a valid `ask_user_question` call; Claude users get the same UX.
+- The `<!-- portability-v1 -->` block at the top of every SKILL.md was upgraded to `<!-- portability-v2 -->`, which now covers both constraints: header ≤12 chars AND options ≥2 with explicit example framing.
+
+**Extended `test/headers.sh`:**
+- New regression check: `pm-discovery` Phase 1 must provide ≥2 options (the actual options=[] bug).
+- New check: all 17 skills carry the `portability-v2` rule (no leftover v1).
+- New check: every bash block that calls a `nanopm_*` function sources the lib first (or is the preamble block).
+- Total: 8 checks, all passing.
+
+`test/run-all.sh` — ALL 8 SUITES PASSED.
+
 ## 0.6.3 — 2026-05-22
 
 ### Hotfix: Mistral Vibe AskUserQuestion header crash

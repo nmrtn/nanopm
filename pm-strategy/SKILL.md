@@ -5,11 +5,14 @@ description: "Define product strategy. Reads objectives + audit context, generat
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -27,6 +30,7 @@ _STRATEGY_FILE=".nanopm/STRATEGY.md"
 Check for prior strategy:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-strategy
 ```
 
@@ -34,6 +38,7 @@ If found: "Prior strategy found from {ts}. This run will produce a revised strat
 
 Read all prior context:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_all
 ```
 
@@ -211,6 +216,7 @@ After the user has approved the strategy in Phase 7, record the bet as a typed `
 Extract the bet line from `.nanopm/STRATEGY.md` (the single sentence under `## The Bet`). Derive a kebab-case `key` (alphanumeric + hyphens, ≤60 chars) summarizing the bet. The bet is `user-stated` (user approved in Phase 7); if the adversarial gate rewrote it, use `adversarial`.
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # _BET_TEXT and _BET_KEY are derived from STRATEGY.md
 python3 -c "
 import json, os
@@ -229,6 +235,7 @@ If `nanopm_state_log` exits non-zero the bet failed schema validation — show t
 Also write one `scope-out` decision per item under `## What We're Saying No To`:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # Iterate each "**Not {thing}**" line; derive _SCOPE_KEY and _SCOPE_REASON
 python3 -c "
 import json, os
@@ -245,6 +252,7 @@ print(json.dumps({
 ### 8b. Legacy context append (back-compat)
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-strategy\",\"outputs\":{\"bet\":\"$(grep -A1 '## The Bet' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"risk\":\"$(grep -A1 '## The Risk' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-roadmap\"}}"
 ```
 

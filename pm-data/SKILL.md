@@ -5,11 +5,14 @@ description: "Quantitative data analysis for PMs. Answers a specific product que
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_PostHog__query-trends, mcp__claude_ai_PostHog__query-funnel, mcp__claude_ai_PostHog__query-retention, mcp__claude_ai_PostHog__query-paths, mcp__claude_ai_PostHog__query-stickiness, mcp__claude_ai_PostHog__insight-query, mcp__claude_ai_PostHog__projects-get, mcp__claude_ai_PostHog__event-definitions-list, mcp__claude_ai_PostHog__persons-list
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -35,6 +38,7 @@ Run `/pm-data` when:
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-data
 nanopm_context_all
 ```
@@ -74,6 +78,7 @@ From the question, identify:
 ## Phase 2: Detect available analytics tier
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_POSTHOG=$(nanopm_has_connector posthog)
 _TIER_AMPLITUDE=$(nanopm_has_connector amplitude)
 echo "POSTHOG: $_TIER_POSTHOG | AMPLITUDE: $_TIER_AMPLITUDE"
@@ -184,6 +189,7 @@ Usually answered by qualitative research — flag it for /pm-interview if releva
 ## Phase 6: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -10 .nanopm/DATA.md | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-audit\"}}"
 ```
 

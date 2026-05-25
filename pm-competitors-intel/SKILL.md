@@ -5,11 +5,14 @@ description: "Monitor competitor products for changes: changelogs, API docs, new
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -28,6 +31,7 @@ mkdir -p "$_INTEL_DIR" "$_SNAPSHOT_DIR"
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-competitors-intel
 ```
 
@@ -292,6 +296,7 @@ EOF
 ## Phase 8: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-competitors-intel\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"report\":\"${_REPORT_FILE}\",\"competitors\":\"$(python3 -c "import json; d=json.load(open('$_COMPETITORS_FILE')); print(','.join(c['name'] for c in d['competitors']))" 2>/dev/null || echo 'unknown')\",\"changes_found\":\"$(grep -c '^\\*\\*New:\\|^\\*\\*Changed:\\|^\\*\\*Removed:' $_REPORT_FILE 2>/dev/null || echo 0)\"}}"
 ```
 

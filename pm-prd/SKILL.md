@@ -5,11 +5,14 @@ description: "Write a product spec for a specific feature. Adapts to your team's
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -28,6 +31,7 @@ echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-prd
 ```
 
@@ -35,6 +39,7 @@ If found: "Prior PRD found from {ts}. Starting a new PRD."
 
 Read all prior context:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_all
 ```
 
@@ -79,6 +84,7 @@ Check for FEEDBACK.md first — it's the pre-synthesized source that already agg
 **If FEEDBACK_MISSING:** fall back to Dovetail connector:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_DOVETAIL=$(nanopm_has_connector dovetail)
 echo "DOVETAIL: $_TIER_DOVETAIL"
 ```
@@ -350,6 +356,7 @@ Capture output.
 Write a typed `bet` decision keyed by feature slug:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 python3 -c "
 import json, os
 print(json.dumps({
@@ -370,6 +377,7 @@ If `nanopm_state_log` exits non-zero, the structural gate has rejected. Show std
 On successful gate, also write a `prd` record marking the feature as ready for handoff:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 python3 -c "
 import json, os
 print(json.dumps({
@@ -382,6 +390,7 @@ print(json.dumps({
 ## Phase 5: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _PRD_FILE="$_PRD_DIR/${_SLUG_FEATURE}.md"
 nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $_FEATURE | tr '\"' \"'\")\",\"file\":\"$_PRD_FILE\",\"status\":\"DRAFT\",\"next\":\"pm-breakdown\"}}"
 ```

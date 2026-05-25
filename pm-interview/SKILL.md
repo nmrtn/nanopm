@@ -5,11 +5,14 @@ description: "User interview guide based on Teresa Torres (story-based), Rob Fit
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__get_meeting_transcript, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -45,6 +48,7 @@ This skill draws from four recognized approaches:
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-interview
 nanopm_context_all
 ```
@@ -324,6 +328,7 @@ Write session summary to `.nanopm/INTERVIEW.md` (overwrite — latest session on
 ## Phase 7: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 .nanopm/INTERVIEW.md | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' .nanopm/INTERVIEW.md | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-audit\"}}"
 ```
 

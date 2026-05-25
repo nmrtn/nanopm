@@ -5,11 +5,14 @@ description: "Weekly stakeholder update. Drafts a clear, honest status email for
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -33,6 +36,7 @@ Run `/pm-weekly-update` at the end of your work week to:
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-weekly-update
 nanopm_context_all
 ```
@@ -72,6 +76,7 @@ git log --since="7 days ago" --oneline --no-merges 2>/dev/null | head -20 || ech
 
 **Linear (if available):**
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_LINEAR=$(nanopm_has_connector linear)
 echo "LINEAR_TIER: $_TIER_LINEAR"
 ```
@@ -184,6 +189,7 @@ cp .nanopm/WEEKLY_UPDATE.md ".nanopm/weekly-updates/$(date +%Y-%m-%d).md" 2>/dev
 ```
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-weekly-update\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"audience\":\"stakeholders\",\"status\":\"drafted\"}}"
 ```
 

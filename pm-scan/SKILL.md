@@ -5,11 +5,14 @@ description: "Codebase scan for existing projects. Reads routes, models, tests, 
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -35,6 +38,7 @@ Run `/pm-audit` directly when you already know what you're building and want to 
 ## Phase 0: Prior context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-scan
 nanopm_context_all
 ```
@@ -321,6 +325,7 @@ SCAN.md will pre-fill Q1–Q4. The audit's job is now to validate this picture a
 ## Phase 10: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-scan\",\"outputs\":{\"stack\":\"$(grep '^Stack:' .nanopm/SCAN.md | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 80)\",\"biggest_gap\":\"$(grep -A1 '## The Biggest Gap' .nanopm/SCAN.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-audit\"}}"
 ```
 

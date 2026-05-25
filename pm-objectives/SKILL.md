@@ -5,11 +5,14 @@ description: "Define product objectives (OKRs). Reads audit context, asks 2-3 cl
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -27,6 +30,7 @@ _OBJECTIVES_FILE=".nanopm/OBJECTIVES.md"
 Check if objectives have been set before:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-objectives
 ```
 
@@ -34,6 +38,7 @@ If a prior entry exists, show: "Prior objectives found from {ts}. Reviewing curr
 
 Read all prior context to inform this run:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_all
 ```
 
@@ -147,6 +152,7 @@ A list without these two elements is just a to-do list for later, not a boundary
 ## Phase 4: Save context
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-objectives\",\"outputs\":{\"period\":\"$(head -5 .nanopm/OBJECTIVES.md | grep Period | cut -d: -f2- | xargs)\",\"objective_count\":\"$(grep -c '^## Objective' .nanopm/OBJECTIVES.md)\",\"next\":\"pm-strategy\"}}"
 ```
 

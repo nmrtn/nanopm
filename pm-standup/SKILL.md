@@ -5,11 +5,14 @@ description: "Daily standup briefing. Pulls commits from all your active GitHub 
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_Google_Calendar__gcal_list_events, mcp__claude_ai_Google_Calendar__gcal_list_calendars, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
-<!-- portability-v1 -->
-> **Multi-host portability rule.** When invoking `AskUserQuestion`, the `header`
-> field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe rejects
-> longer headers with `string_too_long`. Pick something like `Start`, `Target`,
-> `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+<!-- portability-v2 -->
+> **Multi-host portability rules.** When invoking `AskUserQuestion`:
+> 1. The `header` field MUST be a short noun phrase (≤ 12 characters). Mistral Vibe
+>    rejects longer headers with `string_too_long`. Pick from: `Start`, `Target`,
+>    `Scope`, `Audience`, `Methodology`, `Feature`, `Question`.
+> 2. The `options` list MUST have at least 2 items. Vibe rejects empty/single-option
+>    calls. For free-text input, always provide ≥ 2 framing options (e.g. `Yes, here's the input` /
+>    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
 ## Preamble (run first)
@@ -38,6 +41,7 @@ This skill never asks questions. It reads context, generates the briefing, done.
 **GitHub — multi-repo commits (last 24h):**
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_GITHUB=$(nanopm_has_connector github)
 echo "GITHUB_TIER: $_TIER_GITHUB"
 ```
@@ -58,16 +62,19 @@ Note in output: "(local repo only — connect GitHub for multi-repo view)"
 **First-run repo list:**
 On first run, store the list of active repos found via GitHub API:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_config_get "github_active_repos"
 ```
 If empty: fetch repos with pushes in the last 30 days, store as comma-separated list:
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_config_set "github_active_repos" "{repo1},{repo2},..."
 ```
 This speeds up subsequent runs — only query known active repos instead of all repos.
 
 **Linear (if available):**
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TIER_LINEAR=$(nanopm_has_connector linear)
 echo "LINEAR_TIER: $_TIER_LINEAR"
 ```
@@ -168,6 +175,7 @@ DRIFT
 Write the briefing to `.nanopm/STANDUP.md` (overwrite — always the latest).
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-standup\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"drift\":\"$(grep -c 'DRIFT' .nanopm/STANDUP.md 2>/dev/null || echo 0)\"}}"
 ```
 
