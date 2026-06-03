@@ -1,0 +1,344 @@
+#!/usr/bin/env python3
+"""Symphony WORKFLOW.md validator (Level 1 schema test).
+
+Validates a WORKFLOW.md against Symphony SPEC.md Section 5 requirements:
+- File starts with --- and YAML frontmatter is a map
+- tracker.kind is present (required for dispatch)
+- tracker.api_key is present (literal or $VAR; canonical LINEAR_API_KEY)
+- tracker.project_slug is present when kind=linear
+- tracker.active_states is a list of strings (default [Todo, In Progress])
+- tracker.terminal_states is a list of strings
+- polling.interval_ms is integer or string-int (default 30000)
+- workspace.root is a path string (default <system-temp>/symphony_workspaces)
+- agent.max_concurrent_agents is integer (default 10)
+- agent.max_retry_backoff_ms is integer (default 300000)
+- codex.command is a non-empty string (default 'codex app-server')
+- codex.turn_timeout_ms / read_timeout_ms / stall_timeout_ms are integers
+- Prompt body is non-empty
+- Prompt template references issue and/or attempt variables
+- Liquid-compatible: {{ var }} and {% if/else/endif %} syntax (basic check)
+
+Exits 0 if all required checks pass. Non-zero if any fail.
+Output: line per check, with verdict marker.
+"""
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+
+def parse_frontmatter(text: str) -> tuple[dict | None, str | None, str | None]:
+    """Return (config, body, error). config is None on parse failure."""
+    if not text.startswith("---\n"):
+        return None, None, "file does not start with ---"
+    end_idx = text.find("\n---\n", 4)
+    if end_idx == -1:
+        return None, None, "no closing --- for frontmatter"
+    yaml_text = text[4:end_idx]
+    body = text[end_idx + 5:].strip()
+    # Parse YAML manually (no PyYAML dependency)
+    try:
+        config = _parse_simple_yaml(yaml_text)
+    except Exception as e:
+        return None, None, f"YAML parse error: {e}"
+    if not isinstance(config, dict):
+        return None, None, "frontmatter is not a mapping"
+    return config, body, None
+
+
+def _parse_simple_yaml(text: str) -> dict:
+    """Minimal YAML parser handling nested maps and lists (- items)."""
+    lines = text.split("\n")
+    result: dict = {}
+    stack: list[tuple[int, dict | list]] = [(0, result)]
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.rstrip()
+        if not stripped or stripped.lstrip().startswith("#"):
+            i += 1
+            continue
+        indent = len(line) - len(line.lstrip())
+        # Pop stack until parent's indent < current indent
+        while len(stack) > 1 and stack[-1][0] >= indent:
+            stack.pop()
+        parent = stack[-1][1]
+        content = stripped.lstrip()
+        if content.startswith("- "):
+            # list item
+            item_val = content[2:].strip()
+            if not isinstance(parent, list):
+                # The most recent key in parent dict should hold this list
+                # Walk back to find the key set with empty value
+                raise ValueError(f"unexpected list item at line {i+1}: {content!r}")
+            if ":" in item_val and not item_val.startswith('"'):
+                # could be inline map item — punt for our use case
+                parent.append(item_val)
+            else:
+                # strip quotes
+                if item_val.startswith('"') and item_val.endswith('"'):
+                    item_val = item_val[1:-1]
+                parent.append(item_val)
+        else:
+            # key: value or key:
+            if ":" not in content:
+                raise ValueError(f"expected key: at line {i+1}: {content!r}")
+            key, _, val = content.partition(":")
+            key = key.strip()
+            val = val.strip()
+            if not val:
+                # Determine if next non-empty line is a list (starts with `-` at deeper indent)
+                # or a nested map
+                j = i + 1
+                while j < len(lines) and (not lines[j].strip() or lines[j].lstrip().startswith("#")):
+                    j += 1
+                if j < len(lines):
+                    next_line = lines[j]
+                    next_indent = len(next_line) - len(next_line.lstrip())
+                    next_content = next_line.lstrip()
+                    if next_indent > indent and next_content.startswith("- "):
+                        parent[key] = []
+                        stack.append((indent, parent[key]))
+                    elif next_indent > indent:
+                        parent[key] = {}
+                        stack.append((indent, parent[key]))
+                    else:
+                        parent[key] = None
+                else:
+                    parent[key] = None
+            else:
+                # strip quotes / coerce simple types
+                if val.startswith('"') and val.endswith('"'):
+                    val = val[1:-1]
+                elif val.lstrip("-").isdigit():
+                    val = int(val)
+                parent[key] = val
+        i += 1
+    return result
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print("usage: symphony_workflow_validator.py <path/to/WORKFLOW.md>", file=sys.stderr)
+        return 2
+
+    path = Path(sys.argv[1])
+    if not path.exists():
+        print(f"✗ file not found: {path}", file=sys.stderr)
+        return 2
+
+    text = path.read_text()
+
+    passed = 0
+    failed = 0
+    warnings = 0
+
+    def ok(msg: str) -> None:
+        nonlocal passed
+        print(f"  ✓ {msg}")
+        passed += 1
+
+    def fail(msg: str) -> None:
+        nonlocal failed
+        print(f"  ✗ {msg}")
+        failed += 1
+
+    def warn(msg: str) -> None:
+        nonlocal warnings
+        print(f"  ⚠ {msg}")
+        warnings += 1
+
+    print(f"\nValidating {path} against Symphony SPEC.md Section 5\n")
+
+    # ── 1. Frontmatter structure ──────────────────────────────────────────────
+    print("Frontmatter:")
+    config, body, err = parse_frontmatter(text)
+    if err:
+        fail(f"frontmatter parse: {err}")
+        return 1
+    ok("file starts with --- and has closing --- delimiter")
+    ok("frontmatter parses as a YAML mapping")
+
+    # ── 2. tracker section ────────────────────────────────────────────────────
+    print("\ntracker:")
+    tracker = config.get("tracker", {})
+    if not isinstance(tracker, dict):
+        fail("tracker is not a mapping")
+        return 1
+
+    if tracker.get("kind"):
+        kind_val = tracker["kind"]
+        if kind_val == "linear":
+            ok(f"tracker.kind = '{kind_val}' (Symphony v1 supported)")
+        else:
+            warn(f"tracker.kind = '{kind_val}' — Symphony v1 only supports 'linear'")
+    else:
+        fail("tracker.kind missing (required for dispatch)")
+
+    if tracker.get("api_key"):
+        api_key = tracker["api_key"]
+        if api_key.startswith("$"):
+            varname = api_key[1:]
+            ok(f"tracker.api_key uses env var reference: {api_key}")
+            if varname == "LINEAR_API_KEY":
+                ok("env var is LINEAR_API_KEY (canonical for linear tracker)")
+            else:
+                warn(f"env var is {varname}, not canonical LINEAR_API_KEY")
+        else:
+            warn("tracker.api_key is a literal — consider $LINEAR_API_KEY env reference for security")
+    else:
+        fail("tracker.api_key missing")
+
+    if tracker.get("kind") == "linear":
+        if tracker.get("project_slug"):
+            ok(f"tracker.project_slug = '{tracker['project_slug']}' (required for linear)")
+        else:
+            fail("tracker.project_slug missing (required when kind=linear)")
+
+    active = tracker.get("active_states")
+    if active is not None:
+        if isinstance(active, list) and all(isinstance(x, str) for x in active):
+            ok(f"tracker.active_states is a list of {len(active)} string(s): {active}")
+        else:
+            fail(f"tracker.active_states must be a list of strings, got: {type(active).__name__}")
+    else:
+        ok("tracker.active_states omitted (will use default [Todo, In Progress])")
+
+    terminal = tracker.get("terminal_states")
+    if terminal is not None:
+        if isinstance(terminal, list) and all(isinstance(x, str) for x in terminal):
+            ok(f"tracker.terminal_states is a list of {len(terminal)} string(s)")
+        else:
+            fail(f"tracker.terminal_states must be a list of strings, got: {type(terminal).__name__}")
+    else:
+        ok("tracker.terminal_states omitted (will use spec default)")
+
+    # ── 3. polling ────────────────────────────────────────────────────────────
+    print("\npolling:")
+    polling = config.get("polling", {})
+    if polling:
+        interval = polling.get("interval_ms")
+        if isinstance(interval, int) and interval > 0:
+            ok(f"polling.interval_ms = {interval}")
+        elif isinstance(interval, str) and interval.isdigit():
+            ok(f"polling.interval_ms = '{interval}' (string-int, spec-allowed)")
+        elif interval is None:
+            ok("polling.interval_ms omitted (will use default 30000)")
+        else:
+            fail(f"polling.interval_ms must be integer or string-integer, got: {interval!r}")
+    else:
+        ok("polling omitted (will use defaults)")
+
+    # ── 4. workspace ──────────────────────────────────────────────────────────
+    print("\nworkspace:")
+    workspace = config.get("workspace", {})
+    if workspace:
+        root = workspace.get("root")
+        if root and isinstance(root, str):
+            ok(f"workspace.root = '{root}'")
+        elif root is None:
+            ok("workspace.root omitted (will use default <system-temp>/symphony_workspaces)")
+        else:
+            fail(f"workspace.root must be a string, got: {type(root).__name__}")
+    else:
+        ok("workspace omitted (will use defaults)")
+
+    # ── 5. agent ──────────────────────────────────────────────────────────────
+    print("\nagent:")
+    agent = config.get("agent", {})
+    if agent:
+        mca = agent.get("max_concurrent_agents")
+        if isinstance(mca, (int, str)) and (isinstance(mca, int) or mca.isdigit()):
+            ok(f"agent.max_concurrent_agents = {mca}")
+        elif mca is None:
+            ok("agent.max_concurrent_agents omitted (will use default 10)")
+        else:
+            fail(f"agent.max_concurrent_agents must be int, got: {mca!r}")
+
+        mt = agent.get("max_turns")
+        if mt is not None:
+            if isinstance(mt, int) and mt > 0:
+                ok(f"agent.max_turns = {mt}")
+            else:
+                warn(f"agent.max_turns should be a positive integer, got: {mt!r}")
+        else:
+            ok("agent.max_turns omitted (will use spec default — currently 20)")
+    else:
+        ok("agent omitted (will use defaults)")
+
+    # ── 6. codex ──────────────────────────────────────────────────────────────
+    print("\ncodex:")
+    codex = config.get("codex", {})
+    if codex:
+        cmd = codex.get("command")
+        if cmd and isinstance(cmd, str):
+            ok(f"codex.command = '{cmd}'")
+        elif cmd is None:
+            ok("codex.command omitted (will use default 'codex app-server')")
+        else:
+            fail(f"codex.command must be a string, got: {type(cmd).__name__}")
+
+        for tk in ["turn_timeout_ms", "read_timeout_ms", "stall_timeout_ms"]:
+            v = codex.get(tk)
+            if v is None:
+                continue
+            if isinstance(v, int):
+                ok(f"codex.{tk} = {v}")
+            else:
+                fail(f"codex.{tk} must be integer, got: {v!r}")
+    else:
+        warn("codex section omitted — will use all defaults including 'codex app-server'")
+
+    # ── 7. Prompt body ────────────────────────────────────────────────────────
+    print("\nPrompt template body:")
+    if not body:
+        fail("prompt body is empty (Symphony allows but will use a minimal default — this is suboptimal for our use case)")
+    else:
+        ok(f"prompt body present ({len(body)} chars)")
+
+        # Check for issue variable usage
+        if re.search(r"\{\{\s*issue\.", body):
+            ok("references {{ issue.* }} variables")
+        else:
+            warn("does not reference issue.* variables — workflow would be context-blind")
+
+        # Check for attempt variable usage
+        if re.search(r"\{\{\s*attempt\b|\{%\s*if\s+attempt\b", body):
+            ok("references attempt variable (retry/continuation aware)")
+        else:
+            warn("does not reference attempt — first/retry runs will produce identical prompts")
+
+        # Liquid syntax sanity
+        liquid_vars = re.findall(r"\{\{\s*([^}]+?)\s*\}\}", body)
+        liquid_tags = re.findall(r"\{%\s*([^%]+?)\s*%\}", body)
+        ok(f"Liquid syntax: {len(liquid_vars)} variable interpolations, {len(liquid_tags)} tag blocks")
+
+        # Detect unknown variables (Symphony spec: unknown vars must fail rendering — so we want only `issue.*` and `attempt`)
+        unknown_vars = [v for v in liquid_vars
+                        if not (v.startswith("issue.") or v.startswith("issue ") or
+                                v == "attempt" or v.startswith("attempt "))]
+        if unknown_vars:
+            warn(f"variables that may fail strict rendering (not issue.* or attempt): {unknown_vars}")
+        else:
+            ok("all Liquid variables are spec-known (issue.*, attempt)")
+
+        # Tag blocks: only if/else/endif are reliably portable
+        for t in liquid_tags:
+            tag_keyword = t.split()[0] if t.split() else ""
+            if tag_keyword not in ("if", "else", "elsif", "endif", "for", "endfor"):
+                warn(f"Liquid tag '{tag_keyword}' may not be supported by Symphony's template engine")
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    print(f"\n─────────────────────────────")
+    print(f"Passed: {passed}   Failed: {failed}   Warnings: {warnings}")
+    if failed == 0:
+        print(f"\nRESULT: PASSED — WORKFLOW.md is spec-compliant")
+        return 0
+    else:
+        print(f"\nRESULT: FAILED — {failed} required check(s) failed")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

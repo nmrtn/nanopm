@@ -153,7 +153,7 @@ fi
 # ── 6d. State binaries shipped ────────────────────────────────────────────────
 echo
 echo "  State binaries"
-for bin in nanopm-state-log nanopm-state-read; do
+for bin in nanopm-state-log nanopm-state-read nanopm-symphony-validate; do
   if [ -x "$_REPO_ROOT/bin/$bin" ]; then
     ok "bin/$bin present and executable"
   else

@@ -5,7 +5,7 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.7.0"
+NANOPM_VERSION="0.7.1"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
@@ -265,8 +265,10 @@ done
 [ -d "$GLOBAL_CONFIG_DIR/sessions" ] && rm -rf "$GLOBAL_CONFIG_DIR/sessions"
 _install_file "bin/nanopm-state-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 _install_file "bin/nanopm-state-read" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
+_install_file "bin/nanopm-symphony-validate" "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
 ok "State binaries installed (typed JSONL under ~/.nanopm/projects/)"
 
 step "Installing connectors"

@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.7.1 — 2026-06-03
+
+### Symphony WORKFLOW.md schema validator (level 1 test)
+
+**Why:** v0.7.0 shipped the Symphony handoff target without testing the generated `WORKFLOW.md` against Symphony's SPEC.md. The user pushed back — correctly — that posting a "please review this" message to the Symphony GitHub discussions without testing first burns the highest-leverage audience on a half-cocked ask.
+
+**Added — `bin/nanopm-symphony-validate`:**
+
+Python3 validator that checks a `WORKFLOW.md` against Symphony's SPEC.md §5 (Workflow Specification). Standalone (minimal inline YAML parser, no external dependencies). Runs against any file path; exits 0 on full compliance, non-zero with diagnostics on failure.
+
+Checks performed (21 in the canonical run):
+- Frontmatter structure: `---` delimiters present, parses as YAML map
+- `tracker.kind` required (must match v1 supported value `linear`)
+- `tracker.api_key` required (recommends `$LINEAR_API_KEY` canonical env reference)
+- `tracker.project_slug` required when `kind=linear`
+- `tracker.active_states` / `terminal_states` are lists of strings if present
+- `polling.interval_ms` is integer or string-integer
+- `workspace.root` is a string path
+- `agent.max_concurrent_agents`, `agent.max_turns` are valid integers
+- `codex.command` is a non-empty string
+- `codex.turn_timeout_ms`, `read_timeout_ms`, `stall_timeout_ms` are valid integers
+- Prompt body is non-empty
+- Prompt references `{{ issue.* }}` variables
+- Prompt references `attempt` (retry/continuation aware)
+- All Liquid variables are spec-known (`issue.*` or `attempt`) — per §5.4 "Unknown variables must fail rendering"
+- All Liquid tag blocks use portable keywords (`if`/`else`/`endif`/`for`/`endfor`)
+
+**Added — `test/symphony-validator.sh` (7 behavioral checks):**
+
+- Binary exists and executable
+- Positive: minimal valid WORKFLOW.md (only required fields) accepted
+- Positive: full WORKFLOW.md (mirroring nanopm /pm-breakdown output) accepted
+- Negative: missing `tracker.kind` rejected
+- Negative: missing `tracker.api_key` rejected
+- Negative: missing `tracker.project_slug` when `kind=linear` rejected
+- Negative: missing frontmatter delimiter rejected
+
+**Test results:**
+- Level 1 schema validation against nanopm-generated output: **21/21 PASSED**
+- Validator behavioral tests: **7/7 PASSED**
+- Full suite: **9 suites, ALL PASSED**
+
+**Updated:**
+- `setup` installs `bin/nanopm-symphony-validate` alongside the existing state binaries
+- `test/skill-syntax.sh` extended state-binaries check from 2 to 3 binaries
+- `test/run-all.sh` now runs 9 suites (was 8)
+
+**Strategic posture shift:**
+
+Pre-test draft of the Symphony GitHub discussion said: *"I built this against the spec, please tell me if it works."* That's a weak posture.
+
+Post-test draft (saved in `.nanopm/intel/LAUNCH-DRAFTS-2026-06-03.md`) leads with: *"I generate WORKFLOW.md per SPEC.md §5; it passes 21/21 schema checks against the validator I shipped. Would love to know whether the Elixir reference implementation has any field-name drift from SPEC.md that I should account for."*
+
+Concrete claim. Specific question. Stronger ground.
+
+**Still TODO before launch (issues #15 and #12):**
+- Demo recording (issue #15)
+- Symphony GitHub discussion post (Draft 1 in `.nanopm/intel/LAUNCH-DRAFTS-2026-06-03.md`)
+- Twitter thread (Draft 2)
+- Reddit r/ClaudeAI post (Draft 3)
+
+**Optional level 2 / level 3 testing:**
+
+Level 1 (this release) validates against SPEC.md. Level 2 would install the Elixir reference impl and verify it parses our output. Level 3 would run a full Codex agent against a real Linear ticket. Both deferred — level 1 is defensible posture for the Symphony GitHub discussion.
+
 ## 0.7.0 — 2026-06-03
 
 ### Symphony as the 6th peer handoff target

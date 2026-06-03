@@ -20,6 +20,7 @@ _TESTS=(
   "gates.sh"
   "update-check.sh"
   "headers.sh"
+  "symphony-validator.sh"
   "context-threading.e2e.sh"
   "website-bootstrap.e2e.sh"
 )
