@@ -191,22 +191,22 @@ else
 fi
 
 # All 5 targets enumerated
-for t in linear github openspec gstack human; do
+for t in linear github openspec gstack symphony human; do
   if grep -qE "_TARGET=$t\b|TARGET=$t\b|target=$t\b" "$_F" || grep -qE "_TARGET\)\s*\$_TARGET\" in" "$_F"; then
     ok "pm-breakdown handles target '$t'"
   fi
 done
-# Simpler: just check all 5 appear as case branches
+# Simpler: just check all 6 appear as case branches
 _TARGETS_OK=0
-for t in linear github openspec gstack human; do
+for t in linear github openspec gstack symphony human; do
   if grep -qE "^\s*$t\)" "$_F"; then
     _TARGETS_OK=$(( _TARGETS_OK + 1 ))
   fi
 done
-if [ "$_TARGETS_OK" -ge 5 ]; then
-  ok "All 5 handoff targets are case branches in pm-breakdown"
+if [ "$_TARGETS_OK" -ge 6 ]; then
+  ok "All 6 handoff targets are case branches in pm-breakdown"
 else
-  fail "Only $_TARGETS_OK / 5 handoff targets found as case branches"
+  fail "Only $_TARGETS_OK / 6 handoff targets found as case branches"
 fi
 
 # ── summary ───────────────────────────────────────────────────────────────────

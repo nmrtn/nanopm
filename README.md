@@ -157,7 +157,7 @@ State lives in `~/.nanopm/projects/{slug}/{type}.jsonl` (typed, schema-validated
 
 ### 3. Handoffs — where work lands
 
-`/pm-breakdown` writes the tasks to one of five peer targets. No preferred default. See the [Handoffs](#handoffs) section below for the full per-target output spec.
+`/pm-breakdown` writes the tasks to one of six peer targets. No preferred default. See the [Handoffs](#handoffs) section below for the full per-target output spec.
 
 | Target | What gets written |
 |---|---|
@@ -165,6 +165,7 @@ State lives in `~/.nanopm/projects/{slug}/{type}.jsonl` (typed, schema-validated
 | **GitHub Issues** | Repo issues, with body linking the PRD |
 | **OpenSpec** | `openspec/changes/{feature}/` — pick up with `/opsx:apply` |
 | **gstack** | `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` — pick up with `/plan-ceo-review` |
+| **Symphony** | `WORKFLOW.md` (repo root) + Linear issues — pick up with [OpenAI's Symphony](https://github.com/openai/symphony) |
 | **Human** | `.nanopm/handoffs/{feature}.md` — paste into any tracker |
 
 Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl`.
@@ -273,7 +274,7 @@ Every skill run warns if your AUDIT.md or STRATEGY.md is more than 20 commits ol
 
 ## Handoffs
 
-nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the breakdown to one of five peer targets — no preferred default, you pick the one that fits how the project actually ships.
+nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the breakdown to one of six peer targets — no preferred default, you pick the one that fits how the project actually ships.
 
 **Linear** — issues created in a Linear team via MCP or `LINEAR_API_KEY`. Each ticket carries the acceptance criteria and ties back to the PRD requirement.
 
@@ -282,6 +283,8 @@ nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the br
 **OpenSpec** — writes `openspec/changes/{feature}/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/{feature}/spec.md` (requirements as SHALL statements). Pick this up with `/opsx:apply` to implement. If your repo already uses OpenSpec, `/pm-scan` will read `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
 
 **gstack** — writes `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` with a `status: ACTIVE` frontmatter. Pick this up in a [gstack](https://github.com/garrytan/gstack) session with `/plan-ceo-review` or `/autoplan` — the file is read directly from gstack's plan glob.
+
+**Symphony** — writes `WORKFLOW.md` to the repo root and creates Linear issues. The `WORKFLOW.md` frontmatter configures [OpenAI's Symphony](https://github.com/openai/symphony) orchestrator; the body is a per-issue prompt template that embeds the PRD path, the typed bet from `decision.jsonl`, the PRD's Falsification criterion, and the out-of-scope items. Symphony's daemon polls Linear, spawns one Codex workspace per ticket, and runs them to PR. Requires `LINEAR_API_KEY` or the Linear MCP — Symphony is Linear-only in its v1 spec.
 
 **Human** — single self-contained markdown at `.nanopm/handoffs/{feature}.md`. PRD body plus copy-paste-ready ticket blocks. Paste into Notion, Jira, a Slack thread, an email, anything. No external system touched.
 

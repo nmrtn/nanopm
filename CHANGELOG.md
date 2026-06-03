@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.0 — 2026-06-03
+
+### Symphony as the 6th peer handoff target
+
+Closes issue #14. Adds `Symphony` as the 6th of six peer handoff targets in `/pm-breakdown`. The strategy here is **symmetric handoff across N targets** — Symphony is the timing lever for an upcoming launch (OpenAI announced Symphony 2026-06-02), but the architectural pitch is the symmetry itself.
+
+**`/pm-breakdown` (v0.3.0):**
+- New Phase 3 option E: Symphony.
+- New Phase 4 setup branch: reuses Linear setup (Symphony is Linear-only per its v1 SPEC), plus stores `linear_project_slug` for the WORKFLOW.md frontmatter.
+- New Phase 7f branch: writes `WORKFLOW.md` to the repo root + creates Linear issues. The `WORKFLOW.md` body is a per-issue Liquid-compatible prompt template that embeds: source PRD path, typed `bet` from `decision.jsonl`, Falsification criterion, out-of-scope items, success criteria. Frontmatter configures the Symphony orchestrator + Codex App Server runtime.
+- Phase 9 handoff path: `symphony://<workflow>+linear://<team>`.
+
+**README updates:**
+- Pipeline section "3. Handoffs" table — 6 rows (was 5).
+- `## Handoffs` section — new Symphony paragraph between gstack and Human.
+
+**Test updates:**
+- `test/gates.sh`: now asserts all 6 handoff targets are case branches in pm-breakdown (was 5).
+- ALL 8 SUITES PASSED.
+
+**Strategy rewrite (2026-06-03):**
+- The prior `validate-typed-memory-pulls-return` bet from v0.6.x was dead (the builder didn't internalize the metric after the pipeline produced it — a real signal the framework was producing artifacts the builder didn't own).
+- Replaced with `symmetric-handoff-symphony-lever`: solo founders and small teams will value an upstream PM tool that produces well-formed artifacts (typed bet, falsifiable acceptance, scope-outs) and lets them choose their delivery layer across 6 peer targets. Symphony's launch is the timing lever, not the strategy.
+- A first attempt at the rewrite was Symphony-only; the builder rejected it as too narrow. Final framing positions Symphony as one of six, with launch copy emphasizing the architecture and using Symphony as the lead example because of timing.
+- New scope-out: `not-symphony-only-positioning` (confidence 9) — explicit guard against collapsing into Symphony-specific positioning.
+- New scope-out: `not-cohort-validation` (the 14-day cohort experiment from v0.6.x is dead).
+- New target: `symmetric-launch-week-one` (replaces `symphony-launch-week-one`).
+- GitHub issues #10 and #11 closed as won't-do. Issues #12 and #13 retitled and rebodied for the symmetric framing. New issues #14 (this work) and #15 (demo recording) filed.
+
 ## 0.6.5 — 2026-06-03
 
 ### Memory-read instrumentation — the validation experiment's core probe

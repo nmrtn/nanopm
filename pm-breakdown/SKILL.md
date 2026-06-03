@@ -1,7 +1,7 @@
 ---
 name: pm-breakdown
-version: 0.2.0
-description: "Break a PRD into engineering tasks and hand off to one of five peer targets: Linear, GitHub Issues, OpenSpec, gstack, or Human-readable markdown. No preferred default — you pick the target."
+version: 0.3.0
+description: "Break a PRD into engineering tasks and hand off to one of six peer targets: Linear, GitHub Issues, OpenSpec, gstack, Symphony (OpenAI's orchestrator), or Human-readable markdown. No preferred default — you pick the target."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
@@ -62,21 +62,22 @@ Derive the feature slug from the PRD filename: lowercase, hyphens, max 40 chars.
 
 ## Phase 3: Pick the handoff target
 
-nanopm produces the breakdown; the handoff target is where the work actually goes. The five targets are peers — pick whichever fits how this team or project ships work.
+nanopm produces the breakdown; the handoff target is where the work actually goes. The six targets are peers — pick whichever fits how this team or project ships work.
 
-Always ask via AskUserQuestion (no preferred default):
+Always ask via AskUserQuestion (no preferred default). If the host's tool caps options at 4, ask in two rounds: first "Tracker / Spec / Direct?" then drill into the specific target.
 
 **"Where should this breakdown become work?**
 
 A) **Linear** — issues created in a Linear team, with priority and labels
 B) **GitHub Issues** — issues in the repo, with linked body and acceptance
-C) **OpenSpec** — write `openspec/changes/{feature}/` (proposal + design + tasks + specs)
-D) **gstack** — write `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` (pickable by `/plan-ceo-review`)
-E) **Human** — single markdown file with PRD body + copy-paste-ready ticket list, no external system touched"
+C) **OpenSpec** — write `openspec/changes/{feature}/` (proposal + design + tasks + specs); pick up with `/opsx:apply`
+D) **gstack** — write `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md`; pick up with `/plan-ceo-review` or `/autoplan`
+E) **Symphony** — write `WORKFLOW.md` to the repo root + create Linear issues. OpenAI's Symphony orchestrator picks up the tickets and spawns one Codex workspace per issue. See https://github.com/openai/symphony
+F) **Human** — single markdown file with PRD body + copy-paste-ready ticket list, no external system touched"
 
-Store choice as `_TARGET` (linear / github / openspec / gstack / human).
+Store choice as `_TARGET` (linear / github / openspec / gstack / symphony / human).
 
-If the user picks a target that requires availability (Linear or GitHub) and we don't have it, fall back gracefully (Phase 4 handles that).
+If the user picks a target that requires availability (Linear, GitHub, or Symphony — which needs Linear under the hood) and we don't have it, fall back gracefully (Phase 4 handles that).
 
 ## Phase 4: Target-specific setup
 
@@ -141,6 +142,37 @@ echo "GSTACK_FILE: $_GSTACK_FILE"
 ```
 
 No external dependency — gstack writes are a markdown file at the path `/plan-ceo-review` reads from.
+
+### If `_TARGET=symphony`:
+
+Symphony's reference implementation (per SPEC.md v1) is Linear-only. The Symphony handoff is conceptually `WORKFLOW.md + Linear issues` — it reuses the Linear setup, then writes a `WORKFLOW.md` to the repo root.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_TIER_LINEAR=$(nanopm_has_connector linear)
+echo "LINEAR_TIER: $_TIER_LINEAR"
+```
+
+- **If tier 1 (MCP) or 2 (API):** proceed. Same flow as `_TARGET=linear` for team setup if `_LINEAR_TEAM_ID` isn't already stored. Additionally, Symphony's `WORKFLOW.md` needs the Linear **project slug** (URL-friendly identifier, distinct from team ID). Look up via `mcp__linear__list_projects` (MCP) or GraphQL:
+  ```bash
+  source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+  curl -s -X POST https://api.linear.app/graphql \
+    -H "Authorization: $LINEAR_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"query": "{ projects { nodes { id name slugId } } }"}'
+  ```
+  Ask the user to pick the project Symphony should watch, store:
+  ```bash
+  source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+  nanopm_config_set "linear_project_slug" "{slugId}"
+  ```
+- **If tier 3 or 4:** tell the user "Symphony requires Linear access (LINEAR_API_KEY or the Linear MCP). Want me to fall back to Human markdown?" — if yes, set `_TARGET=human` and continue. Otherwise exit.
+
+Set the WORKFLOW.md target path:
+```bash
+_WORKFLOW_FILE="WORKFLOW.md"
+echo "WORKFLOW_FILE: $_WORKFLOW_FILE (Symphony reads this from the repo root)"
+```
 
 ### If `_TARGET=human`:
 
@@ -380,6 +412,114 @@ gstack ceo-plan written: {_GSTACK_FILE}
     /autoplan            (full review pipeline)
 ```
 
+### Phase 7f — Symphony
+
+Two writes: a `WORKFLOW.md` to the repo root + Linear issues (same as Phase 7a, but each issue body references the WORKFLOW.md and the typed bet).
+
+#### Step 1: Write `WORKFLOW.md` to the repo root
+
+The `WORKFLOW.md` format follows OpenAI's Symphony SPEC.md (Section 5). YAML frontmatter configures the Symphony orchestrator + Codex agent; the Markdown body is the per-issue prompt template (Liquid-compatible, must use the `issue` and `attempt` variables).
+
+```markdown
+---
+tracker:
+  kind: linear
+  api_key: $LINEAR_API_KEY
+  project_slug: {linear_project_slug from config}
+  active_states: [Todo, In Progress]
+  terminal_states: [Done, Cancelled, Canceled]
+
+polling:
+  interval_ms: 30000
+
+workspace:
+  root: ~/.symphony/workspaces
+
+agent:
+  max_concurrent_agents: 3
+  max_turns: 20
+
+codex:
+  command: codex app-server
+  turn_timeout_ms: 3600000
+  read_timeout_ms: 5000
+  stall_timeout_ms: 300000
+---
+
+# Workflow: {feature name}
+
+You are a Codex agent working on a ticket from a nanopm-generated PRD. nanopm produced this WORKFLOW.md to give you the full PM context.
+
+## Context for this ticket
+
+- **Issue:** `{{ issue.identifier }}: {{ issue.title }}`
+- **Attempt:** `{{ attempt | default: "1 (first run)" }}`
+- **Source PRD:** `.nanopm/prds/{_FEATURE_SLUG}.md` (read this first — it's the source of truth)
+- **Project state directory:** `~/.nanopm/projects/{slug}/` (typed decisions live here)
+
+## The bet behind this work
+
+{Insert the latest typed `bet` decision from `~/.nanopm/projects/{slug}/decision.jsonl` where `skill=pm-strategy` — the single sentence from the bet's `insight` field.}
+
+## Falsification — how we'd know this PRD was wrong
+
+{Insert the PRD's `## Falsification` paragraph verbatim.}
+
+## What to do
+
+1. Read `.nanopm/prds/{_FEATURE_SLUG}.md` carefully. The PRD is the source of truth. If anything here conflicts with the PRD, the PRD wins.
+2. (Optional) Read `~/.nanopm/projects/{slug}/decision.jsonl` for additional context on prior PM decisions (typed `bet`, `scope-out`, `target`).
+3. Implement only this ticket's scope. Each ticket is independently shippable.
+4. Open a PR. PR body must reference: (a) the PRD path, (b) this ticket's `{{ issue.identifier }}`, (c) the success criterion from below.
+5. Move the issue state to `Review` (or the equivalent handoff state in this Linear workflow) when done.
+
+## What to NOT do
+
+{Insert the PRD's `### Out of scope (v1)` items as a bulleted list. If any of these appear in the implementation, the PR will be rejected.}
+
+## Acceptance — how to know this ticket is done
+
+{Insert the relevant rows from the PRD's `## Success Criteria` table, plus the "What will be different in commits?" row verbatim — that row is the most concrete acceptance signal.}
+
+## Multi-host note
+
+This workflow runs under Symphony (Codex App Server). The source PRD and typed-state files were produced by nanopm running on Claude Code, Mistral Vibe, or OpenAI Codex — the artifacts are host-agnostic. If you spot something in the PRD that uses a Claude-specific construct (e.g., `AskUserQuestion`), translate it to your environment's equivalent (Codex handles questions conversationally).
+
+---
+
+*This WORKFLOW.md was generated by nanopm /pm-breakdown --target=symphony on {date}. The PRD at `.nanopm/prds/{_FEATURE_SLUG}.md` is the canonical specification. Symphony spec compatibility: v1 (Linear tracker, repo-owned WORKFLOW.md).*
+```
+
+#### Step 2: Create Linear issues (same as Phase 7a)
+
+Use the existing Linear issue creation flow from Phase 7a — Tier 1 (MCP) or Tier 2 (API) per `_TIER_LINEAR`. For each task, add to the issue body:
+
+- A back-link to the PRD: `Source PRD: .nanopm/prds/{_FEATURE_SLUG}.md`
+- A reference to the WORKFLOW.md: `Symphony WORKFLOW.md: {_WORKFLOW_FILE} (read this first)`
+- The task's acceptance criterion verbatim
+- The task's ties (PRD requirement number, parent typed `target` decision key)
+
+Symphony's tracker poll will pick up the issues automatically once the WORKFLOW.md is committed to the repo and Symphony is running.
+
+#### Step 3: User-facing summary
+
+After both writes succeed, tell the user:
+
+```
+Symphony handoff complete.
+
+  Repo file:     {_WORKFLOW_FILE} (Symphony reads this)
+  Linear issues: {N} issues created in team {_LINEAR_TEAM_NAME}
+  Project slug:  {linear_project_slug}
+
+  To start Symphony working these:
+    1. Commit WORKFLOW.md to your repo
+    2. Run Symphony (https://github.com/openai/symphony) with this project configured
+    3. Symphony will spawn one Codex workspace per ticket and start working
+
+  Symphony spec compatibility: v1 (Linear tracker)
+```
+
 ### Phase 7e — Human
 
 Write `$_HUMAN_FILE` — a single self-contained markdown that travels anywhere:
@@ -481,6 +621,7 @@ case "$_TARGET" in
   github)   _HANDOFF_PATH="github://${_GITHUB_REPO}" ;;
   openspec) _HANDOFF_PATH="${_CHANGE_DIR}" ;;
   gstack)   _HANDOFF_PATH="${_GSTACK_FILE}" ;;
+  symphony) _HANDOFF_PATH="symphony://${_WORKFLOW_FILE}+linear://${_LINEAR_TEAM_NAME}" ;;
   human)    _HANDOFF_PATH="${_HUMAN_FILE}" ;;
 esac
 
