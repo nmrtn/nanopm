@@ -130,12 +130,100 @@ nanopm_state_log() {
 nanopm_state_read() {
   # Usage: nanopm_state_read --type TYPE [--filter KEY=VAL] [--latest] [--limit N]
   # Prints matching records as JSONL. Empty output = no matches.
-  if [ -x "$HOME/.nanopm/bin/nanopm-state-read" ]; then
-    "$HOME/.nanopm/bin/nanopm-state-read" "$@"
-  else
+  #
+  # Side effect (v0.6.5+): when reading type=decision, this wrapper checks whether
+  # any returned record was written in a DIFFERENT session than the current one.
+  # If yes, it emits a `memory-read` event to timeline.jsonl. This instruments the
+  # validation experiment's success metric (PRD: validation-experiment).
+  if [ ! -x "$HOME/.nanopm/bin/nanopm-state-read" ]; then
     echo "nanopm: bin/nanopm-state-read not installed; run setup" >&2
     return 127
   fi
+
+  local output
+  output=$("$HOME/.nanopm/bin/nanopm-state-read" "$@")
+  printf '%s' "$output"
+  # Ensure trailing newline (preserves caller expectations)
+  [ -n "$output" ] && [ "${output: -1}" != $'\n' ] && printf '\n'
+
+  # Auto-emit memory-read for decision reads only.
+  # Skip if no current session (called outside a skill invocation).
+  local args="$*"
+  case "$args" in
+    *"--type decision"*)
+      [ -z "${NANOPM_SESSION_ID:-}" ] && return 0
+      [ -z "$output" ] && return 0
+      _nanopm_maybe_emit_memory_read "$output"
+      ;;
+  esac
+  return 0
+}
+
+# Internal: scan state-read output for records from a different session than the
+# current one. If any found, emit a single memory-read timeline event with a
+# hashed project slug (NFR1: raw slug never appears in the event).
+# Output is passed via stdin to avoid heredoc quoting issues with embedded JSON.
+_nanopm_maybe_emit_memory_read() {
+  printf '%s' "$1" | NANOPM_CURRENT_SESSION="$NANOPM_SESSION_ID" python3 -c '
+import hashlib, json, os, subprocess, sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+current = os.environ.get("NANOPM_CURRENT_SESSION", "")
+if not current:
+    sys.exit(0)
+
+found_other = False
+emitting_skill = None
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        r = json.loads(line)
+    except Exception:
+        continue
+    sess = r.get("session")
+    if sess and sess != current:
+        found_other = True
+        emitting_skill = r.get("skill") or emitting_skill
+
+if not found_other:
+    sys.exit(0)
+
+try:
+    root = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
+    ).decode().strip()
+    slug = os.path.basename(root) if root else os.path.basename(os.getcwd())
+except Exception:
+    slug = os.path.basename(os.getcwd())
+
+slug_hash = hashlib.sha256(slug.encode()).hexdigest()[:16]
+try:
+    branch = subprocess.check_output(
+        ["git", "branch", "--show-current"], stderr=subprocess.DEVNULL
+    ).decode().strip() or "unknown"
+except Exception:
+    branch = "unknown"
+
+emitting_skill = emitting_skill or "unknown"
+
+home = os.environ.get("HOME") or os.path.expanduser("~")
+out_file = Path(home) / ".nanopm" / "projects" / slug / "timeline.jsonl"
+out_file.parent.mkdir(parents=True, exist_ok=True)
+event = {
+    "skill": emitting_skill,
+    "event": "memory-read",
+    "branch": branch,
+    "project_slug_hash": slug_hash,
+    "session": current,
+    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "slug": slug,
+}
+with open(out_file, "a", encoding="utf-8") as f:
+    f.write(json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n")
+' 2>/dev/null
 }
 
 # Convenience: log a skill 'started' timeline event. Skills should call this
@@ -492,10 +580,21 @@ nanopm_preamble() {
   nanopm_staleness_check
   nanopm_update_check             # prints UPGRADE_AVAILABLE if a new version exists
 
+  # Fresh session id per skill invocation (v0.6.5+).
+  # Written to .current_session so every bash subprocess within this invocation
+  # — including Vibe's fresh-subshell-per-block model — reads the same UUID.
+  # State-log calls auto-inject this id into every record.
+  NANOPM_SESSION_ID=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])" 2>/dev/null || echo "")
+  export NANOPM_SESSION_ID
+  if [ -n "$NANOPM_SESSION_ID" ]; then
+    echo "$NANOPM_SESSION_ID" > "$HOME/.nanopm/projects/$_SLUG/.current_session" 2>/dev/null || true
+  fi
+
   echo "SLUG: $_SLUG"
   echo "BRANCH: $_BRANCH"
   echo "VERSION: $_VERSION"
   echo "HOST: $NANOPM_HOST"
+  echo "SESSION: ${NANOPM_SESSION_ID:-unavailable}"
   echo "BROWSE: ${B:-not available}"
   # Multi-host portability hint — Mistral Vibe rejects AskUserQuestion calls
   # with header field >12 chars. Claude tolerates longer but renders better short.

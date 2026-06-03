@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.6.5 — 2026-06-03
+
+### Memory-read instrumentation — the validation experiment's core probe
+
+Closes issues #8 and #9 (the first two tasks of the v0.6.5 validation experiment plan committed by `/pm-breakdown`). This ships the *measurement* needed by the validation cohort that begins once issue #12 is posted.
+
+**Design decision (issue #8, written up at `.nanopm/intel/SESSION-BOUNDARY-DESIGN.md`):**
+- A **session** = one skill invocation, marked by a 16-char hex UUID written to `~/.nanopm/projects/{slug}/.current_session` by `nanopm_preamble`. Survives Vibe subprocess boundaries because every bash block reads the same marker file.
+- **Preamble reads count** toward the bet. The user benefits from memory when prior decisions are surfaced into the LLM's context — that IS the memory paying off.
+- **Empty reads don't fire.** A read against a `decision.jsonl` with zero records (or only current-session records) emits no event.
+- **Re-running pm-audit counts.** Qualitative analysis distinguishes same-skill-re-invoked vs different-skill in the cohort report.
+
+**Implementation (issue #9):**
+- `bin/nanopm-state-log` adds a new `session` field (optional) to all 4 record types (timeline / decision / prd / handoff). Format validator: `^[a-f0-9]{16}$`. Auto-injected from `NANOPM_SESSION_ID` env var; falls back to `.current_session` file on Vibe-style fresh subshells; silent skip outside skill invocations.
+- `nanopm_preamble` (in `lib/nanopm.sh`) generates a fresh UUID per invocation, exports `NANOPM_SESSION_ID`, and writes the marker file. Preamble output now includes `SESSION: <id>` for visibility.
+- `nanopm_state_read` (the shell wrapper) detects cross-session reads of `decision.jsonl` and emits a `memory-read` event to `timeline.jsonl`. **Privacy (NFR1):** the event captures `project_slug_hash` (SHA-256 of slug, 16-char prefix) — raw project names never leave the local file. **Reversibility (NFR2):** single function, removable in one commit if validation fails.
+
+**Test coverage:**
+- `test/state-layer.sh` extended from 25 to 34 checks. New cases:
+  - Invalid session string rejected
+  - Valid 16-hex session accepted
+  - Auto-inject from env var
+  - Auto-inject from `.current_session` file when env var unset
+  - Env var precedence over file
+  - Session injected into all 4 record types
+  - **Cross-session decision read emits memory-read event**
+  - **Same-session decision read does NOT emit**
+  - Memory-read event uses hashed slug (NFR1 privacy check)
+- All 8 suites pass.
+
+**What this unlocks:** issue #10 (poll template), #11 (check-in script), #12 (post to 4 channels), #13 (run cohort). Tasks #10 and #11 are blocked on user input — they're copy in the builder's voice. Tasks #12 and #13 require the builder's authenticated accounts.
+
 ## 0.6.4 — 2026-05-25
 
 ### Hotfix: two more Mistral Vibe portability bugs

@@ -59,6 +59,7 @@ from typing import Any
 
 
 KEY_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+SESSION_RE = re.compile(r"^[a-f0-9]{16}$")  # 16-hex-char UUID prefix
 MAX_INSIGHT_LEN = 1000
 MAX_PATH_LEN = 500
 MAX_STRING_LEN = 500
@@ -73,7 +74,7 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "branch": {"type": "string", "optional": True},
             "outcome": {"type": "enum", "values": {"success", "error", "abort", "unknown"}, "optional": True},
             "duration_s": {"type": "int_nonneg", "optional": True},
-            "session": {"type": "string", "optional": True},
+            "session": {"type": "session", "optional": True},
         },
     },
     "decision": {
@@ -91,6 +92,7 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             }},
             "skill": {"type": "key", "optional": True},
             "feature": {"type": "key", "optional": True},
+            "session": {"type": "session", "optional": True},
         },
     },
     "prd": {
@@ -105,6 +107,7 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             }, "optional": True},
             "path": {"type": "string", "max": MAX_PATH_LEN, "optional": True},
             "skill": {"type": "key", "optional": True},
+            "session": {"type": "session", "optional": True},
         },
     },
     "handoff": {
@@ -115,6 +118,7 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                 "linear", "github", "openspec", "gstack", "human",
             }},
             "path": {"type": "string", "max": MAX_PATH_LEN},
+            "session": {"type": "session", "optional": True},
         },
     },
 }
@@ -170,8 +174,32 @@ def validate_field(name: str, value: Any, spec: dict[str, Any]) -> None:
         if value < spec["min"] or value > spec["max"]:
             die(f"field '{name}' must be in [{spec['min']}..{spec['max']}], got {value}")
 
+    elif ftype == "session":
+        if not isinstance(value, str) or not SESSION_RE.match(value):
+            die(f"field '{name}' must be a 16-char hex UUID prefix, got: {value!r}")
+
     else:
         die(f"internal: unknown field type {ftype!r}")
+
+
+def resolve_session(slug_val: str) -> str | None:
+    """Find the current session id. Order:
+       1. NANOPM_SESSION_ID env var (set by nanopm_preamble in the same shell)
+       2. ~/.nanopm/projects/{slug}/.current_session file (Vibe subprocess case)
+       3. None — caller is outside a skill invocation; field stays empty.
+    """
+    env_sid = os.environ.get("NANOPM_SESSION_ID", "").strip()
+    if env_sid and SESSION_RE.match(env_sid):
+        return env_sid
+    home = os.environ.get("HOME") or os.path.expanduser("~")
+    marker = Path(home) / ".nanopm" / "projects" / slug_val / ".current_session"
+    try:
+        sid = marker.read_text().strip()
+        if sid and SESSION_RE.match(sid):
+            return sid
+    except (OSError, FileNotFoundError):
+        pass
+    return None
 
 
 def validate(record: dict[str, Any], type_name: str) -> dict[str, Any]:
@@ -226,6 +254,14 @@ def main() -> int:
     # Inject metadata
     record.setdefault("ts", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     record["slug"] = slug()
+
+    # Inject session id if available (from env var or .current_session marker file).
+    # The field is optional in every schema — silent skip if no session marker exists,
+    # which is the right behavior for direct-binary calls outside a skill invocation.
+    if "session" not in record:
+        sid = resolve_session(record["slug"])
+        if sid:
+            record["session"] = sid
 
     # Write
     home = os.environ.get("HOME") or os.path.expanduser("~")

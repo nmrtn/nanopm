@@ -77,7 +77,8 @@ fi
 echo
 echo "  Auto-injected metadata"
 
-_DEC_FILE="$_TMPDIR/.nanopm/projects/$_SLUG/decision.jsonl"
+_SLUG_DIR="$_TMPDIR/.nanopm/projects/$_SLUG"
+_DEC_FILE="$_SLUG_DIR/decision.jsonl"
 if [ -f "$_DEC_FILE" ]; then
   _LINE=$(tail -1 "$_DEC_FILE")
   if echo "$_LINE" | grep -q '"ts":"20'; then
@@ -242,6 +243,140 @@ if echo "$_STDERR" | grep -q "nanopm-state-log:"; then
 else
   fail "validator stderr missing prefix. Got: $_STDERR"
 fi
+
+# ── 6. Session field validation + auto-injection (v0.6.5+) ───────────────────
+echo
+echo "  Session field (v0.6.5+ memory-read instrumentation)"
+
+# Reject obviously invalid session strings
+if "$_LOG" --type decision \
+  '{"kind":"bet","key":"sess-bad","insight":"x","confidence":5,"source":"observed","session":"not-hex-not-16"}' 2>/dev/null; then
+  fail "decision: accepted invalid session string (should reject — must be 16-char hex)"
+else
+  ok "decision: rejected invalid session string"
+fi
+
+# Accept valid 16-hex session
+_VALID_SESS="abcdef0123456789"
+if "$_LOG" --type decision \
+  "{\"kind\":\"bet\",\"key\":\"sess-good\",\"insight\":\"x\",\"confidence\":5,\"source\":\"observed\",\"session\":\"$_VALID_SESS\"}"; then
+  ok "decision: accepted valid 16-hex session string"
+else
+  fail "decision: rejected valid 16-hex session string"
+fi
+
+# Auto-inject from NANOPM_SESSION_ID env var
+_AUTO_SESS=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])")
+NANOPM_SESSION_ID="$_AUTO_SESS" "$_LOG" --type decision \
+  '{"kind":"bet","key":"sess-auto","insight":"x","confidence":5,"source":"observed"}' >/dev/null
+_LAST_LINE=$(tail -1 "$_DEC_FILE")
+if echo "$_LAST_LINE" | grep -q "\"session\":\"$_AUTO_SESS\""; then
+  ok "decision: auto-injected session from NANOPM_SESSION_ID env var"
+else
+  fail "decision: env-var session not auto-injected. Got: $_LAST_LINE"
+fi
+
+# Auto-inject from .current_session file (Vibe subprocess case)
+_FILE_SESS=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])")
+mkdir -p "$_SLUG_DIR"
+echo "$_FILE_SESS" > "$_SLUG_DIR/.current_session"
+# Note: with NANOPM_SESSION_ID unset, falls through to file lookup
+env -u NANOPM_SESSION_ID "$_LOG" --type decision \
+  '{"kind":"bet","key":"sess-file","insight":"x","confidence":5,"source":"observed"}' >/dev/null
+_LAST_LINE=$(tail -1 "$_DEC_FILE")
+if echo "$_LAST_LINE" | grep -q "\"session\":\"$_FILE_SESS\""; then
+  ok "decision: auto-injected session from .current_session file (env var unset)"
+else
+  fail "decision: file-based session not auto-injected. Got: $_LAST_LINE"
+fi
+
+# Env var trumps file
+echo "wrong-but-file-says-this-x" > "$_SLUG_DIR/.current_session"
+_ENV_SESS=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])")
+NANOPM_SESSION_ID="$_ENV_SESS" "$_LOG" --type decision \
+  '{"kind":"bet","key":"sess-precedence","insight":"x","confidence":5,"source":"observed"}' >/dev/null
+_LAST_LINE=$(tail -1 "$_DEC_FILE")
+if echo "$_LAST_LINE" | grep -q "\"session\":\"$_ENV_SESS\""; then
+  ok "decision: NANOPM_SESSION_ID env var takes precedence over file"
+else
+  fail "decision: env var precedence broken. Got: $_LAST_LINE"
+fi
+
+# Clean up the malformed marker file from the precedence test so subsequent test
+# runs in the same TMPDIR don't read it
+rm -f "$_SLUG_DIR/.current_session"
+
+# Session optional on all 4 types (decision tested above)
+NANOPM_SESSION_ID="$_AUTO_SESS" "$_LOG" --type timeline \
+  '{"skill":"sess-t","event":"started"}' >/dev/null
+NANOPM_SESSION_ID="$_AUTO_SESS" "$_LOG" --type prd \
+  '{"feature":"sess-test","status":"draft"}' >/dev/null
+NANOPM_SESSION_ID="$_AUTO_SESS" "$_LOG" --type handoff \
+  '{"feature":"sess-test","target":"human","path":"x"}' >/dev/null
+_TIMELINE_HAS_SESS=$(tail -1 "$_TMPDIR/.nanopm/projects/$_SLUG/timeline.jsonl" | grep -c '"session":' || true)
+_PRD_HAS_SESS=$(tail -1 "$_TMPDIR/.nanopm/projects/$_SLUG/prd.jsonl" | grep -c '"session":' || true)
+_HANDOFF_HAS_SESS=$(tail -1 "$_TMPDIR/.nanopm/projects/$_SLUG/handoff.jsonl" | grep -c '"session":' || true)
+if [ "$_TIMELINE_HAS_SESS" = "1" ] && [ "$_PRD_HAS_SESS" = "1" ] && [ "$_HANDOFF_HAS_SESS" = "1" ]; then
+  ok "session auto-injected into timeline / prd / handoff records"
+else
+  fail "session NOT injected into all 4 types (timeline=$_TIMELINE_HAS_SESS prd=$_PRD_HAS_SESS handoff=$_HANDOFF_HAS_SESS)"
+fi
+
+# ── 7. Cross-session memory-read emission via lib wrapper ────────────────────
+echo
+echo "  Memory-read emission (lib wrapper nanopm_state_read)"
+# Source the lib NOW (rest of this test file uses the binaries directly via $_LOG/$_READ
+# and never sourced lib). The wrapper looks at $HOME/.nanopm/bin/ — symlink the binaries.
+# shellcheck source=/dev/null
+source "$_REPO_ROOT/lib/nanopm.sh"
+mkdir -p "$_TMPDIR/.nanopm/bin"
+ln -sf "$_REPO_ROOT/bin/nanopm-state-log" "$_TMPDIR/.nanopm/bin/"
+ln -sf "$_REPO_ROOT/bin/nanopm-state-read" "$_TMPDIR/.nanopm/bin/"
+
+# Clear timeline to isolate the test
+> "$_TMPDIR/.nanopm/projects/$_SLUG/timeline.jsonl"
+
+# Decision.jsonl already has records from multiple sessions (sessions injected above)
+# Set current session to something different than all of them
+_S_CURRENT=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])")
+NANOPM_SESSION_ID="$_S_CURRENT" nanopm_state_read --type decision >/dev/null
+
+# Check timeline.jsonl for a memory-read event
+_MEMREAD_COUNT=$(grep -c '"event":"memory-read"' "$_TMPDIR/.nanopm/projects/$_SLUG/timeline.jsonl" 2>/dev/null || echo 0)
+_MEMREAD_COUNT=$(echo "$_MEMREAD_COUNT" | tr -d '[:space:]')
+if [ "$_MEMREAD_COUNT" -ge 1 ] 2>/dev/null; then
+  ok "memory-read emitted when reading decisions from prior sessions ($_MEMREAD_COUNT event(s))"
+else
+  fail "memory-read NOT emitted on cross-session read (count=$_MEMREAD_COUNT)"
+fi
+
+# Verify the emitted event has hashed slug, not raw slug
+if grep -q "\"project_slug_hash\":\"[a-f0-9]" "$_TMPDIR/.nanopm/projects/$_SLUG/timeline.jsonl" 2>/dev/null; then
+  ok "memory-read event uses hashed slug (privacy: NFR1)"
+else
+  fail "memory-read event missing project_slug_hash field"
+fi
+
+# Same-session read should NOT emit
+_TMPDIR2=$(mktemp -d /tmp/nanopm-singlesess-XXXXXX)
+mkdir -p "$_TMPDIR2/.nanopm/projects/test/" "$_TMPDIR2/.nanopm/bin"
+ln -sf "$_REPO_ROOT/bin/nanopm-state-log" "$_TMPDIR2/.nanopm/bin/"
+ln -sf "$_REPO_ROOT/bin/nanopm-state-read" "$_TMPDIR2/.nanopm/bin/"
+_S_SINGLE=$(python3 -c "import uuid; print(uuid.uuid4().hex[:16])")
+cd "$_TMPDIR2"
+HOME="$_TMPDIR2" NANOPM_SESSION_ID="$_S_SINGLE" \
+  "$_REPO_ROOT/bin/nanopm-state-log" --type decision \
+  '{"kind":"bet","key":"same","insight":"x","confidence":5,"source":"observed"}' >/dev/null
+HOME="$_TMPDIR2" NANOPM_SESSION_ID="$_S_SINGLE" nanopm_state_read --type decision >/dev/null
+_SAMESESS_MEMREAD=$(find "$_TMPDIR2" -name "timeline.jsonl" -exec grep -c '"event":"memory-read"' {} \; 2>/dev/null | head -1)
+_SAMESESS_MEMREAD=${_SAMESESS_MEMREAD:-0}
+if [ "$_SAMESESS_MEMREAD" = "0" ]; then
+  ok "same-session read does NOT emit memory-read"
+else
+  fail "same-session read incorrectly emitted memory-read ($_SAMESESS_MEMREAD events)"
+fi
+cd "$_TMPDIR"
+rm -rf "$_TMPDIR2"
 
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
