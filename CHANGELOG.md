@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.8.0 — 2026-06-05
+
+### Mode-aware adversarial gates — ETHOS principle 4 corrected for the AI-native audience
+
+**Background:** Two external users reported in 36 hours that nanopm's `/pm-roadmap` and `/pm-strategy` push "Wizard of Oz" / instrumentation-first validation that doesn't fit solo founders shipping with AI coding agents. The bias propagates from ETHOS principle 4 ("Evidence Before Conviction") through the adversarial gates — implicitly assuming builds are expensive (multi-week engineering work), which makes faking-it-first the cheapest test.
+
+For solo + AI builders, **cost-to-build ≈ cost-to-fake**, and the build IS the experiment. The implicit bias was structural, not skill-specific.
+
+**Tracked as** typed `gap` decision `ethos-slow-validation-bias` (written 2026-06-05). Resolved in this release.
+
+**Two operational modes now explicit:**
+
+- **`solo-fast`** — solo founder + AI agents, ship in hours-to-days. Cost-to-build ≈ cost-to-fake. Build IS the experiment. *Default if `build_mode` is unset.*
+- **`team-traditional`** — 2+ humans on the build, cycles in days-to-weeks. Build cost dominates. Wizard of Oz, prototype-and-invite-testers, paid pilots, shadow launches are the cheapest tests.
+
+**Changes:**
+
+- **`ETHOS.md` principle 4 rewritten.** Same Cagan / Torres / Graham quotes retained. New sub-section makes the cost calculus explicit and maps it to the two modes. New `When advising:` paragraph instructs to read `build_mode` from config (default `solo-fast`). New anti-patterns called out per-mode.
+
+- **`/pm-audit` Q12 added.** New CONTEXT.md question: *"How does this project ship?"* with explicit options (a) Solo + AI agents — build IS the cheapest test, (b) Traditional team — Wizard of Oz pattern. Asked via `AskUserQuestion` with header `Build mode`. Phase 3 logic writes `build_mode` to `~/.nanopm/config` via `nanopm_config_set`. Backward-compat: existing CONTEXT.md (Q1–Q11) detected as "Q12 missing" by the audit's standard skip-already-answered logic.
+
+- **3 adversarial gate prompts updated** (`/pm-strategy`, `/pm-roadmap`, `/pm-prd`). Each gate now reads `build_mode` from config before dispatching the subagent. The CHEAPEST TEST / BEHAVIOR rubric element branches on the mode:
+  - **solo-fast:** "ship the real feature in N days, observe git log + 3-5 DM responses + qualitative reactions" is a valid CHEAPEST TEST. Small-N qualitative observation is valid evidence. Don't demand pre-built instrumentation.
+  - **team-traditional:** Wizard of Oz, prototype-and-invite-testers, paid pilots, shadow launches, tracked analytics events.
+  - **The 4-element falsifiability rubric (segment + number + behavior + timeframe) stays in both modes.** What varies is the *form* the evidence takes.
+
+- **`test/gates.sh` extended.** 38 checks (was 29). New cases:
+  - Q12 present in pm-audit CONTEXT.md template
+  - `build_mode` config write present after Q12
+  - Each of `/pm-strategy`, `/pm-roadmap`, `/pm-prd` reads `build_mode` from config
+  - Each subagent prompt branches on `solo-fast` vs `team-traditional`
+
+- `test/run-all.sh` — **ALL 9 SUITES PASSED** (38/38 in gates).
+
+**Backward compatibility:**
+- Existing projects with CONTEXT.md (Q1–Q11 only) get Q12 asked once on next `/pm-audit` run.
+- If `build_mode` is unset when a gate runs, it defaults to `solo-fast` (matching nanopm's stated target audience per STRATEGY.md). This is a behavior change: existing users mid-pipeline who run `/pm-strategy` without first re-running `/pm-audit` will get the new default cheapest-test guidance. Documented intentionally — the new default is more correct for the audience.
+
+**Resolves the typed `gap` decision** `ethos-slow-validation-bias` (written 2026-06-05). Builder's chat instinct ("ça devrait être le seul Mode en fait") guided the default-to-solo-fast choice.
+
 ## 0.7.1 — 2026-06-03
 
 ### Symphony WORKFLOW.md schema validator (level 1 test)

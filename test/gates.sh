@@ -66,6 +66,20 @@ else
   fail "source=adversarial not set in pm-audit"
 fi
 
+# ── pm-audit Q12 — build_mode capture (v0.8.0) ──────────────────────────────
+echo
+echo "  pm-audit Q12 — build_mode capture (v0.8.0)"
+if grep -q "How does this project ship?" "$_F"; then
+  ok "Q12 'How does this project ship?' present in CONTEXT.md template"
+else
+  fail "Q12 build_mode question missing — ETHOS slow-validation bias fix incomplete"
+fi
+if grep -q 'nanopm_config_set "build_mode"' "$_F"; then
+  ok "build_mode config write present after Q12"
+else
+  fail "build_mode config write missing after Q12"
+fi
+
 # ── pm-roadmap gate: target per NOW item ──────────────────────────────────────
 echo
 echo "  pm-roadmap — gates each NOW item (kind=target)"
@@ -105,6 +119,18 @@ if grep -q "rewritten by gate" "$_F"; then
   ok "Failed-item rewrite tagging present (⚠ rewritten by gate)"
 else
   fail "Failed-item rewrite tag missing"
+fi
+
+# Mode awareness (v0.8.0)
+if grep -q 'nanopm_config_get "build_mode"' "$_F"; then
+  ok "Reads build_mode from config"
+else
+  fail "build_mode not read — gate is mode-blind (ETHOS bias still present)"
+fi
+if grep -q "solo-fast" "$_F" && grep -q "team-traditional" "$_F"; then
+  ok "Subagent prompt branches on solo-fast vs team-traditional"
+else
+  fail "Subagent prompt does not branch on build mode"
 fi
 
 # ── pm-prd gate: Falsification → bet + prd record ─────────────────────────────
@@ -156,6 +182,18 @@ else
   fail "prd status=ready not set"
 fi
 
+# Mode awareness (v0.8.0)
+if grep -q 'nanopm_config_get "build_mode"' "$_F"; then
+  ok "Reads build_mode from config"
+else
+  fail "build_mode not read — gate is mode-blind (ETHOS bias still present)"
+fi
+if grep -q "solo-fast" "$_F" && grep -q "team-traditional" "$_F"; then
+  ok "Subagent prompt branches on solo-fast vs team-traditional"
+else
+  fail "Subagent prompt does not branch on build mode"
+fi
+
 # ── pm-strategy regression: adversarial pattern still intact ──────────────────
 echo
 echo "  pm-strategy — adversarial pattern (regression check, not new gate)"
@@ -171,6 +209,18 @@ if grep -q "## Challenged by adversarial review" "$_F"; then
   ok "STRATEGY.md adversarial section still required"
 else
   fail "pm-strategy adversarial section requirement broke"
+fi
+
+# Mode awareness (v0.8.0)
+if grep -q 'nanopm_config_get "build_mode"' "$_F"; then
+  ok "pm-strategy reads build_mode from config"
+else
+  fail "pm-strategy build_mode read missing"
+fi
+if grep -q "solo-fast" "$_F" && grep -q "team-traditional" "$_F"; then
+  ok "pm-strategy CHEAPEST TEST branches on solo-fast vs team-traditional"
+else
+  fail "pm-strategy subagent prompt does not branch on build mode"
 fi
 
 # ── pm-breakdown handoff write ────────────────────────────────────────────────

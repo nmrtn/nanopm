@@ -321,7 +321,15 @@ Read the drafted `.nanopm/prds/${_SLUG_FEATURE}.md`. Pull the text under the `##
 
 If the section is missing or empty, STOP and tell the user: *"PRD has no Falsification section. The template requires one. Add a paragraph stating what evidence would prove this bet wrong, then re-run."* Exit non-zero.
 
-### 4b.2. Reviewer subagent
+### 4b.2. Read build_mode + reviewer subagent
+
+First, read the project's build mode (set by `/pm-audit` Q12). This shapes what counts as a valid "observable behavior" in the Falsification:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_BUILD_MODE=$(nanopm_config_get "build_mode" 2>/dev/null)
+_BUILD_MODE="${_BUILD_MODE:-solo-fast}"
+```
 
 Use Agent tool with prompt:
 
@@ -329,16 +337,22 @@ Use Agent tool with prompt:
 
 You are a strict PM reviewer enforcing falsifiability. Read the Falsification paragraph and check it contains ALL four elements:
 
-1. NUMBER — a percentage, count, or rate (not 'few', 'most', or 'enough')
+1. NUMBER — a percentage, count, or rate (not 'few', 'most', or 'enough'). Small N is OK in solo-fast mode.
 2. SEGMENT — a named user segment (e.g., 'returning free-tier users on iOS'), not generic 'users'
-3. BEHAVIOR — a specific observable action (e.g., 'completes checkout', 'invites a teammate'), not vague 'engagement' or 'usage'
+3. BEHAVIOR — a specific observable action. **What 'observable' means depends on the build mode below.**
 4. TIMEFRAME — a deadline in days or weeks (not 'soon' or 'this quarter')
+
+Build mode for this project: `{_BUILD_MODE}`.
+
+- If `solo-fast`: 'observable' can be qualitative and small-N. Valid behaviors include: 'I observe in my git log', '3 of 5 users I DM reply they tried X', 'one user sends an unprompted screenshot of using feature Z within 7 days', 'I get an inbound GitHub issue from a Symphony user.' Don't demand pre-built analytics — the builder watches signal personally.
+
+- If `team-traditional`: 'observable' should be a tracked event in an analytics tool (PostHog event count, Linear ticket transition, support tag, GitHub PR merged). Build cost is high; instrumentation earns its keep.
 
 Output EXACTLY these lines, no prose:
 
 VERDICT: PASS | FAIL
 MISSING: <comma-separated missing elements, or 'none'>
-REWRITE: <canonical one-sentence falsification that contains all 4 elements, even on PASS — this is what gets recorded>
+REWRITE: <canonical one-sentence falsification that contains all 4 elements, even on PASS — this is what gets recorded. Match the build-mode form for BEHAVIOR.>
 CONFIDENCE: <integer 1-10 — how confident you are REWRITE captures the PRD's actual bet>
 
 Falsification paragraph:

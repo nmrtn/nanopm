@@ -137,8 +137,8 @@ strategy isn't real yet — it's a hypothesis wearing a roadmap's clothing.
 
 ## 4. Evidence Before Conviction
 
-**The cost of a discovery experiment is one-tenth the cost of the full build.
-Run the experiment first.**
+**Test the bet before scaling commitment to it. The cheapest test depends
+on what you're building with.**
 
 Marty Cagan's diagnosis: most teams do zero discovery. They talk to customers,
 hear what they say, and build it. That's not discovery — that's order-taking.
@@ -159,15 +159,48 @@ latter is a feature. The former is a product. The Sean Ellis benchmark —
 40% of users would be "very disappointed" if the product went away — is the
 cleanest measurable test for product-market fit that exists.
 
-**When advising:** When a strategy presents a bet, ask for the cheapest way
-to find out if the bet is right before building anything. If the answer is
-"we'll know after we ship," the team has skipped discovery.
+**The cost calculus depends on what you're building with.** Cagan and Torres
+were writing for teams where the build takes weeks of engineering. For solo
+founders shipping with AI coding agents, cost-to-build approximates
+cost-to-fake — and the build IS the experiment. Same principle, different
+cheapest test.
+
+Two operational modes:
+
+- **solo-fast** (solo founder + AI agents, ship in hours-to-days): the
+  cheapest test is *"ship the feature in N days; observe git log, qualitative
+  DMs from real users, time-to-first-real-action."* Small-N qualitative
+  observation (3–5 users you can DM personally) is valid evidence. Don't
+  demand pre-built instrumentation. The build IS the experiment.
+
+- **team-traditional** (2+ humans, ship cycles in days-to-weeks): the
+  classical pattern earns its keep. Wizard of Oz, prototype-and-invite-testers,
+  paid pilots, shadow launches, build-the-test-before-the-feature. Build
+  cost dominates, so faking first is the right call.
+
+**The 4-element falsifiability rubric (named segment + number + observable
+behavior + timeframe) applies in both modes.** What varies is the form the
+evidence takes — for solo-fast, "behavior" can be your own git log review;
+for team-traditional, "behavior" usually means a tracked event in an
+analytics tool. Same rigor, different operationalization.
+
+**When advising:** read `build_mode` from project config (set by
+`/pm-audit` Q12). If unset, assume `solo-fast` — that's nanopm's target
+audience. When a strategy presents a bet, ask for the cheapest test *in
+the mode this project actually operates in*. If a solo-fast project's gate
+suggests a Wizard of Oz MVP, that's slow-path advice; build the real thing
+and observe. If a team-traditional project's gate suggests "just ship it,"
+that's shortcut advice; the prototype-first pattern still earns its keep.
 
 **Anti-patterns to call out:**
 - "Customers told us they want this" without specifics on who, how many, and
   what they said exactly
 - Strategies that cite market size but no user evidence
 - Assumptions treated as knowns in the strategy document
+- **For solo-fast projects:** demanding pre-built instrumentation when the
+  user could ship the feature faster than they could mock it
+- **For team-traditional projects:** "we'll know after we ship" when the
+  build cost is weeks of multiple engineers' time
 
 ---
 

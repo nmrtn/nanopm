@@ -179,21 +179,56 @@ Template written to `CONTEXT.md`:
 11. What development methodology does your team use?
     (Shape Up, Scrum, Kanban, hybrid, or none — be honest)
     [ANSWER]
+
+12. How does this project ship?
+    a) Solo + AI agents — you're building alone (or 1-2 people) with AI
+       coding agents like Claude Code, Mistral Vibe, or OpenAI Codex.
+       Shipping a feature takes hours-to-days. Build cost is so low that
+       building IS the cheapest test.
+    b) Traditional team — multiple humans on the build, ship cycles in
+       days-to-weeks. Build cost dominates, so faking/prototyping
+       (Wizard of Oz pattern) earns its keep before committing engineering time.
+
+    Pick a or b. This shapes the cheapest-test guidance you get from
+    /pm-strategy, /pm-roadmap, and /pm-prd gates.
+    [ANSWER]
 ```
 
 If website data was collected in Phase 1, pre-fill Q1, Q2, Q3 with extracted content and mark `[auto from {url}]`.
 
 If connector data was collected in Phase 2, pre-fill relevant answers (e.g., Q4 from GitHub merged PRs, Q4/Q5 from Linear) and mark `[auto from {connector}]`.
 
-Ask remaining unanswered questions one at a time using free-text input (no preset options). Stop when all 11 are filled.
+Ask remaining unanswered questions one at a time. Q1–Q11 use free-text input. **Q12 uses AskUserQuestion with explicit options** (header: `Build mode`, multiSelect: false) since the answer maps to a specific config value. Two options:
+- A) "Solo + AI agents (ship in hours-to-days)"
+- B) "Traditional team (multi-person, slower cycles)"
 
-After Q11 is answered, store the methodology so downstream skills can adapt their output:
+Stop when all 12 are filled.
+
+After Q11 is answered, store the methodology so downstream skills can adapt:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _METHODOLOGY=$(grep -A1 "^11\." CONTEXT.md | tail -1 | xargs)
 [ -n "$_METHODOLOGY" ] && nanopm_config_set "methodology" "$_METHODOLOGY"
 ```
+
+After Q12 is answered, store `build_mode` — this is read by the adversarial gates in /pm-strategy, /pm-roadmap, /pm-prd to vary the cheapest-test guidance.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+# Extract from CONTEXT.md Q12; map option A → solo-fast, option B → team-traditional.
+# If user typed free-text, map "solo", "AI", "alone" → solo-fast; "team", "multi" → team-traditional.
+_BUILD_MODE_ANSWER=$(grep -A3 "^12\." CONTEXT.md | tail -3 | xargs | head -c 100 | tr '[:upper:]' '[:lower:]')
+case "$_BUILD_MODE_ANSWER" in
+  *"solo"*|*"ai agent"*|*"a)"*|*"alone"*)        _BUILD_MODE="solo-fast" ;;
+  *"team"*|*"traditional"*|*"b)"*|*"multi"*)      _BUILD_MODE="team-traditional" ;;
+  *)                                              _BUILD_MODE="solo-fast" ;;  # default per ETHOS §4
+esac
+nanopm_config_set "build_mode" "$_BUILD_MODE"
+echo "BUILD_MODE: $_BUILD_MODE"
+```
+
+**Backward compatibility:** existing CONTEXT.md files written by prior nanopm versions only have Q1–Q11. The audit's "skip already-answered questions" logic in Phase 3 will detect Q12 as missing and ask it once. Defaulting to `solo-fast` if the parse fails matches nanopm's target audience and the ETHOS principle 4 default.
 
 ## Phase 4: First-pass synthesis
 
