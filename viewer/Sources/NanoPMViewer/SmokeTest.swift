@@ -5,6 +5,9 @@ import Foundation
 enum SmokeTest {
     static func runIfRequested() {
         let args = CommandLine.arguments
+        if let flag = args.firstIndex(of: "--parse-report"), args.count > flag + 1 {
+            parseReport(args[flag + 1])
+        }
         guard let flag = args.firstIndex(of: "--smoke") else { return }
         guard args.count > flag + 1 else {
             print("usage: NanoPMViewer --smoke /path/to/project")
@@ -31,5 +34,22 @@ enum SmokeTest {
             print("SMOKE FAIL: \(error)")
             exit(1)
         }
+    }
+
+    private static func parseReport(_ file: String) {
+        guard let content = try? ShellRunner.run("cat \(ShellRunner.quote(file))"),
+              let report = IntelReportParser.parse(content) else {
+            print("PARSE: failed")
+            exit(1)
+        }
+        if let summary = report.summaryBody { print("SUMMARY: \(summary.prefix(60))…") }
+        if let action = report.action { print("ACTION: \(action.prefix(60))…") }
+        for section in report.sections {
+            print("SECTION \(section.title): website=\(section.website != nil) monitored=\(section.monitored.count) fields=\(section.fields.map(\.label)) pages=\(section.pages.count) leftover=\(section.leftover.count)ch")
+            for page in section.monitored {
+                print("  MONITORED \(page.name) failed=\(page.failed) status=\(page.status ?? "-")")
+            }
+        }
+        exit(0)
     }
 }

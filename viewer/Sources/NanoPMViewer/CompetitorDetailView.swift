@@ -7,6 +7,7 @@ struct CompetitorsPageView: View {
     @ObservedObject var store: ArtifactStore
 
     @State private var selectedReportID: String?
+    @State private var content: String?
 
     /// Newest first: COMPETITORS.md (the current report), then dated INTEL reports.
     private var reports: [Artifact] {
@@ -58,12 +59,24 @@ struct CompetitorsPageView: View {
                 }
 
                 if let report = displayed {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text(".nanopm/\(report.relativePath) · updated \(report.modifiedAt, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Divider()
-                        MarkdownFileView(store: store, artifact: report)
+                        if let content {
+                            if let parsed = IntelReportParser.parse(content) {
+                                IntelReportView(report: parsed)
+                            } else {
+                                Divider()
+                                Markdown(content)
+                                    .markdownTheme(.gitHub)
+                                    .textSelection(.enabled)
+                            }
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
+                        }
                     }
                 } else {
                     ContentUnavailableView(
@@ -76,6 +89,11 @@ struct CompetitorsPageView: View {
             .padding(28)
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
+        }
+        .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
+            content = nil
+            guard let report = displayed else { return }
+            content = try? await store.content(of: report)
         }
     }
 
