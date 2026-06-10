@@ -95,6 +95,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 ```
 /pm-run              → full pipeline in one command
 /pm-scan             → read an existing codebase to understand what it actually does before planning
+/pm-personas         → define who you're building for — JTBD personas + an explicit anti-persona
 /pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
 /pm-audit            → brutal honest assessment of product, user, and biggest gap
 /pm-objectives       → OKRs with anti-goals and measurable key results
@@ -125,7 +126,7 @@ nanopm runs in three zones. Signal in. Planning cycle. Delivery out.
 
 | Zone | Skills | Purpose |
 |---|---|---|
-| **1. Inputs** | `/pm-scan` · `/pm-discovery` · `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull signal: codebase, users, analytics, competitors |
+| **1. Inputs** | `/pm-scan` · `/pm-personas` · `/pm-discovery` · `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull signal: codebase, users, analytics, competitors |
 | **2. Pipeline** | `/pm-audit` → `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Six skills run in sequence; each reads typed state from the prior |
 | **3. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
 
@@ -136,6 +137,7 @@ nanopm runs in three zones. Signal in. Planning cycle. Delivery out.
 Each input skill produces an artifact the pipeline reads. They're independent. Run only the ones you have data for.
 
 - **`/pm-scan`** — reads your codebase (routes, models, tests, git history) → `SCAN.md`. Use when joining an existing project.
+- **`/pm-personas`** — defines who you're building for → `PERSONAS.md`. Reverse-engineers personas from the codebase and prior artifacts when they exist, or interviews you from scratch when the repo is empty. JTBD proto-personas + an explicit anti-persona.
 - **`/pm-discovery`** — opportunity mapping for pre-product or pivots → `DISCOVERY.md`. Use when you don't yet know what to build.
 - **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `FEEDBACK.md`. Clusters themes, surfaces top unaddressed signal.
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.

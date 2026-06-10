@@ -279,7 +279,7 @@ ok "Connectors installed"
 
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
+_SKILL_LIST="pm-scan pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
 
 for skill in $_SKILL_LIST; do
   # Download/copy source SKILL.md to a temp file once
@@ -443,6 +443,7 @@ echo
 echo "  Available skills:"
 echo "   /pm-run         — run the full pipeline in one command (recommended)"
 echo "   /pm-scan        — read an existing codebase to understand what it actually does"
+echo "   /pm-personas    — define who you're building for, produces PERSONAS.md"
 echo "   /pm-discovery   — figure out WHAT to build before planning HOW (greenfield)"
 echo "   /pm-audit       — deep product audit, produces AUDIT.md"
 echo "   /pm-objectives  — set OKRs, produces OBJECTIVES.md"

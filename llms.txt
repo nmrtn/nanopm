@@ -37,7 +37,7 @@ Skills appear as `/pm-*` commands. One command runs the full pipeline:
 
 The full planning pipeline:
 ```
-interviews → data → audit → objectives → strategy → roadmap → PRD → tickets
+interviews → data → personas → audit → objectives → strategy → roadmap → PRD → tickets
 ```
 
 Each skill also works standalone.
@@ -47,6 +47,7 @@ Each skill also works standalone.
 **Planning pipeline:**
 - `/pm-run` — full pipeline in one command
 - `/pm-scan` — read an existing codebase to understand what it does before planning
+- `/pm-personas` — define who you're building for — JTBD personas + an explicit anti-persona
 - `/pm-discovery` — figure out WHAT to build before planning HOW (pre-product / greenfield)
 - `/pm-audit` — brutal honest assessment of product, user, and biggest gap
 - `/pm-objectives` — OKRs with anti-goals and measurable key results
