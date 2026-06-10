@@ -9,6 +9,7 @@ APP_DIR="build/NanoPM Viewer.app"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp .build/release/NanoPMViewer "$APP_DIR/Contents/MacOS/NanoPMViewer"
+cp icon/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -16,6 +17,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key><string>NanoPMViewer</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>dev.nanopm.viewer</string>
   <key>CFBundleName</key><string>NanoPM Viewer</string>
   <key>CFBundlePackageType</key><string>APPL</string>
