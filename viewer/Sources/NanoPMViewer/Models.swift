@@ -2,7 +2,7 @@ import Foundation
 
 enum Phase: String, CaseIterable, Identifiable, Sendable {
     case discover = "Discover"
-    case plan = "Planning"
+    case plan = "Plan"
     case ship = "Build"
     case other = "Other"
 
