@@ -14,16 +14,6 @@ struct ProjectView: View {
     @State private var selection: String?
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
-    @State private var expandedPhases: Set<Phase> = [.discover, .plan, .ship, .other]
-
-    private func phaseBinding(_ phase: Phase) -> Binding<Bool> {
-        Binding(
-            get: { expandedPhases.contains(phase) },
-            set: { isOpen in
-                if isOpen { expandedPhases.insert(phase) } else { expandedPhases.remove(phase) }
-            }
-        )
-    }
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -154,8 +144,8 @@ struct ProjectView: View {
             ?? (artifact.isMarkdown ? "doc.text" : "curlybraces")
     }
 
-    /// A phase as a clickable, collapsible entry: clicking the row opens the
-    /// phase overview; the chevron reveals the artifacts and folders below it.
+    /// A phase as a clickable entry (no collapse): clicking the row opens the
+    /// phase overview; its artifacts and folders sit directly below it.
     @ViewBuilder
     private func phaseGroup(_ phase: Phase) -> some View {
         let items = store.artifacts.filter { artifact in
@@ -167,7 +157,8 @@ struct ProjectView: View {
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs {
-            DisclosureGroup(isExpanded: phaseBinding(phase)) {
+            Section {
+                phaseLabel(phase, hasOverview: hasOverview)
                 ForEach(items) { artifact in
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
@@ -182,8 +173,6 @@ struct ProjectView: View {
                 ForEach(pending, id: \.expectedRelPath) { run in
                     pendingRow(run)
                 }
-            } label: {
-                phaseLabel(phase, hasOverview: hasOverview)
             }
         }
     }
