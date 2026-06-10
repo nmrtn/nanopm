@@ -68,6 +68,14 @@ This answer scopes everything that follows. Don't proceed with a vague answer �
 
 Ask as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if clearly answered by context.
 
+**Before Q1**, check for an existing persona definition:
+
+```bash
+[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+```
+
+**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md` and use the primary persona to pre-fill Q1 — confirm it rather than asking cold: "PERSONAS.md says you're building for {primary persona}. Still the focus for this discovery, or are we exploring a different user?" (If no PERSONAS.md exists and the discovery lands on a sharp user definition, recommend `/pm-personas` to formalize it at the end.)
+
 **Q1: Who is the user you're focused on?**
 "Describe the specific person you're trying to help. Not a category — a person.
 Job title, company size, situation they're in when they reach for your product.

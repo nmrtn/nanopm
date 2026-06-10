@@ -49,10 +49,13 @@ Read upstream artifacts if they exist:
 ```bash
 [ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
+[ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
 ```
 
 **If FEEDBACK.md exists:** read it before drafting strategy. The top unaddressed signal is the most grounded input you have — the bet should either address it directly or explicitly explain why it doesn't. A strategy that ignores the loudest user signal is a strategy with a named gap.
+
+**If PERSONAS.md exists:** read it. The bet must win for the **primary persona** — name which persona the strategy is built around. A strategy that wins for the anti-persona, or that quietly broadens to "everyone," is off-target. If the strategy deliberately shifts the target user, say so explicitly and explain why.
 
 Read any that exist. The richer the context, the better the strategy.
 

@@ -62,6 +62,14 @@ Store the feature name as `_FEATURE`.
 
 ## Phase 2: User research pull
 
+Check for PERSONAS.md — it names who this feature is for (from /pm-personas):
+
+```bash
+[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+```
+
+**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md`. Identify which persona `_FEATURE` serves, and write the User Stories in that persona's voice ("As {primary persona handle}, I want… so that {their job-to-be-done}"). Anchor the Problem Statement in that persona's workaround and the cost of it. If `_FEATURE` primarily serves the **anti-persona**, stop and flag it: "This feature mainly serves {anti-persona}, who PERSONAS.md says we're not building for — confirm before speccing."
+
 Check for DATA.md — quantitative analytics from /pm-data:
 
 ```bash

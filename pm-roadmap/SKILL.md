@@ -50,10 +50,13 @@ Read upstream artifacts:
 [ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
 [ -f ".nanopm/STRATEGY.md"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
+[ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
 ```
 
 Read any that exist. A roadmap without strategy is a to-do list. Warn if STRATEGY.md is missing.
+
+**If PERSONAS.md exists:** read it. Every NOW/NEXT item should serve the **primary persona** — for each item, the implicit question is "which persona does this help, and how?" Items that only serve the anti-persona are prime candidates for LATER or for cutting. Flag any NOW item that doesn't map to a persona.
 
 **If FEEDBACK.md exists:** read the top themes and their roadmap-mapping (the "In Roadmap?" column). When writing the NOW/NEXT sections, mark items that directly address a high-severity unaddressed theme with a `📣 signal-backed` tag. Items without any feedback signal should not be deprioritized, but the signal-backed ones have validated demand.
 

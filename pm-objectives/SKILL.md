@@ -49,11 +49,14 @@ Key things to extract:
 ## Phase 1: Context check
 
 ```bash
-[ -f ".nanopm/AUDIT.md"    ] && echo "AUDIT_EXISTS"    || echo "AUDIT_MISSING"
-[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/AUDIT.md"     ] && echo "AUDIT_EXISTS"     || echo "AUDIT_MISSING"
+[ -f ".nanopm/PERSONAS.md"  ] && echo "PERSONAS_EXISTS"  || echo "PERSONAS_MISSING"
+[ -f ".nanopm/FEEDBACK.md"  ] && echo "FEEDBACK_EXISTS"  || echo "FEEDBACK_MISSING"
 ```
 
 **If AUDIT.md exists:** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
+
+**If PERSONAS.md exists:** Read it. Objectives exist to move the **primary persona** toward their job-to-be-done — every objective should plausibly improve that persona's outcome. If an objective serves nobody in PERSONAS.md (or only the anti-persona), that's a signal it's a vanity goal — challenge it before writing it.
 
 **If FEEDBACK.md exists:** Read it. Extract the top unaddressed themes. At least one objective should address the highest-severity unaddressed theme — surface this to the user: "FEEDBACK.md shows {theme} is the top unaddressed signal. Should a KR target it directly?"
 

@@ -1,7 +1,7 @@
 ---
 name: pm-run
 version: 0.2.0
-description: "Run the full nanopm PM pipeline: feedback → audit → objectives → strategy → roadmap → PRD. One command for a complete planning cycle. Each skill reads the prior output — the pipeline compounds."
+description: "Run the full nanopm PM pipeline: feedback → personas → audit → objectives → strategy → roadmap → PRD. One command for a complete planning cycle. Each skill reads the prior output — the pipeline compounds."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -29,10 +29,10 @@ nanopm_preamble
 `/pm-run` runs the full PM planning pipeline in sequence:
 
 ```
-/pm-user-feedback → /pm-audit → /pm-objectives → /pm-strategy → /pm-roadmap → /pm-prd
+/pm-user-feedback → /pm-personas → /pm-audit → /pm-objectives → /pm-strategy → /pm-roadmap → /pm-prd
 ```
 
-Each skill compounds on the last. Feedback grounds the audit in real user signal. The audit informs objectives. The strategy shapes the roadmap. The PRD flows from the roadmap and quotes directly from user feedback.
+Each skill compounds on the last. Feedback grounds the audit in real user signal. Personas crystallize who you're building for, sharpening the audit's "who for" and every downstream prioritization. The audit informs objectives. The strategy shapes the roadmap. The PRD flows from the roadmap, targets the primary persona, and quotes directly from user feedback.
 
 This skill orchestrates the pipeline inline — you don't need to manually invoke each skill.
 
@@ -44,6 +44,7 @@ If you're not sure what to build yet, run `/pm-discovery` first. `/pm-run` assum
 echo "=== Existing artifacts ==="
 [ -f ".nanopm/SCAN.md"       ] && echo "  SCAN.md       ✓" || echo "  SCAN.md       (none)"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
+[ -f ".nanopm/PERSONAS.md"   ] && echo "  PERSONAS.md   ✓" || echo "  PERSONAS.md   (will create)"
 [ -f ".nanopm/AUDIT.md"      ] && echo "  AUDIT.md      ✓" || echo "  AUDIT.md      (will create)"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "  OBJECTIVES.md ✓" || echo "  OBJECTIVES.md (will create)"
 [ -f ".nanopm/STRATEGY.md"   ] && echo "  STRATEGY.md   ✓" || echo "  STRATEGY.md   (will create)"
@@ -76,7 +77,7 @@ If C: proceed directly to Phase 1.
 
 Ask via AskUserQuestion.
 
-- **question:** "Ready to run the full PM pipeline for {slug}? It will run feedback → audit → objectives → strategy → roadmap → PRD. Takes 15-25 min."
+- **question:** "Ready to run the full PM pipeline for {slug}? It will run feedback → personas → audit → objectives → strategy → roadmap → PRD. Takes 15-25 min."
 - **header:** `Pipeline` (must be ≤12 chars — Mistral Vibe constraint)
 - **multiSelect:** false
 - **options:**
@@ -86,7 +87,7 @@ Ask via AskUserQuestion.
   - D) "Skip to strategy" — assumes feedback + audit + objectives exist
   - E) "Cancel"
 
-If B: skip Phase 2 (feedback), run Phases 3–7.
+If B: skip Phase 2 (feedback), but still run Phase 2b (personas) and Phases 3–7.
 If C: run only pm-user-feedback inline (Phase 2), then stop.
 If D: skip to Phase 5 (strategy).
 If E: exit.
@@ -100,7 +101,16 @@ Complete all phases through **Phase 6: Save context**.
 
 After pm-user-feedback completes: "✅ Feedback collected. Moving to audit..."
 
-If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-audit to continue."
+If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-personas or /pm-audit to continue."
+
+## Phase 2b: Run pm-personas inline
+
+Read and follow `$(nanopm_skill_path pm-personas)` inline, skipping:
+- Its own "Preamble (run first)" (already sourced above)
+
+pm-personas auto-detects its mode: it reverse-engineers the personas from the codebase plus any artifacts already produced this run (FEEDBACK.md, and SCAN.md / DISCOVERY.md if present), then confirms them with you. Complete all phases through **save context**.
+
+After pm-personas completes: "✅ Personas defined. Moving to audit..."
 
 ## Phase 3: Run pm-audit inline
 
@@ -157,6 +167,7 @@ Output a summary table:
 === nanopm pipeline complete ===
 
   FEEDBACK.md   ✅  .nanopm/FEEDBACK.md
+  PERSONAS.md   ✅  .nanopm/PERSONAS.md
   AUDIT.md      ✅  .nanopm/AUDIT.md
   OBJECTIVES.md ✅  .nanopm/OBJECTIVES.md
   STRATEGY.md   ✅  .nanopm/STRATEGY.md
@@ -165,6 +176,7 @@ Output a summary table:
 
 Key outputs:
   Top user signal: {top unaddressed theme from FEEDBACK.md}
+  Primary persona: {primary persona handle from PERSONAS.md}
   Strategic bet:   {one-line from STRATEGY.md}
   Top NOW item:    {first item from ROADMAP.md NOW}
   North star:      {key result from OBJECTIVES.md}
