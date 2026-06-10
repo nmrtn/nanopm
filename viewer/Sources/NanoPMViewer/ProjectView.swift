@@ -27,6 +27,7 @@ struct ProjectView: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 360)
         } detail: {
             detail
+                .textSelection(.enabled)
         }
         .navigationTitle(project.name)
         .toolbar {
