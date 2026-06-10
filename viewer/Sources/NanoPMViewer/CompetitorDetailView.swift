@@ -15,6 +15,14 @@ struct CompetitorsPageView: View {
     @State private var selectedReportID: String?
     @State private var content: String?
     @State private var implications: Implications?
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Claude-style warm ivory in light mode, soft elevation in dark.
+    private var calloutBackground: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.06)
+            : Color(red: 0.980, green: 0.976, blue: 0.961)
+    }
 
     /// Newest dated INTEL report — source of the page-top Strategic implications.
     private var latestIntelReport: Artifact? {
@@ -77,14 +85,15 @@ struct CompetitorsPageView: View {
                     Markdown(implications.text)
                         .markdownTheme(.basic)
                         .textSelection(.enabled)
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(calloutBackground, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.primary.opacity(0.06)))
                 }
 
                 if let report = displayed {
                     VStack(alignment: .leading, spacing: 10) {
-                        Divider()
-                        Text(".nanopm/\(report.relativePath) · updated \(report.modifiedAt, format: .relative(presentation: .named))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                         if let content {
                             if let parsed = IntelReportParser.parse(content) {
                                 IntelReportView(

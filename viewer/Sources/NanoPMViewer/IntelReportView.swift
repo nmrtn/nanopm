@@ -56,7 +56,9 @@ struct IntelReport {
 enum IntelReportParser {
     static func parse(_ markdown: String) -> IntelReport? {
         let lines = markdown.components(separatedBy: "\n").filter {
-            !$0.trimmingCharacters(in: .whitespaces).hasPrefix("*Run /pm-competitors-intel")
+            let trimmed = $0.trimmingCharacters(in: .whitespaces)
+            return !trimmed.hasPrefix("*Run /pm-competitors-intel")
+                && !trimmed.hasPrefix("*Sources:")
         }
 
         var rawSections: [(title: String, lines: [String])] = []
@@ -215,7 +217,7 @@ struct IntelReportView: View {
     var skipSectionIDs: Set<String> = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 28) {
             if let summary = report.summaryBody, !summary.isEmpty {
                 LabeledBlock(label: "Summary", text: summary)
             }
@@ -223,10 +225,7 @@ struct IntelReportView: View {
                 LabeledBlock(label: "Action", text: action)
             }
             ForEach(report.sections.filter { !skipSectionIDs.contains($0.id) }) { section in
-                VStack(alignment: .leading, spacing: 14) {
-                    Divider()
-                    sectionView(section)
-                }
+                sectionView(section)
             }
         }
     }
