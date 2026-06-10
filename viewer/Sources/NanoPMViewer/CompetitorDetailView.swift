@@ -74,18 +74,9 @@ struct CompetitorsPageView: View {
                 }
 
                 if let implications {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("Strategic implications")
-                                .font(.title3.bold())
-                            Text("from \(implications.sourceTitle)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Markdown(implications.text)
-                            .markdownTheme(.basic)
-                            .textSelection(.enabled)
-                    }
+                    Markdown(implications.text)
+                        .markdownTheme(.basic)
+                        .textSelection(.enabled)
                 }
 
                 if let report = displayed {
