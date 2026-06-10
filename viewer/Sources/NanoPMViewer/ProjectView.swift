@@ -14,6 +14,16 @@ struct ProjectView: View {
     @State private var selection: String?
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
+    @State private var expandedPhases: Set<Phase> = [.discover, .plan, .ship, .other]
+
+    private func phaseBinding(_ phase: Phase) -> Binding<Bool> {
+        Binding(
+            get: { expandedPhases.contains(phase) },
+            set: { isOpen in
+                if isOpen { expandedPhases.insert(phase) } else { expandedPhases.remove(phase) }
+            }
+        )
+    }
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -128,10 +138,10 @@ struct ProjectView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selection) {
-                phaseSection(.discover)
-                phaseSection(.plan)
-                phaseSection(.ship)
-                phaseSection(.other)
+                phaseGroup(.discover)
+                phaseGroup(.plan)
+                phaseGroup(.ship)
+                phaseGroup(.other)
             }
             .listStyle(.sidebar)
         }
@@ -144,8 +154,10 @@ struct ProjectView: View {
             ?? (artifact.isMarkdown ? "doc.text" : "curlybraces")
     }
 
+    /// A phase as a clickable, collapsible entry: clicking the row opens the
+    /// phase overview; the chevron reveals the artifacts and folders below it.
     @ViewBuilder
-    private func phaseSection(_ phase: Phase) -> some View {
+    private func phaseGroup(_ phase: Phase) -> some View {
         let items = store.artifacts.filter { artifact in
             artifact.phase == phase
                 && !(showCompetitorsSection && CompetitorFiles.isCompetitorFile(artifact.relativePath))
@@ -155,12 +167,7 @@ struct ProjectView: View {
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs {
-            Section {
-                if hasOverview {
-                    Label("Overview", systemImage: "square.grid.2x2")
-                        .tag(NavRoute.overview(phase))
-                        .help("\(phase.rawValue) recap — status and actions")
-                }
+            DisclosureGroup(isExpanded: phaseBinding(phase)) {
                 ForEach(items) { artifact in
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
@@ -173,27 +180,45 @@ struct ProjectView: View {
                     competitorsEntry
                 }
                 ForEach(pending, id: \.expectedRelPath) { run in
-                    HStack(spacing: 6) {
-                        switch run.status {
-                        case .running:
-                            ProgressView().controlSize(.small)
-                        case .waitingForInput:
-                            Image(systemName: "questionmark.bubble.fill")
-                                .foregroundStyle(.orange)
-                        default:
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundStyle(.orange)
-                        }
-                        Text(prettyDocName(run.expectedRelPath))
-                            .foregroundStyle(.secondary)
-                    }
-                    .tag(Self.runTagPrefix + run.expectedRelPath)
-                    .help(sidebarHelp(for: run))
+                    pendingRow(run)
                 }
-            } header: {
-                Label(phase.rawValue, systemImage: phase.icon)
+            } label: {
+                phaseLabel(phase, hasOverview: hasOverview)
             }
         }
+    }
+
+    @ViewBuilder
+    private func phaseLabel(_ phase: Phase, hasOverview: Bool) -> some View {
+        let label = Label(phase.rawValue, systemImage: phase.icon)
+            .fontWeight(.semibold)
+        if hasOverview {
+            label
+                .tag(NavRoute.overview(phase))
+                .help("\(phase.rawValue) overview — status and actions")
+        } else {
+            label
+        }
+    }
+
+    @ViewBuilder
+    private func pendingRow(_ run: RunManager.SkillRun) -> some View {
+        HStack(spacing: 6) {
+            switch run.status {
+            case .running:
+                ProgressView().controlSize(.small)
+            case .waitingForInput:
+                Image(systemName: "questionmark.bubble.fill")
+                    .foregroundStyle(.orange)
+            default:
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            }
+            Text(prettyDocName(run.expectedRelPath))
+                .foregroundStyle(.secondary)
+        }
+        .tag(Self.runTagPrefix + run.expectedRelPath)
+        .help(sidebarHelp(for: run))
     }
 
     @ViewBuilder
@@ -294,9 +319,9 @@ struct ProjectView: View {
                 ArtifactDetailView(store: store, artifact: artifact)
             } else {
                 ContentUnavailableView(
-                    "Select an artifact",
+                    "Pick a phase or document",
                     systemImage: "sidebar.left",
-                    description: Text("Pick a document from the sidebar.\nDiscover → Plan → Ship.")
+                    description: Text("Click a phase (Discover → Plan → Build) to see its overview, or expand it to open a document.")
                 )
             }
         }
