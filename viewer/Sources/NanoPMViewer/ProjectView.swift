@@ -4,6 +4,8 @@ import MarkdownUI
 struct ProjectView: View {
     static let runTagPrefix = "run:"
     static let competitorTagPrefix = "competitor:"
+    /// Leading indent for documents nested under a phase entry.
+    static let childIndent: CGFloat = 14
 
     let project: Project
     let onSwitchProject: () -> Void
@@ -163,15 +165,16 @@ struct ProjectView: View {
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
+                        .padding(.leading, Self.childIndent)
                 }
                 if showPRDs {
-                    prdsEntry
+                    prdsEntry.padding(.leading, Self.childIndent)
                 }
                 if phase == .discover && showCompetitorsSection {
-                    competitorsEntry
+                    competitorsEntry.padding(.leading, Self.childIndent)
                 }
                 ForEach(pending, id: \.expectedRelPath) { run in
-                    pendingRow(run)
+                    pendingRow(run).padding(.leading, Self.childIndent)
                 }
             }
         }
