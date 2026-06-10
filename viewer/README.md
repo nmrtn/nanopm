@@ -7,8 +7,9 @@ that [nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
 window needed, no API: all file access goes through background shell commands.
 
 The Discover phase has an **Overview** page: every canonical discovery document
-with its status (generated / running / missing), plus a Run button for
-`/pm-competitors-intel` — executed through `claude -p` in a background
+with its status (generated / running / missing), plus a Run button per skill
+(`/pm-user-feedback`, `/pm-data`, `/pm-scan`, `/pm-audit`, `/pm-discovery`,
+`/pm-competitors-intel`) — executed through `claude -p` in a background
 process. The future artifact shows up in the sidebar with a running indicator
 while you keep browsing. Runs are **interactive**: when the model needs input
 it emits a structured question block; the app notifies you, renders the
@@ -25,7 +26,7 @@ competitor — links to its monitored pages and its captured snapshots
 
 This is the proof instrument for the form-factor bet in the nanopm Q3 strategy
 (see [PRD.md](./PRD.md)). It is deliberately minimal and explicitly throwaway —
-no editing, no connector management, no full run orchestration (one action only).
+no editing, no connector management, no cross-skill orchestration (single-skill runs only).
 Do not grow it before the prototype cohort AND the terminal-comfortable control
 both read positive (see the cross-read matrix in the strategy).
 

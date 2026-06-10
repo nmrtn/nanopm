@@ -23,23 +23,23 @@ enum DiscoverCatalog {
             title: "User Feedback",
             blurb: "Aggregated user signal from Dovetail, Productboard, Notion, Linear and GitHub, clustered into themes.",
             icon: "bubble.left.and.bubble.right",
-            skillCommand: nil,
-            headlessArgs: nil
+            skillCommand: "/pm-user-feedback",
+            headlessArgs: "If no feedback sources are reachable, ask the user (via the interface contract) where their user feedback lives before giving up."
         ),
         DiscoverDoc(
             relativePath: "DATA.md",
             title: "Analytics",
             blurb: "Quantitative findings from PostHog or Amplitude — trends, funnels, retention, paths.",
             icon: "chart.line.uptrend.xyaxis",
-            skillCommand: nil,
-            headlessArgs: nil
+            skillCommand: "/pm-data",
+            headlessArgs: "Ask the user (via the interface contract) which product question to answer if one is not obvious from prior context."
         ),
         DiscoverDoc(
             relativePath: "SCAN.md",
             title: "Codebase Scan",
             blurb: "What the product actually does, reverse-engineered from routes, models, tests and git history.",
             icon: "doc.text.magnifyingglass",
-            skillCommand: nil,
+            skillCommand: "/pm-scan",
             headlessArgs: nil
         ),
         DiscoverDoc(
@@ -47,7 +47,7 @@ enum DiscoverCatalog {
             title: "Product Audit",
             blurb: "Brutal honest assessment: what you're building, who it's for, and the question you're avoiding.",
             icon: "stethoscope",
-            skillCommand: nil,
+            skillCommand: "/pm-audit",
             headlessArgs: nil
         ),
         DiscoverDoc(
@@ -55,7 +55,7 @@ enum DiscoverCatalog {
             title: "Discovery",
             blurb: "Opportunity space, riskiest assumptions, and the cheapest tests to run before building.",
             icon: "safari",
-            skillCommand: nil,
+            skillCommand: "/pm-discovery",
             headlessArgs: nil
         ),
         DiscoverDoc(
