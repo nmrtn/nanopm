@@ -4,6 +4,7 @@ import MarkdownUI
 struct ProjectView: View {
     static let discoverOverviewID = "overview:discover"
     static let competitorsPageID = "page:competitors"
+    static let prdsPageID = "page:prds"
     static let runTagPrefix = "run:"
     static let competitorTagPrefix = "competitor:"
 
@@ -15,6 +16,7 @@ struct ProjectView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var selection: String?
     @State private var competitorsExpanded = false
+    @State private var prdsExpanded = false
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -74,6 +76,7 @@ struct ProjectView: View {
             if let selection,
                selection != Self.discoverOverviewID,
                selection != Self.competitorsPageID,
+               selection != Self.prdsPageID,
                !selection.hasPrefix(Self.runTagPrefix),
                !selection.hasPrefix(Self.competitorTagPrefix),
                !newValue.contains(where: { $0.id == selection }) {
@@ -116,6 +119,12 @@ struct ProjectView: View {
         store.artifacts.contains { CompetitorFiles.isReport($0.relativePath) }
     }
 
+    private var prdArtifacts: [Artifact] {
+        store.artifacts
+            .filter { PRDFiles.isPRD($0.relativePath) }
+            .sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
     @ViewBuilder
     private var sidebar: some View {
         if store.state == .loading {
@@ -137,9 +146,11 @@ struct ProjectView: View {
         let items = store.artifacts.filter { artifact in
             artifact.phase == phase
                 && !(showCompetitorsSection && CompetitorFiles.isCompetitorFile(artifact.relativePath))
+                && !PRDFiles.isPRD(artifact.relativePath)
         }
         let pending = pendingRuns(for: phase)
-        if phase == .discover || !items.isEmpty || !pending.isEmpty {
+        let showPRDs = phase == .plan && !prdArtifacts.isEmpty
+        if phase == .discover || !items.isEmpty || !pending.isEmpty || showPRDs {
             Section {
                 if phase == .discover {
                     Label("Overview", systemImage: "square.grid.2x2")
@@ -150,6 +161,9 @@ struct ProjectView: View {
                     Label(artifact.displayName, systemImage: artifact.isMarkdown ? "doc.text" : "curlybraces")
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
+                }
+                if showPRDs {
+                    prdsEntry
                 }
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry
@@ -194,6 +208,21 @@ struct ProjectView: View {
     }
 
     @ViewBuilder
+    private var prdsEntry: some View {
+        DisclosureGroup(isExpanded: $prdsExpanded) {
+            ForEach(prdArtifacts) { prd in
+                Label(prettyDocName(prd.relativePath), systemImage: "doc.text")
+                    .tag(prd.id)
+                    .help(".nanopm/" + prd.relativePath)
+            }
+        } label: {
+            Label("PRDs", systemImage: "folder")
+                .tag(Self.prdsPageID)
+                .help("All product specs and their status — expand for each PRD")
+        }
+    }
+
+    @ViewBuilder
     private var detail: some View {
         if selection == Self.discoverOverviewID {
             DiscoverOverviewView(
@@ -207,6 +236,10 @@ struct ProjectView: View {
             )
         } else if selection == Self.competitorsPageID {
             CompetitorsPageView(store: store)
+        } else if selection == Self.prdsPageID {
+            PRDsOverviewView(store: store) { artifactID in
+                selection = artifactID
+            }
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
