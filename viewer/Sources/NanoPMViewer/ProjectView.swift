@@ -3,6 +3,7 @@ import MarkdownUI
 
 struct ProjectView: View {
     static let discoverOverviewID = "overview:discover"
+    static let competitorsPageID = "page:competitors"
     static let runTagPrefix = "run:"
     static let competitorTagPrefix = "competitor:"
 
@@ -12,6 +13,7 @@ struct ProjectView: View {
     @StateObject private var store: ArtifactStore
     @EnvironmentObject private var runManager: RunManager
     @State private var selection: String?
+    @State private var competitorsExpanded = false
 
     init(project: Project, onSwitchProject: @escaping () -> Void) {
         self.project = project
@@ -52,6 +54,7 @@ struct ProjectView: View {
         .onChange(of: store.artifacts) { _, newValue in
             if let selection,
                selection != Self.discoverOverviewID,
+               selection != Self.competitorsPageID,
                !selection.hasPrefix(Self.runTagPrefix),
                !selection.hasPrefix(Self.competitorTagPrefix),
                !newValue.contains(where: { $0.id == selection }) {
@@ -87,18 +90,11 @@ struct ProjectView: View {
 
     /// True when competitor intel artifacts get their own nav section.
     private var showCompetitorsSection: Bool {
-        !store.competitors.isEmpty || !competitorReports.isEmpty
+        !store.competitors.isEmpty || hasCompetitorReports
     }
 
-    /// COMPETITORS.md first ("Latest Report"), then dated reports, newest first.
-    private var competitorReports: [Artifact] {
-        store.artifacts
-            .filter { CompetitorFiles.isReport($0.relativePath) }
-            .sorted {
-                if $0.relativePath == "COMPETITORS.md" { return true }
-                if $1.relativePath == "COMPETITORS.md" { return false }
-                return $0.relativePath > $1.relativePath
-            }
+    private var hasCompetitorReports: Bool {
+        store.artifacts.contains { CompetitorFiles.isReport($0.relativePath) }
     }
 
     @ViewBuilder
@@ -109,7 +105,6 @@ struct ProjectView: View {
         } else {
             List(selection: $selection) {
                 phaseSection(.discover)
-                competitorsSection
                 phaseSection(.plan)
                 phaseSection(.ship)
                 phaseSection(.other)
@@ -137,6 +132,9 @@ struct ProjectView: View {
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
                 }
+                if phase == .discover && showCompetitorsSection {
+                    competitorsEntry
+                }
                 ForEach(pending, id: \.expectedRelPath) { run in
                     HStack(spacing: 6) {
                         switch run.status {
@@ -162,22 +160,17 @@ struct ProjectView: View {
     }
 
     @ViewBuilder
-    private var competitorsSection: some View {
-        if showCompetitorsSection {
-            Section {
-                ForEach(competitorReports) { report in
-                    Label(CompetitorFiles.reportTitle(report.relativePath), systemImage: "doc.richtext")
-                        .tag(report.id)
-                        .help(".nanopm/" + report.relativePath)
-                }
-                ForEach(store.competitors) { competitor in
-                    Label(competitor.name, systemImage: "building.2")
-                        .tag(Self.competitorTagPrefix + competitor.slug)
-                        .help("Snapshots and monitored pages for \(competitor.name)")
-                }
-            } header: {
-                Label("Competitors", systemImage: "binoculars")
+    private var competitorsEntry: some View {
+        DisclosureGroup(isExpanded: $competitorsExpanded) {
+            ForEach(store.competitors) { competitor in
+                Label(competitor.name, systemImage: "building.2")
+                    .tag(Self.competitorTagPrefix + competitor.slug)
+                    .help("Snapshots and monitored pages for \(competitor.name)")
             }
+        } label: {
+            Label("Competitors", systemImage: "binoculars")
+                .tag(Self.competitorsPageID)
+                .help("Latest intel report — expand for per-competitor pages")
         }
     }
 
@@ -186,9 +179,15 @@ struct ProjectView: View {
         if selection == Self.discoverOverviewID {
             DiscoverOverviewView(
                 store: store,
-                onOpen: { artifactID in selection = artifactID },
+                onOpen: { artifactID in
+                    selection = (artifactID == "COMPETITORS.md" && showCompetitorsSection)
+                        ? Self.competitorsPageID
+                        : artifactID
+                },
                 onAnswer: { relPath in selection = Self.runTagPrefix + relPath }
             )
+        } else if selection == Self.competitorsPageID {
+            CompetitorsPageView(store: store)
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
