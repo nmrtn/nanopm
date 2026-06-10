@@ -232,15 +232,16 @@ struct IntelReportView: View {
 
     private func sectionView(_ section: IntelReport.Section) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(spacing: 8) {
                 Text(section.title)
                     .font(.title2.bold())
-                Spacer()
                 if let website = section.website {
                     Link(destination: website) {
-                        Label("Website", systemImage: "arrow.up.right")
-                            .font(.callout)
+                        Image(systemName: "globe")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
                     }
+                    .help(website.absoluteString)
                 }
             }
             if let meta = section.meta {
