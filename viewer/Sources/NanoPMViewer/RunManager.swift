@@ -140,15 +140,15 @@ final class RunManager: ObservableObject {
         latestRun(for: relPath, in: projectPath)?.isActive ?? false
     }
 
-    func launch(_ doc: DiscoverDoc, in projectPath: String) {
+    func launch(_ doc: SkillDoc, in projectPath: String) {
         guard let skillCommand = doc.skillCommand,
-              !isActive(doc.relativePath, in: projectPath) else { return }
+              !isActive(doc.trackingPath, in: projectPath) else { return }
 
         Notifier.requestAuthorizationIfNeeded()
 
         let run = SkillRun(projectPath: projectPath,
                            skillCommand: skillCommand,
-                           expectedRelPath: doc.relativePath)
+                           expectedRelPath: doc.trackingPath)
         runs.append(run)
 
         let prompt = [skillCommand, doc.headlessArgs, Self.interfaceContract]

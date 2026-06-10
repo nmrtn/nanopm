@@ -2,9 +2,6 @@ import SwiftUI
 import MarkdownUI
 
 struct ProjectView: View {
-    static let discoverOverviewID = "overview:discover"
-    static let competitorsPageID = "page:competitors"
-    static let prdsPageID = "page:prds"
     static let runTagPrefix = "run:"
     static let competitorTagPrefix = "competitor:"
 
@@ -74,9 +71,8 @@ struct ProjectView: View {
         }
         .onChange(of: store.artifacts) { _, newValue in
             if let selection,
-               selection != Self.discoverOverviewID,
-               selection != Self.competitorsPageID,
-               selection != Self.prdsPageID,
+               !selection.hasPrefix("overview:"),
+               !selection.hasPrefix("page:"),
                !selection.hasPrefix(Self.runTagPrefix),
                !selection.hasPrefix(Self.competitorTagPrefix),
                !newValue.contains(where: { $0.id == selection }) {
@@ -149,13 +145,14 @@ struct ProjectView: View {
                 && !PRDFiles.isPRD(artifact.relativePath)
         }
         let pending = pendingRuns(for: phase)
-        let showPRDs = phase == .plan && !prdArtifacts.isEmpty
-        if phase == .discover || !items.isEmpty || !pending.isEmpty || showPRDs {
+        let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
+        let showPRDs = phase == .ship && !prdArtifacts.isEmpty
+        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs {
             Section {
-                if phase == .discover {
+                if hasOverview {
                     Label("Overview", systemImage: "square.grid.2x2")
-                        .tag(Self.discoverOverviewID)
-                        .help("Discover phase recap — status and actions")
+                        .tag(NavRoute.overview(phase))
+                        .help("\(phase.rawValue) recap — status and actions")
                 }
                 ForEach(items) { artifact in
                     Label(artifact.displayName, systemImage: artifact.isMarkdown ? "doc.text" : "curlybraces")
@@ -202,7 +199,7 @@ struct ProjectView: View {
             }
         } label: {
             Label("Competitors", systemImage: "binoculars")
-                .tag(Self.competitorsPageID)
+                .tag(NavRoute.competitorsPage)
                 .help("Latest intel report — expand for per-competitor pages")
         }
     }
@@ -217,26 +214,31 @@ struct ProjectView: View {
             }
         } label: {
             Label("PRDs", systemImage: "folder")
-                .tag(Self.prdsPageID)
+                .tag(NavRoute.prdsPage)
                 .help("All product specs and their status — expand for each PRD")
         }
     }
 
+    private func overviewPhase(_ id: String) -> Phase? {
+        Phase.allCases.first { NavRoute.overview($0) == id }
+    }
+
     @ViewBuilder
     private var detail: some View {
-        if selection == Self.discoverOverviewID {
-            DiscoverOverviewView(
+        if let selection, let phase = overviewPhase(selection) {
+            PhaseOverviewView(
+                phase: phase,
                 store: store,
-                onOpen: { artifactID in
-                    selection = (artifactID == "COMPETITORS.md" && showCompetitorsSection)
-                        ? Self.competitorsPageID
-                        : artifactID
+                onOpen: { route in
+                    self.selection = (route == "COMPETITORS.md" && showCompetitorsSection)
+                        ? NavRoute.competitorsPage
+                        : route
                 },
-                onAnswer: { relPath in selection = Self.runTagPrefix + relPath }
+                onAnswer: { relPath in self.selection = Self.runTagPrefix + relPath }
             )
-        } else if selection == Self.competitorsPageID {
+        } else if selection == NavRoute.competitorsPage {
             CompetitorsPageView(store: store)
-        } else if selection == Self.prdsPageID {
+        } else if selection == NavRoute.prdsPage {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID
             }

@@ -86,7 +86,7 @@ enum PhaseMapper {
         let lower = relativePath.lowercased()
         let file = (lower as NSString).lastPathComponent
 
-        if lower.hasPrefix("prds/") { return .plan }
+        if lower.hasPrefix("prds/") { return .ship }
         if lower.hasPrefix("interviews/") || lower.hasPrefix("competitors/") { return .discover }
         if lower.hasPrefix("breakdowns/") || lower.hasPrefix("handoffs/") { return .ship }
 

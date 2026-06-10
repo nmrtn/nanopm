@@ -6,11 +6,12 @@ that [nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
 (**Discover / Planning / Build**), read them as rendered Markdown. No Claude Code
 window needed, no API: all file access goes through background shell commands.
 
-The Discover phase has an **Overview** page: every canonical discovery document
-with its status (generated / running / missing), plus a Run button per skill
-(`/pm-user-feedback`, `/pm-data`, `/pm-scan`, `/pm-audit`, `/pm-discovery`,
-`/pm-competitors-intel`) — executed through `claude -p` in a background
-process. The future artifact shows up in the sidebar with a running indicator
+Each phase (Discover, Planning, Build) has an **Overview** page: every runnable
+skill for that phase with its status (generated / running / waiting / missing)
+and a Run button — Discover (`/pm-user-feedback`, `/pm-data`, `/pm-scan`,
+`/pm-audit`, `/pm-discovery`, `/pm-competitors-intel`), Planning
+(`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`), Build (`/pm-prd`,
+`/pm-breakdown`) — executed through `claude -p` in a background process. The future artifact shows up in the sidebar with a running indicator
 while you keep browsing. Runs are **interactive**: when the model needs input
 it emits a structured question block; the app notifies you, renders the
 questions natively (choices + free text) alongside the model's messages, and
@@ -30,7 +31,7 @@ competitor — links to its monitored pages and its captured snapshots
 (changelog / API docs / pricing / site) as tabs, all read from
 `competitors.json` and `intel/`.
 
-In the **Planning** section, PRDs are grouped in an expandable **PRDs**
+In the **Build** section, PRDs are grouped in an expandable **PRDs**
 folder: clicking it shows a recap of every product spec and its status
 (parsed from each file's header); expanding lists the individual PRDs.
 
