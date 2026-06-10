@@ -4,6 +4,7 @@ import MarkdownUI
 struct ProjectView: View {
     static let discoverOverviewID = "overview:discover"
     static let runTagPrefix = "run:"
+    static let competitorTagPrefix = "competitor:"
 
     let project: Project
     let onSwitchProject: () -> Void
@@ -52,6 +53,7 @@ struct ProjectView: View {
             if let selection,
                selection != Self.discoverOverviewID,
                !selection.hasPrefix(Self.runTagPrefix),
+               !selection.hasPrefix(Self.competitorTagPrefix),
                !newValue.contains(where: { $0.id == selection }) {
                 self.selection = nil
             }
@@ -83,6 +85,22 @@ struct ProjectView: View {
             .sorted { $0.expectedRelPath < $1.expectedRelPath }
     }
 
+    /// True when competitor intel artifacts get their own nav section.
+    private var showCompetitorsSection: Bool {
+        !store.competitors.isEmpty || !competitorReports.isEmpty
+    }
+
+    /// COMPETITORS.md first ("Latest Report"), then dated reports, newest first.
+    private var competitorReports: [Artifact] {
+        store.artifacts
+            .filter { CompetitorFiles.isReport($0.relativePath) }
+            .sorted {
+                if $0.relativePath == "COMPETITORS.md" { return true }
+                if $1.relativePath == "COMPETITORS.md" { return false }
+                return $0.relativePath > $1.relativePath
+            }
+    }
+
     @ViewBuilder
     private var sidebar: some View {
         if store.state == .loading {
@@ -90,46 +108,76 @@ struct ProjectView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selection) {
-                ForEach(Phase.allCases) { phase in
-                    let items = store.artifacts.filter { $0.phase == phase }
-                    let pending = pendingRuns(for: phase)
-                    if phase == .discover || !items.isEmpty || !pending.isEmpty {
-                        Section {
-                            if phase == .discover {
-                                Label("Overview", systemImage: "square.grid.2x2")
-                                    .tag(Self.discoverOverviewID)
-                                    .help("Discover phase recap — status and actions")
-                            }
-                            ForEach(items) { artifact in
-                                Label(artifact.displayName, systemImage: artifact.isMarkdown ? "doc.text" : "curlybraces")
-                                    .tag(artifact.id)
-                                    .help(".nanopm/" + artifact.relativePath)
-                            }
-                            ForEach(pending, id: \.expectedRelPath) { run in
-                                HStack(spacing: 6) {
-                                    switch run.status {
-                                    case .running:
-                                        ProgressView().controlSize(.small)
-                                    case .waitingForInput:
-                                        Image(systemName: "questionmark.bubble.fill")
-                                            .foregroundStyle(.orange)
-                                    default:
-                                        Image(systemName: "exclamationmark.triangle")
-                                            .foregroundStyle(.orange)
-                                    }
-                                    Text(prettyDocName(run.expectedRelPath))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .tag(Self.runTagPrefix + run.expectedRelPath)
-                                .help(sidebarHelp(for: run))
-                            }
-                        } header: {
-                            Label(phase.rawValue, systemImage: phase.icon)
-                        }
-                    }
-                }
+                phaseSection(.discover)
+                competitorsSection
+                phaseSection(.plan)
+                phaseSection(.ship)
+                phaseSection(.other)
             }
             .listStyle(.sidebar)
+        }
+    }
+
+    @ViewBuilder
+    private func phaseSection(_ phase: Phase) -> some View {
+        let items = store.artifacts.filter { artifact in
+            artifact.phase == phase
+                && !(showCompetitorsSection && CompetitorFiles.isCompetitorFile(artifact.relativePath))
+        }
+        let pending = pendingRuns(for: phase)
+        if phase == .discover || !items.isEmpty || !pending.isEmpty {
+            Section {
+                if phase == .discover {
+                    Label("Overview", systemImage: "square.grid.2x2")
+                        .tag(Self.discoverOverviewID)
+                        .help("Discover phase recap — status and actions")
+                }
+                ForEach(items) { artifact in
+                    Label(artifact.displayName, systemImage: artifact.isMarkdown ? "doc.text" : "curlybraces")
+                        .tag(artifact.id)
+                        .help(".nanopm/" + artifact.relativePath)
+                }
+                ForEach(pending, id: \.expectedRelPath) { run in
+                    HStack(spacing: 6) {
+                        switch run.status {
+                        case .running:
+                            ProgressView().controlSize(.small)
+                        case .waitingForInput:
+                            Image(systemName: "questionmark.bubble.fill")
+                                .foregroundStyle(.orange)
+                        default:
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
+                        Text(prettyDocName(run.expectedRelPath))
+                            .foregroundStyle(.secondary)
+                    }
+                    .tag(Self.runTagPrefix + run.expectedRelPath)
+                    .help(sidebarHelp(for: run))
+                }
+            } header: {
+                Label(phase.rawValue, systemImage: phase.icon)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var competitorsSection: some View {
+        if showCompetitorsSection {
+            Section {
+                ForEach(competitorReports) { report in
+                    Label(CompetitorFiles.reportTitle(report.relativePath), systemImage: "doc.richtext")
+                        .tag(report.id)
+                        .help(".nanopm/" + report.relativePath)
+                }
+                ForEach(store.competitors) { competitor in
+                    Label(competitor.name, systemImage: "building.2")
+                        .tag(Self.competitorTagPrefix + competitor.slug)
+                        .help("Snapshots and monitored pages for \(competitor.name)")
+                }
+            } header: {
+                Label("Competitors", systemImage: "binoculars")
+            }
         }
     }
 
@@ -148,6 +196,13 @@ struct ProjectView: View {
             RunSessionView(run: run) { artifactID in
                 self.selection = artifactID
             }
+        } else if let selection,
+                  selection.hasPrefix(Self.competitorTagPrefix),
+                  let competitor = store.competitors.first(where: {
+                      $0.slug == String(selection.dropFirst(Self.competitorTagPrefix.count))
+                  }) {
+            CompetitorDetailView(store: store, competitor: competitor)
+                .id(competitor.slug)
         } else {
             stateDetail
         }

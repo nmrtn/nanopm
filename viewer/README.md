@@ -16,6 +16,11 @@ questions natively (choices + free text) alongside the model's messages, and
 resumes the same session (`claude --resume`) with your answers until the
 document is written. A macOS notification fires when it's ready.
 
+Once intel exists, a **Competitors** nav section appears: the latest report
+(plus dated history), and one entry per monitored competitor — links to its
+monitored pages and its captured snapshots (changelog / API docs / pricing /
+site) as tabs, all read from `competitors.json` and `intel/`.
+
 This is the proof instrument for the form-factor bet in the nanopm Q3 strategy
 (see [PRD.md](./PRD.md)). It is deliberately minimal and explicitly throwaway —
 no editing, no connector management, no full run orchestration (one action only).

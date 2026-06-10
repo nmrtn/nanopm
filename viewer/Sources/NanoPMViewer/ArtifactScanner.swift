@@ -38,4 +38,16 @@ enum ArtifactScanner {
         }
         return .found(artifacts)
     }
+
+    /// Reads .nanopm/competitors.json (written by /pm-competitors-intel);
+    /// empty when missing or unparseable.
+    static func loadCompetitors(projectPath: String) -> [Competitor] {
+        let file = projectPath + "/.nanopm/competitors.json"
+        guard let raw = try? ShellRunner.run("cat \(ShellRunner.quote(file)) 2>/dev/null"),
+              let data = raw.data(using: .utf8) else { return [] }
+        struct Config: Codable { var competitors: [Competitor] }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return (try? decoder.decode(Config.self, from: data))?.competitors ?? []
+    }
 }

@@ -21,6 +21,10 @@ enum SmokeTest {
                     print("\(artifact.phase.rawValue)\t.nanopm/\(artifact.relativePath)")
                 }
                 print("TOTAL: \(artifacts.count)")
+                let competitors = ArtifactScanner.loadCompetitors(projectPath: path)
+                for competitor in competitors {
+                    print("COMPETITOR\t\(competitor.slug)\t\(competitor.name)\tpages:\(competitor.monitoredPages.count)\tchecked:\(competitor.lastCheckedDate != nil)")
+                }
                 exit(0)
             }
         } catch {

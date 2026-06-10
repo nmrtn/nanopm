@@ -41,6 +41,7 @@ final class ArtifactStore: ObservableObject {
     let project: Project
     @Published var state: State = .loading
     @Published var artifacts: [Artifact] = []
+    @Published var competitors: [Competitor] = []
     /// Bumped on every refresh so open detail views re-read their file.
     @Published var generation = 0
 
@@ -52,9 +53,11 @@ final class ArtifactStore: ObservableObject {
         if artifacts.isEmpty { state = .loading }
         let path = project.path
         do {
-            let result = try await Task.detached(priority: .userInitiated) {
-                try ArtifactScanner.scan(projectPath: path)
+            let (result, foundCompetitors) = try await Task.detached(priority: .userInitiated) {
+                (try ArtifactScanner.scan(projectPath: path),
+                 ArtifactScanner.loadCompetitors(projectPath: path))
             }.value
+            competitors = foundCompetitors
             switch result {
             case .missingNanopm:
                 artifacts = []
