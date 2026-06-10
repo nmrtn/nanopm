@@ -137,6 +137,13 @@ struct ProjectView: View {
         }
     }
 
+    /// Sidebar icon for an artifact — its skill's catalog icon when one owns
+    /// the file, else a generic doc/json glyph.
+    private func iconFor(_ artifact: Artifact) -> String {
+        SkillCatalog.icon(forArtifact: artifact.relativePath)
+            ?? (artifact.isMarkdown ? "doc.text" : "curlybraces")
+    }
+
     @ViewBuilder
     private func phaseSection(_ phase: Phase) -> some View {
         let items = store.artifacts.filter { artifact in
@@ -155,7 +162,7 @@ struct ProjectView: View {
                         .help("\(phase.rawValue) recap — status and actions")
                 }
                 ForEach(items) { artifact in
-                    Label(artifact.displayName, systemImage: artifact.isMarkdown ? "doc.text" : "curlybraces")
+                    Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
                 }
@@ -213,7 +220,7 @@ struct ProjectView: View {
                     .help(".nanopm/" + prd.relativePath)
             }
         } label: {
-            Label("PRDs", systemImage: "folder")
+            Label("PRDs", systemImage: SkillCatalog.prdsIcon)
                 .tag(NavRoute.prdsPage)
                 .help("All product specs and their status — expand for each PRD")
         }

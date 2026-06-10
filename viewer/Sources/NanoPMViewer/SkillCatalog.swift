@@ -40,6 +40,20 @@ struct SkillDoc: Identifiable {
 enum SkillCatalog {
     static func docs(for phase: Phase) -> [SkillDoc] { all.filter { $0.phase == phase } }
 
+    /// Icon for the skill that produces this artifact, so the sidebar matches
+    /// the overview pages. Nil when no catalog skill owns the path.
+    static func icon(forArtifact relativePath: String) -> String? {
+        all.first { doc in
+            if case .file(let path) = doc.output { return path == relativePath }
+            return false
+        }?.icon
+    }
+
+    /// The PRDs folder skill icon, so the nav folder matches its overview row.
+    static var prdsIcon: String {
+        all.first { $0.title == "PRDs" }?.icon ?? "folder"
+    }
+
     /// One-line intro shown under each phase overview title.
     static func subtitle(for phase: Phase) -> String {
         switch phase {
