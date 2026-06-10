@@ -123,7 +123,7 @@ struct DiscoverOverviewView: View {
                     }
                     .disabled(true)
                 } else {
-                    Button(artifact == nil ? "Run" : "Re-run") {
+                    Button("Run") {
                         runManager.launch(doc, in: store.project.path)
                     }
                     .disabled(claudeAvailable == false)
