@@ -102,11 +102,16 @@ struct RunSessionView: View {
     private var statusFooter: some View {
         switch run.status {
         case .running:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Working… you can keep browsing — a notification fires when the model needs you or the document is ready.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(run.lastActivity ?? "Working…")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Text("You can keep browsing — a notification fires when the model needs you or the document is ready. Open the Activity Monitor (toolbar) to follow the live console.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             .padding(.top, 4)
         case .waitingForInput(let questions):

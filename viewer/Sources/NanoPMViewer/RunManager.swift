@@ -33,6 +33,37 @@ final class RunManager: ObservableObject {
         let text: String
     }
 
+    /// One streamed event from `claude --output-format stream-json` — the unit
+    /// of the live debug console.
+    struct LogEvent: Identifiable, Equatable {
+        enum Kind: String {
+            case session, assistant, toolUse, toolResult, summary, result, error, user
+        }
+        let id = UUID()
+        let at = Date()
+        /// Which turn (1-based) this event belongs to — runs can span turns.
+        let turn: Int
+        let kind: Kind
+        /// Short headline, e.g. "Bash" or "Session started".
+        let title: String
+        /// Optional body (tool input, tool output, assistant text…).
+        let detail: String?
+        var sessionID: String?
+
+        var icon: String {
+            switch kind {
+            case .session: return "bolt.horizontal.circle"
+            case .assistant: return "sparkle"
+            case .toolUse: return "wrench.and.screwdriver"
+            case .toolResult: return "arrow.turn.down.right"
+            case .summary: return "text.append"
+            case .result: return "checkmark.seal"
+            case .error: return "exclamationmark.triangle"
+            case .user: return "person"
+            }
+        }
+    }
+
     struct SkillRun: Identifiable {
         let id = UUID()
         let projectPath: String
@@ -43,6 +74,10 @@ final class RunManager: ObservableObject {
         var sessionID: String?
         var status: Status = .running
         var transcript: [TranscriptEntry] = []
+        /// Live event log streamed from the CLI — drives the activity monitor.
+        var events: [LogEvent] = []
+        /// 1-based count of turns started (initial launch + each resume).
+        var turnCount = 0
 
         enum Status: Equatable {
             case running
@@ -61,6 +96,15 @@ final class RunManager: ObservableObject {
         var pendingQuestions: [UserQuestion] {
             if case .waitingForInput(let questions) = status { return questions }
             return []
+        }
+
+        var projectName: String { (projectPath as NSString).lastPathComponent }
+
+        /// Most recent event headline, for compact "what's happening now" lines.
+        var lastActivity: String? {
+            events.last.map { event in
+                event.kind == .toolUse ? "Running \(event.title)" : event.title
+            }
         }
     }
 
@@ -136,8 +180,10 @@ final class RunManager: ObservableObject {
     private func startTurn(_ runID: UUID, prompt: String, resumeSession: String?) {
         guard let index = runs.firstIndex(where: { $0.id == runID }) else { return }
         let projectPath = runs[index].projectPath
+        runs[index].turnCount += 1
+        let turn = runs[index].turnCount
 
-        var cli = "claude --permission-mode bypassPermissions --output-format json"
+        var cli = "claude --permission-mode bypassPermissions --output-format stream-json --verbose"
         if let resumeSession {
             cli += " --resume \(ShellRunner.quote(resumeSession))"
         }
@@ -162,45 +208,61 @@ final class RunManager: ObservableObject {
             return
         }
 
-        // Drain pipes off the main actor (prevents the child blocking on a
-        // full pipe buffer), then report the turn result back.
-        Task.detached(priority: .utility) { [weak self] in
-            let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-            let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        // Stream stdout line by line so the console updates live; drain stderr
+        // concurrently so a full stderr buffer can't block the child.
+        Task.detached(priority: .utility) {
+            async let errBytes: Data = errPipe.fileHandleForReading.readDataToEndOfFile()
+            var terminal: TerminalResult?
+            do {
+                for try await line in outPipe.fileHandleForReading.bytes.lines {
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    guard !trimmed.isEmpty else { continue }
+                    let (event, result) = Self.parseStreamLine(trimmed, turn: turn)
+                    if let result { terminal = result }
+                    if let event { await self.appendEvent(runID, event) }
+                }
+            } catch { /* pipe closed — fall through to finish */ }
             process.waitUntilExit()
-            let code = process.terminationStatus
-            await self?.finishTurn(runID, exitCode: code, stdout: outData, stderr: errData)
+            let stderr = String(data: await errBytes, encoding: .utf8) ?? ""
+            await self.finishTurn(runID, exitCode: process.terminationStatus,
+                                  terminal: terminal, stderr: stderr, turn: turn)
         }
     }
 
-    private func finishTurn(_ runID: UUID, exitCode: Int32, stdout: Data, stderr: Data) {
+    private func appendEvent(_ runID: UUID, _ event: LogEvent) {
+        guard let index = runs.firstIndex(where: { $0.id == runID }),
+              runs[index].isActive else { return }
+        runs[index].events.append(event)
+        if let sid = event.sessionID { runs[index].sessionID = sid }
+    }
+
+    private func finishTurn(_ runID: UUID, exitCode: Int32,
+                            terminal: TerminalResult?, stderr: String, turn: Int) {
         guard let index = runs.firstIndex(where: { $0.id == runID }) else { return }
         // Cancelled (or otherwise resolved) while the process was draining.
         guard runs[index].status == .running else { return }
         processes[runID] = nil
         let run = runs[index]
 
-        guard let parsed = Self.parseCLIOutput(stdout) else {
-            let err = String(data: stderr, encoding: .utf8) ?? ""
-            let out = String(data: stdout, encoding: .utf8) ?? ""
-            let detail = (err.isEmpty ? out : err).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let terminal else {
+            let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             applyFailure(runID, message: detail.isEmpty
-                         ? "claude exited \(exitCode) with no parseable output"
+                         ? "claude exited \(exitCode) with no result event"
                          : String(detail.suffix(400)))
             return
         }
 
-        if let sessionID = parsed.sessionID {
+        if let sessionID = terminal.sessionID {
             runs[index].sessionID = sessionID
         }
-        let questions = Self.extractQuestions(from: parsed.text)
-        let visibleText = Self.stripQuestionBlock(from: parsed.text)
+        let questions = Self.extractQuestions(from: terminal.text)
+        let visibleText = Self.stripQuestionBlock(from: terminal.text)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if !visibleText.isEmpty {
             runs[index].transcript.append(TranscriptEntry(role: .model, text: visibleText))
         }
 
-        if parsed.isError || exitCode != 0 {
+        if terminal.isError || exitCode != 0 {
             applyFailure(runID, message: visibleText.isEmpty
                          ? "claude exited \(exitCode)"
                          : String(visibleText.suffix(400)))
@@ -229,29 +291,112 @@ final class RunManager: ObservableObject {
                       body: String(message.prefix(160)))
     }
 
-    // MARK: - CLI output parsing
+    // MARK: - Stream parsing
 
-    struct CLIResult {
+    /// Carried out of the stream when the final `result` event arrives.
+    struct TerminalResult {
         let text: String
         let sessionID: String?
         let isError: Bool
     }
 
-    /// `claude -p --output-format json` prints one JSON object. A login shell
-    /// profile may print noise before it, so parse from the first `{`.
-    static func parseCLIOutput(_ data: Data) -> CLIResult? {
-        guard var text = String(data: data, encoding: .utf8) else { return nil }
-        if let brace = text.firstIndex(of: "{") {
-            text = String(text[brace...])
+    /// Parse one NDJSON line from `--output-format stream-json` into a console
+    /// event and, for the final `result` line, the turn's terminal outcome.
+    nonisolated static func parseStreamLine(_ line: String, turn: Int) -> (event: LogEvent?, result: TerminalResult?) {
+        guard let data = line.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = obj["type"] as? String
+        else {
+            // Non-JSON (login-shell noise) — surface as a raw line, not a crash.
+            return (LogEvent(turn: turn, kind: .error, title: "stderr", detail: line, sessionID: nil), nil)
         }
-        guard let jsonData = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-        else { return nil }
-        return CLIResult(
-            text: object["result"] as? String ?? "",
-            sessionID: object["session_id"] as? String,
-            isError: object["is_error"] as? Bool ?? false
-        )
+        let sid = obj["session_id"] as? String
+
+        func event(_ kind: LogEvent.Kind, _ title: String, _ detail: String?) -> LogEvent {
+            LogEvent(turn: turn, kind: kind, title: title, detail: detail, sessionID: sid)
+        }
+
+        switch type {
+        case "system":
+            let subtype = obj["subtype"] as? String
+            if subtype == "init" {
+                let model = obj["model"] as? String ?? "?"
+                return (event(.session, "Session started", "model \(model)"), nil)
+            }
+            if subtype == "post_turn_summary" {
+                return (event(.summary, "Turn summary", obj["status_detail"] as? String), nil)
+            }
+            return (nil, nil)
+
+        case "assistant":
+            return (assistantEvents(obj, turn: turn, sid: sid), nil)
+
+        case "user":
+            return (toolResultEvent(obj, turn: turn, sid: sid), nil)
+
+        case "result":
+            let text = obj["result"] as? String ?? ""
+            let isError = obj["is_error"] as? Bool ?? false
+            return (event(.result, isError ? "Run errored" : "Turn finished", resultSummary(obj)),
+                    TerminalResult(text: text, sessionID: sid, isError: isError))
+
+        default:
+            return (nil, nil) // rate_limit_event and friends — skip as noise
+        }
+    }
+
+    /// An assistant message may carry text and/or tool_use blocks.
+    nonisolated private static func assistantEvents(_ obj: [String: Any], turn: Int, sid: String?) -> LogEvent? {
+        guard let message = obj["message"] as? [String: Any],
+              let content = message["content"] as? [[String: Any]] else { return nil }
+        for block in content {
+            let blockType = block["type"] as? String
+            if blockType == "tool_use", let name = block["name"] as? String {
+                let input = block["input"] as? [String: Any] ?? [:]
+                return LogEvent(turn: turn, kind: .toolUse, title: name,
+                                detail: toolInputSummary(name: name, input: input), sessionID: sid)
+            }
+            if blockType == "text", let text = block["text"] as? String,
+               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return LogEvent(turn: turn, kind: .assistant, title: "Assistant",
+                                detail: text, sessionID: sid)
+            }
+        }
+        return nil
+    }
+
+    nonisolated private static func toolResultEvent(_ obj: [String: Any], turn: Int, sid: String?) -> LogEvent? {
+        guard let message = obj["message"] as? [String: Any],
+              let content = message["content"] as? [[String: Any]] else { return nil }
+        for block in content where block["type"] as? String == "tool_result" {
+            let isError = block["is_error"] as? Bool ?? false
+            let body = (block["content"] as? String)
+                ?? ((block["content"] as? [[String: Any]])?.compactMap { $0["text"] as? String }.joined(separator: "\n"))
+                ?? ""
+            return LogEvent(turn: turn, kind: isError ? .error : .toolResult,
+                            title: isError ? "Tool error" : "Tool result",
+                            detail: String(body.prefix(4000)), sessionID: sid)
+        }
+        return nil
+    }
+
+    nonisolated private static func toolInputSummary(name: String, input: [String: Any]) -> String? {
+        if let cmd = input["command"] as? String { return cmd }
+        if let path = input["file_path"] as? String { return path }
+        if let pattern = input["pattern"] as? String { return pattern }
+        if let url = input["url"] as? String { return url }
+        if let prompt = input["prompt"] as? String { return String(prompt.prefix(200)) }
+        guard let data = try? JSONSerialization.data(withJSONObject: input),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return json == "{}" ? nil : String(json.prefix(200))
+    }
+
+    nonisolated private static func resultSummary(_ obj: [String: Any]) -> String? {
+        var parts: [String] = []
+        if let ms = obj["duration_ms"] as? Double { parts.append(String(format: "%.1fs", ms / 1000)) }
+        if let turns = obj["num_turns"] as? Int { parts.append("\(turns) turns") }
+        if let cost = obj["total_cost_usd"] as? Double { parts.append(String(format: "$%.3f", cost)) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private static let questionFence = "```nanopm-question"

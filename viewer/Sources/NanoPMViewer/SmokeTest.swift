@@ -8,6 +8,9 @@ enum SmokeTest {
         if let flag = args.firstIndex(of: "--parse-report"), args.count > flag + 1 {
             parseReport(args[flag + 1])
         }
+        if let flag = args.firstIndex(of: "--parse-stream"), args.count > flag + 1 {
+            parseStream(args[flag + 1])
+        }
         guard let flag = args.firstIndex(of: "--smoke") else { return }
         guard args.count > flag + 1 else {
             print("usage: NanoPMViewer --smoke /path/to/project")
@@ -34,6 +37,29 @@ enum SmokeTest {
             print("SMOKE FAIL: \(error)")
             exit(1)
         }
+    }
+
+    private static func parseStream(_ file: String) {
+        guard let content = try? ShellRunner.run("cat \(ShellRunner.quote(file))") else {
+            print("STREAM: cannot read"); exit(1)
+        }
+        var turn = 1, events = 0, terminal = false
+        for line in content.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            let (event, result) = RunManager.parseStreamLine(trimmed, turn: turn)
+            if let event {
+                events += 1
+                let detail = (event.detail?.replacingOccurrences(of: "\n", with: " ").prefix(50)).map(String.init) ?? "-"
+                print("[\(event.kind.rawValue)] \(event.title) :: \(detail)")
+            }
+            if let result {
+                terminal = true
+                print("RESULT text=\(result.text.prefix(30)) session=\(result.sessionID ?? "-") error=\(result.isError)")
+            }
+        }
+        print("EVENTS: \(events) TERMINAL: \(terminal)")
+        exit(terminal ? 0 : 1)
     }
 
     private static func parseReport(_ file: String) {

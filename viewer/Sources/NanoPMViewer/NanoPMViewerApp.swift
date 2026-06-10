@@ -17,7 +17,16 @@ struct NanoPMViewerApp: App {
                 .frame(minWidth: 900, minHeight: 580)
         }
         .defaultSize(width: 1100, height: 720)
+
+        Window("Activity Monitor", id: Self.activityWindowID) {
+            ActivityMonitorView()
+                .environmentObject(runManager)
+                .frame(minWidth: 640, minHeight: 420)
+        }
+        .defaultSize(width: 900, height: 640)
     }
+
+    static let activityWindowID = "activity-monitor"
 }
 
 struct ContentView: View {

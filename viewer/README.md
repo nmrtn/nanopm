@@ -17,6 +17,12 @@ questions natively (choices + free text) alongside the model's messages, and
 resumes the same session (`claude --resume`) with your answers until the
 document is written. A macOS notification fires when it's ready.
 
+Runs stream live via `claude --output-format stream-json`: an **Activity
+Monitor** window (toolbar, badged with the in-flight count) lists every run
+across the session and shows a live console for the selected one — session
+start, each tool call and its result, assistant messages, and the final
+cost/duration. Built to follow several parallel runs at once.
+
 Once intel exists, an expandable **Competitors** entry appears inside the
 Discover section: clicking it lands on the latest report (with a History
 menu for past reports, newest first); expanding it lists each monitored

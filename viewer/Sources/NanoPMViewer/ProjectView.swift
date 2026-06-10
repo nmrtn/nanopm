@@ -12,8 +12,13 @@ struct ProjectView: View {
 
     @StateObject private var store: ArtifactStore
     @EnvironmentObject private var runManager: RunManager
+    @Environment(\.openWindow) private var openWindow
     @State private var selection: String?
     @State private var competitorsExpanded = false
+
+    private var activeRunCount: Int {
+        runManager.runs.filter(\.isActive).count
+    }
 
     init(project: Project, onSwitchProject: @escaping () -> Void) {
         self.project = project
@@ -38,6 +43,19 @@ struct ProjectView: View {
                     Label("Projects", systemImage: "chevron.backward")
                 }
                 .help("Back to the project picker")
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    openWindow(id: NanoPMViewerApp.activityWindowID)
+                } label: {
+                    Label("Activity", systemImage: activeRunCount > 0
+                          ? "antenna.radiowaves.left.and.right"
+                          : "list.bullet.rectangle")
+                }
+                .help(activeRunCount > 0
+                      ? "\(activeRunCount) run(s) in progress — open the live activity monitor"
+                      : "Open the activity monitor")
+                .badge(activeRunCount)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
