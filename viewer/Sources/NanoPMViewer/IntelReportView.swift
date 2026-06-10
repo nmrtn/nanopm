@@ -38,6 +38,14 @@ struct IntelReport {
         var pages: [Page] = []
         var leftover: String = ""
         var id: String { title }
+
+        /// Fields + leftover re-joined as markdown (used when a section is
+        /// rendered standalone, e.g. Strategic implications at page top).
+        var combinedBody: String {
+            var parts = fields.map { "**\($0.label):** \($0.text)" }
+            if !leftover.isEmpty { parts.append(leftover) }
+            return parts.joined(separator: "\n\n")
+        }
     }
 
     var sections: [Section] = []
@@ -199,185 +207,70 @@ enum IntelReportParser {
 
 // MARK: - Views
 
-/// Designed rendering of an intel report: summary & action callouts, then
-/// one card per competitor with status chips and labeled blocks.
+/// Typography-first rendering of an intel report: labeled blocks and
+/// dividers, no decorative boxes — optimized for reading and scanning.
 struct IntelReportView: View {
     let report: IntelReport
+    /// Section ids to omit (e.g. shown separately by the page).
+    var skipSectionIDs: Set<String> = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 22) {
             if let summary = report.summaryBody, !summary.isEmpty {
-                summaryCard(summary)
+                LabeledBlock(label: "Summary", text: summary)
             }
             if let action = report.action, !action.isEmpty {
-                actionCallout(action)
+                LabeledBlock(label: "Action", text: action)
             }
-            ForEach(report.sections) { section in
-                sectionCard(section)
+            ForEach(report.sections.filter { !skipSectionIDs.contains($0.id) }) { section in
+                VStack(alignment: .leading, spacing: 14) {
+                    Divider()
+                    sectionView(section)
+                }
             }
         }
     }
 
-    private func summaryCard(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Summary", systemImage: "sparkles")
-                .font(.headline)
-            Markdown(text)
-                .markdownTheme(.gitHub)
-                .textSelection(.enabled)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.accentColor.opacity(0.25)))
-    }
-
-    private func actionCallout(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "arrow.right.circle.fill")
-                .foregroundStyle(.orange)
-                .font(.title3)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Action").font(.headline)
-                Markdown(text)
-                    .markdownTheme(.gitHub)
-                    .textSelection(.enabled)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.orange.opacity(0.25)))
-    }
-
-    private func sectionCard(_ section: IntelReport.Section) -> some View {
+    private func sectionView(_ section: IntelReport.Section) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Label(section.title, systemImage: "building.2")
-                    .font(.title3.bold())
+                Text(section.title)
+                    .font(.title2.bold())
                 Spacer()
                 if let website = section.website {
                     Link(destination: website) {
                         Label("Website", systemImage: "arrow.up.right")
-                            .font(.caption)
+                            .font(.callout)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.quinary, in: Capsule())
                 }
             }
-
             if let meta = section.meta {
                 Text(meta)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            if !section.monitored.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8, alignment: .leading)],
-                          alignment: .leading, spacing: 8) {
-                    ForEach(section.monitored) { page in
-                        monitoredChip(page)
-                    }
-                }
-            }
-
             ForEach(section.fields) { field in
-                fieldBlock(field)
+                LabeledBlock(label: displayLabel(field.label), text: field.text)
             }
-
             ForEach(section.pages) { page in
                 pageDisclosure(page)
             }
-
             if !section.leftover.isEmpty {
                 Markdown(section.leftover)
-                    .markdownTheme(.gitHub)
+                    .markdownTheme(.basic)
                     .textSelection(.enabled)
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quinary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    @ViewBuilder
-    private func monitoredChip(_ page: IntelReport.PageLink) -> some View {
-        let label = HStack(spacing: 5) {
-            Circle()
-                .fill(page.failed ? Color.red : Color.green)
-                .frame(width: 6, height: 6)
-            Text(page.name)
-                .font(.caption)
-                .lineLimit(1)
-            Image(systemName: "arrow.up.right")
-                .font(.system(size: 8))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(.quinary, in: Capsule())
-
-        if let url = page.url {
-            Link(destination: url) { label }
-                .buttonStyle(.plain)
-                .help(page.status.map { "\(page.urlString) — \($0)" } ?? page.urlString)
-        } else {
-            label.help(page.status ?? "")
-        }
-    }
-
-    @ViewBuilder
-    private func fieldBlock(_ field: IntelReport.Field) -> some View {
-        switch field.label.lowercased() {
-        case "strategic note":
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Strategic note")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Markdown(field.text)
-                        .markdownTheme(.gitHub)
-                        .textSelection(.enabled)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-        case "latest notable change":
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "bolt.fill")
-                    .foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Latest change")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    Markdown(field.text)
-                        .markdownTheme(.gitHub)
-                        .textSelection(.enabled)
-                }
-            }
-        default:
-            VStack(alignment: .leading, spacing: 3) {
-                Text(field.label)
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Markdown(field.text)
-                    .markdownTheme(.gitHub)
-                    .textSelection(.enabled)
-            }
-        }
+    private func displayLabel(_ label: String) -> String {
+        label.lowercased() == "latest notable change" ? "Latest change" : label
     }
 
     private func pageDisclosure(_ page: IntelReport.Page) -> some View {
         DisclosureGroup {
             Markdown(page.body)
-                .markdownTheme(.gitHub)
+                .markdownTheme(.basic)
                 .textSelection(.enabled)
                 .padding(.top, 6)
         } label: {
@@ -385,10 +278,7 @@ struct IntelReportView: View {
                 Text(page.title).fontWeight(.medium)
                 if let hint = pageHint(page) {
                     Text(hint.text)
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(hint.color.opacity(0.12), in: Capsule())
+                        .font(.caption)
                         .foregroundStyle(hint.color)
                 }
                 Spacer()
@@ -411,5 +301,24 @@ struct IntelReportView: View {
         if inner.contains("baseline") { return ("Baseline", .secondary) }
         if inner.contains("diff") || inner.contains("change") { return ("Changed", .orange) }
         return nil
+    }
+}
+
+/// Small-caps secondary label above markdown body — the page's basic unit.
+struct LabeledBlock: View {
+    let label: String
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .kerning(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+            Markdown(text)
+                .markdownTheme(.basic)
+                .textSelection(.enabled)
+        }
     }
 }

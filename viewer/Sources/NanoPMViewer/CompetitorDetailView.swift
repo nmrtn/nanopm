@@ -6,8 +6,23 @@ import MarkdownUI
 struct CompetitorsPageView: View {
     @ObservedObject var store: ArtifactStore
 
+    struct Implications: Equatable {
+        let sourceID: String
+        let sourceTitle: String
+        let text: String
+    }
+
     @State private var selectedReportID: String?
     @State private var content: String?
+    @State private var implications: Implications?
+
+    /// Newest dated INTEL report — source of the page-top Strategic implications.
+    private var latestIntelReport: Artifact? {
+        store.artifacts
+            .filter { $0.relativePath.hasPrefix("intel/INTEL-") && $0.relativePath.hasSuffix(".md") }
+            .sorted { $0.relativePath > $1.relativePath }
+            .first
+    }
 
     /// Newest first: COMPETITORS.md (the current report), then dated INTEL reports.
     private var reports: [Artifact] {
@@ -58,18 +73,40 @@ struct CompetitorsPageView: View {
                     }
                 }
 
+                if let implications {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("Strategic implications")
+                                .font(.title3.bold())
+                            Text("from \(implications.sourceTitle)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Markdown(implications.text)
+                            .markdownTheme(.basic)
+                            .textSelection(.enabled)
+                    }
+                }
+
                 if let report = displayed {
                     VStack(alignment: .leading, spacing: 10) {
+                        Divider()
                         Text(".nanopm/\(report.relativePath) · updated \(report.modifiedAt, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if let content {
                             if let parsed = IntelReportParser.parse(content) {
-                                IntelReportView(report: parsed)
+                                IntelReportView(
+                                    report: parsed,
+                                    skipSectionIDs: report.id == implications?.sourceID
+                                        ? Set(parsed.sections
+                                            .filter { $0.title.lowercased().contains("strategic implications") }
+                                            .map(\.id))
+                                        : []
+                                )
                             } else {
-                                Divider()
                                 Markdown(content)
-                                    .markdownTheme(.gitHub)
+                                    .markdownTheme(.basic)
                                     .textSelection(.enabled)
                             }
                         } else {
@@ -92,8 +129,25 @@ struct CompetitorsPageView: View {
         }
         .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
             content = nil
-            guard let report = displayed else { return }
-            content = try? await store.content(of: report)
+            if let report = displayed {
+                content = try? await store.content(of: report)
+            }
+            guard let intel = latestIntelReport else {
+                implications = nil
+                return
+            }
+            if let intelContent = try? await store.content(of: intel),
+               let parsed = IntelReportParser.parse(intelContent),
+               let section = parsed.sections.first(where: { $0.title.lowercased().contains("strategic implications") }),
+               !section.combinedBody.isEmpty {
+                implications = Implications(
+                    sourceID: intel.id,
+                    sourceTitle: CompetitorFiles.reportTitle(intel.relativePath),
+                    text: section.combinedBody
+                )
+            } else {
+                implications = nil
+            }
         }
     }
 
