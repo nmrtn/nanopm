@@ -4,13 +4,19 @@ Throwaway macOS prototype: a **read-only** browser for the `.nanopm/` artifacts
 that [nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
 (Claude-Code-style recents), browse artifacts grouped by phase
 (**Discover / Plan / Ship**), read them as rendered Markdown. No Claude Code
-needed, no API: all file access goes through background shell commands.
+window needed, no API: all file access goes through background shell commands.
+
+The Discover phase has an **Overview** page: every canonical discovery document
+with its status (generated / running / missing), plus a Run button for
+`/pm-competitors-intel` — executed headlessly (`claude -p`) in a background
+process. The future artifact shows up in the sidebar with a running indicator
+while you keep browsing, and a macOS notification fires when it's ready.
 
 This is the proof instrument for the form-factor bet in the nanopm Q3 strategy
 (see [PRD.md](./PRD.md)). It is deliberately minimal and explicitly throwaway —
-no editing, no connector management, no run orchestration. Do not grow it
-before the prototype cohort AND the terminal-comfortable control both read
-positive (see the cross-read matrix in the strategy).
+no editing, no connector management, no full run orchestration (one action only).
+Do not grow it before the prototype cohort AND the terminal-comfortable control
+both read positive (see the cross-read matrix in the strategy).
 
 ## Build & run
 

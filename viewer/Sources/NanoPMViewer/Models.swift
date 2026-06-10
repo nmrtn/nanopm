@@ -38,11 +38,15 @@ struct Artifact: Identifiable, Hashable, Sendable {
     var fileName: String { (relativePath as NSString).lastPathComponent }
     var isMarkdown: Bool { relativePath.lowercased().hasSuffix(".md") }
 
-    var displayName: String {
-        var base = (fileName as NSString).deletingPathExtension
-        if base == base.uppercased() { base = base.capitalized }
-        return base
-    }
+    var displayName: String { prettyDocName(relativePath) }
+}
+
+/// "STRATEGY.md" → "Strategy", "prds/foo-bar.md" → "foo-bar"
+func prettyDocName(_ relativePath: String) -> String {
+    let file = (relativePath as NSString).lastPathComponent
+    var base = (file as NSString).deletingPathExtension
+    if base == base.uppercased() { base = base.capitalized }
+    return base
 }
 
 /// Fixed artifact → phase mapping (PRD: files that match no rule land in a

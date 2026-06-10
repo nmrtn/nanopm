@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct NanoPMViewerApp: App {
     @StateObject private var recents = RecentsStore()
+    @StateObject private var runManager = RunManager()
 
     init() {
         SmokeTest.runIfRequested()
@@ -12,6 +13,7 @@ struct NanoPMViewerApp: App {
         WindowGroup("NanoPM Viewer") {
             ContentView()
                 .environmentObject(recents)
+                .environmentObject(runManager)
                 .frame(minWidth: 900, minHeight: 580)
         }
         .defaultSize(width: 1100, height: 720)
