@@ -3,7 +3,7 @@ import MarkdownUI
 
 struct ProjectView: View {
     static let discoverOverviewID = "overview:discover"
-    private static let runTagPrefix = "run:"
+    static let runTagPrefix = "run:"
 
     let project: Project
     let onSwitchProject: () -> Void
@@ -61,6 +61,14 @@ struct ProjectView: View {
         }
     }
 
+    private func sidebarHelp(for run: RunManager.SkillRun) -> String {
+        switch run.status {
+        case .running: return "\(run.skillCommand) is generating this document"
+        case .waitingForInput: return "\(run.skillCommand) needs your input"
+        default: return "\(run.skillCommand) failed"
+        }
+    }
+
     /// Active or failed runs whose artifact isn't on disk yet — shown as
     /// placeholder rows in the phase they will land in.
     private func pendingRuns(for phase: Phase) -> [RunManager.SkillRun] {
@@ -99,9 +107,13 @@ struct ProjectView: View {
                             }
                             ForEach(pending, id: \.expectedRelPath) { run in
                                 HStack(spacing: 6) {
-                                    if run.status == .running {
+                                    switch run.status {
+                                    case .running:
                                         ProgressView().controlSize(.small)
-                                    } else {
+                                    case .waitingForInput:
+                                        Image(systemName: "questionmark.bubble.fill")
+                                            .foregroundStyle(.orange)
+                                    default:
                                         Image(systemName: "exclamationmark.triangle")
                                             .foregroundStyle(.orange)
                                     }
@@ -109,9 +121,7 @@ struct ProjectView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 .tag(Self.runTagPrefix + run.expectedRelPath)
-                                .help(run.status == .running
-                                      ? "\(run.skillCommand) is generating this document"
-                                      : "\(run.skillCommand) failed")
+                                .help(sidebarHelp(for: run))
                             }
                         } header: {
                             Label(phase.rawValue, systemImage: phase.icon)
@@ -126,14 +136,18 @@ struct ProjectView: View {
     @ViewBuilder
     private var detail: some View {
         if selection == Self.discoverOverviewID {
-            DiscoverOverviewView(store: store) { artifactID in
-                selection = artifactID
-            }
+            DiscoverOverviewView(
+                store: store,
+                onOpen: { artifactID in selection = artifactID },
+                onAnswer: { relPath in selection = Self.runTagPrefix + relPath }
+            )
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
                                                  in: project.path) {
-            RunStatusView(run: run)
+            RunSessionView(run: run) { artifactID in
+                self.selection = artifactID
+            }
         } else {
             stateDetail
         }

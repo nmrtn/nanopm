@@ -8,9 +8,13 @@ window needed, no API: all file access goes through background shell commands.
 
 The Discover phase has an **Overview** page: every canonical discovery document
 with its status (generated / running / missing), plus a Run button for
-`/pm-competitors-intel` — executed headlessly (`claude -p`) in a background
+`/pm-competitors-intel` — executed through `claude -p` in a background
 process. The future artifact shows up in the sidebar with a running indicator
-while you keep browsing, and a macOS notification fires when it's ready.
+while you keep browsing. Runs are **interactive**: when the model needs input
+it emits a structured question block; the app notifies you, renders the
+questions natively (choices + free text) alongside the model's messages, and
+resumes the same session (`claude --resume`) with your answers until the
+document is written. A macOS notification fires when it's ready.
 
 This is the proof instrument for the form-factor bet in the nanopm Q3 strategy
 (see [PRD.md](./PRD.md)). It is deliberately minimal and explicitly throwaway —

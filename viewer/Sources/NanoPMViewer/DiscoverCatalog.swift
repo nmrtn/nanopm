@@ -64,7 +64,7 @@ enum DiscoverCatalog {
             blurb: "Competitor changelogs, docs, pricing and product updates — snapshotted, diffed against the last run, reported.",
             icon: "binoculars",
             skillCommand: "/pm-competitors-intel",
-            headlessArgs: "Headless run from NanoPM Viewer: run the intel check on all configured competitors without asking interactive questions. If .nanopm/competitors.json is missing, do not configure anything — exit with a clear error explaining that competitors must be configured once in Claude Code first."
+            headlessArgs: "If .nanopm/competitors.json exists, default to running the intel check on all configured competitors without asking. If it is missing, set it up first by asking the user (via the interface contract) which competitors to monitor and which pages, then write the config and run the check."
         ),
     ]
 }

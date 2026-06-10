@@ -7,6 +7,8 @@ struct DiscoverOverviewView: View {
     @EnvironmentObject private var runManager: RunManager
     /// Called with an artifact id to open it in the detail pane.
     let onOpen: (String) -> Void
+    /// Called with a relative path to open that document's run session.
+    let onAnswer: (String) -> Void
 
     @State private var claudeAvailable: Bool?
 
@@ -34,7 +36,7 @@ struct DiscoverOverviewView: View {
                     row(doc)
                 }
 
-                Text("Runs execute the skill headlessly (`claude -p`) in the project folder — keep the app open while a run is in flight. You can keep browsing; a notification fires when the document is ready.")
+                Text("Runs execute the skill through the `claude` CLI in the project folder — keep the app open while a run is in flight. You can keep browsing; you'll be notified when the model needs your input and when the document is ready.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -50,6 +52,7 @@ struct DiscoverOverviewView: View {
         let artifact = store.artifacts.first { $0.relativePath == doc.relativePath }
         let run = runManager.latestRun(for: doc.relativePath, in: store.project.path)
         let isRunning = run?.status == .running
+        let isWaiting = run?.pendingQuestions.isEmpty == false
 
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: doc.icon)
@@ -83,6 +86,15 @@ struct DiscoverOverviewView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                } else if isWaiting {
+                    Button {
+                        onAnswer(doc.relativePath)
+                    } label: {
+                        Label("Needs your input — answer to continue", systemImage: "questionmark.bubble.fill")
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .tint(.orange)
                 } else if case .failed(let message)? = run?.status {
                     Label(String(message.prefix(120)), systemImage: "exclamationmark.triangle")
                         .font(.caption)
@@ -97,7 +109,12 @@ struct DiscoverOverviewView: View {
             Spacer(minLength: 12)
 
             if doc.skillCommand != nil {
-                if isRunning {
+                if isWaiting {
+                    Button("Answer…") {
+                        onAnswer(doc.relativePath)
+                    }
+                    .tint(.orange)
+                } else if isRunning {
                     Button {} label: {
                         HStack(spacing: 6) {
                             ProgressView().controlSize(.small)
@@ -121,46 +138,5 @@ struct DiscoverOverviewView: View {
     private func checkClaude() async {
         let result = try? await ShellRunner.runAsync("zsh -lc 'command -v claude' 2>/dev/null")
         claudeAvailable = !(result ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-}
-
-/// Detail pane for an in-flight or failed run (the placeholder sidebar rows).
-struct RunStatusView: View {
-    let run: RunManager.SkillRun
-
-    var body: some View {
-        VStack(spacing: 14) {
-            switch run.status {
-            case .running:
-                ProgressView().controlSize(.large)
-                Text("\(run.skillCommand) is running")
-                    .font(.title2.bold())
-                Text("Started \(Text(run.startedAt, style: .relative)) ago.")
-                    .foregroundStyle(.secondary)
-                Text("You can keep browsing — a notification fires when \(run.expectedRelPath) is ready. Keep the app open.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.orange)
-                Text("\(run.skillCommand) failed")
-                    .font(.title2.bold())
-                Text(message)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            case .succeeded:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.green)
-                Text("\(run.expectedRelPath) is ready")
-                    .font(.title2.bold())
-            }
-        }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: 520)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(28)
     }
 }
