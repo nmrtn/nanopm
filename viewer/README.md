@@ -1,10 +1,16 @@
 # NanoPM Viewer
 
-Throwaway macOS prototype: a **read-only** browser for the `.nanopm/` artifacts
-that [nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
+Throwaway macOS prototype for the `.nanopm/` artifacts that
+[nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
 (Claude-Code-style recents), browse artifacts grouped by phase
 (**Discover / Planning / Build**), read them as rendered Markdown. No Claude Code
-window needed, no API: all file access goes through background shell commands.
+window needed, no API: all file *access* goes through background shell commands.
+
+> **Two layers, two trust levels.** The browser is strictly read-only — it never
+> writes to `.nanopm/`. The **run** features below are not: launching a skill
+> spawns the `claude` CLI, which writes artifacts and runs tools on your machine.
+> See [Safety](#safety) and [Requirements](#requirements) before using them or
+> distributing a build.
 
 Each phase (Discover, Planning, Build) has an **Overview** page: every runnable
 skill for that phase with its status (generated / running / waiting / missing)
@@ -56,6 +62,34 @@ swift build
 ```
 
 Prints the phase-mapped artifact list the UI would show, then exits.
+
+## Requirements
+
+- **Browsing** artifacts: nothing beyond the app itself.
+- **Running** skills: the [Claude Code `claude` CLI](https://github.com/nmrtn/nanopm)
+  installed, on your `PATH`, and authenticated. The app resolves it through a
+  login shell. If it's missing, runs fail with a clear message and browsing still
+  works. Note that the prototype's *target* user (non-terminal-native) typically
+  won't have the CLI — the run features are exercisable mainly by terminal-comfortable
+  users, which is worth keeping in mind when reading the form-factor experiment's results.
+
+## Safety
+
+The viewer launches skills by spawning `claude -p` as a background process. That
+process is **not** sandboxed by the app, so its file/tool access is bounded only
+by the permission flags we pass:
+
+- We run with `--permission-mode default` and an explicit `--allowedTools`
+  allow-list (Read/Edit/Write/Glob/Grep/Bash/WebFetch/…) — **never**
+  `bypassPermissions`. Tools off the list are denied.
+- Skills still need `Bash`, and they read untrusted input (artifact text, fetched
+  competitor pages). So a hostile project or a poisoned web page could still
+  influence what a run does. **Only open projects you trust.**
+- The app itself **cannot** adopt the macOS App Sandbox — sandboxing forbids
+  spawning the `claude` subprocess it depends on. For that reason, ad-hoc builds
+  (what `build-app.sh` produces) are **dev-only**. Before handing a build to
+  external testers, sign with a Developer ID + hardened runtime, notarize, and add
+  an explicit in-app consent step the first time a user launches a run.
 
 ## Stack
 

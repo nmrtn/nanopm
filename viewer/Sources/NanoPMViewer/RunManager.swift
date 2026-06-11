@@ -128,6 +128,24 @@ final class RunManager: ObservableObject {
     created instead.
     """
 
+    // MARK: - Permission posture
+    //
+    // We deliberately do NOT use `--permission-mode bypassPermissions`. Bypass
+    // auto-approves *every* tool call — arbitrary Bash, file writes anywhere, MCP
+    // calls — with no gate. Because skills read untrusted input (artifact text,
+    // fetched competitor pages), a bypassed run turns a prompt-injection into
+    // straight code execution on the user's machine.
+    //
+    // Instead we run in the default permission mode with an explicit allow-list
+    // scoped to what the pm-* skills actually need. Tools off this list are
+    // denied (headless print mode can't prompt). This BOUNDS — it does not
+    // eliminate — the blast radius: the skills genuinely need Bash (their
+    // preambles source nanopm.sh and probe files), so a hostile project can
+    // still do damage. Treat the projects you open as trusted, and see the
+    // Safety section in README.md before distributing builds.
+    static let permissionMode = "default"
+    static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch TodoWrite Task"
+
     func runs(in projectPath: String) -> [SkillRun] {
         runs.filter { $0.projectPath == projectPath }
     }
@@ -183,7 +201,9 @@ final class RunManager: ObservableObject {
         runs[index].turnCount += 1
         let turn = runs[index].turnCount
 
-        var cli = "claude --permission-mode bypassPermissions --output-format stream-json --verbose"
+        var cli = "claude --permission-mode \(Self.permissionMode)"
+        cli += " --allowedTools \(ShellRunner.quote(Self.allowedTools))"
+        cli += " --output-format stream-json --verbose"
         if let resumeSession {
             cli += " --resume \(ShellRunner.quote(resumeSession))"
         }
@@ -246,9 +266,9 @@ final class RunManager: ObservableObject {
 
         guard let terminal else {
             let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            applyFailure(runID, message: detail.isEmpty
-                         ? "claude exited \(exitCode) with no result event"
-                         : String(detail.suffix(400)))
+            applyFailure(runID, message: Self.diagnose(detail, exitCode: exitCode)
+                         ?? (detail.isEmpty ? "claude exited \(exitCode) with no result event"
+                                            : String(detail.suffix(400))))
             return
         }
 
@@ -263,9 +283,9 @@ final class RunManager: ObservableObject {
         }
 
         if terminal.isError || exitCode != 0 {
-            applyFailure(runID, message: visibleText.isEmpty
-                         ? "claude exited \(exitCode)"
-                         : String(visibleText.suffix(400)))
+            applyFailure(runID, message: Self.diagnose(visibleText, exitCode: exitCode)
+                         ?? (visibleText.isEmpty ? "claude exited \(exitCode)"
+                                                 : String(visibleText.suffix(400))))
         } else if !questions.isEmpty {
             runs[index].status = .waitingForInput(questions)
             Notifier.send(
@@ -289,6 +309,32 @@ final class RunManager: ObservableObject {
         completionTick += 1
         Notifier.send(title: "\(runs[index].skillCommand) failed",
                       body: String(message.prefix(160)))
+    }
+
+    /// Map a known fatal-error signature to an actionable message. Returns nil
+    /// when the text isn't a recognized case (caller falls back to the raw tail).
+    /// The two cases the target user actually hits: the CLI isn't installed, and
+    /// the CLI is installed but can't authenticate (seen live: a managed org that
+    /// disables Claude Code subscription access and has no API key in the shell).
+    nonisolated static func diagnose(_ text: String, exitCode: Int32) -> String? {
+        let t = text.lowercased()
+        if exitCode == 127
+            || t.contains("command not found")
+            || t.contains("claude: not found") {
+            return "The `claude` CLI wasn't found on your PATH. Running skills needs "
+                + "Claude Code installed and authenticated; browsing existing artifacts "
+                + "works without it."
+        }
+        if t.contains("disabled claude subscription")
+            || t.contains("use an anthropic api key")
+            || t.contains("invalid api key")
+            || (t.contains("authentication") && t.contains("api key")) {
+            return "Claude Code couldn't authenticate. Runs need either Claude Code "
+                + "subscription access enabled for your organization, or an "
+                + "`ANTHROPIC_API_KEY` available to the shell the app launches from "
+                + "(set it in ~/.zprofile, then relaunch). Browsing works without it."
+        }
+        return nil
     }
 
     // MARK: - Stream parsing
