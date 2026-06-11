@@ -121,8 +121,6 @@ Complete all phases of pm-audit through **Phase 7: Save context**.
 
 After pm-audit completes: "✅ Audit complete. Moving to objectives..."
 
-If user chose B: stop here. Output: "Pipeline stopped after audit. Run /pm-objectives to continue."
-
 ## Phase 4: Run pm-objectives inline
 
 Read and follow `$(nanopm_skill_path pm-objectives)` inline, skipping:
