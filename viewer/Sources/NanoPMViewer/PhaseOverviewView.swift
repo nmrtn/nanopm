@@ -1,0 +1,176 @@
+import SwiftUI
+
+/// Recap page for a phase: every runnable skill, its status
+/// (generated / running / waiting / missing), and a Run action. Shared by
+/// Discover, Planning, and Build.
+struct PhaseOverviewView: View {
+    let phase: Phase
+    @ObservedObject var store: ArtifactStore
+    @EnvironmentObject private var runManager: RunManager
+    /// Open a route — an artifact id, a folder page, or a run session.
+    let onOpen: (String) -> Void
+    let onAnswer: (String) -> Void
+
+    @State private var claudeAvailable: Bool?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(phase.rawValue, systemImage: phase.icon)
+                        .font(.largeTitle.bold())
+                    Text(SkillCatalog.subtitle(for: phase))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                if claudeAvailable == false {
+                    Label("The `claude` CLI was not found in your shell PATH — run actions are disabled.",
+                          systemImage: "exclamationmark.triangle")
+                        .font(.callout)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.yellow.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                }
+
+                ForEach(SkillCatalog.docs(for: phase)) { doc in
+                    row(doc)
+                }
+
+                Text("Runs execute the skill through the `claude` CLI in the project folder — keep the app open while a run is in flight. You can keep browsing; you'll be notified when the model needs your input and when the document is ready.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(28)
+            .frame(maxWidth: 860, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .task { await checkClaude() }
+    }
+
+    @ViewBuilder
+    private func row(_ doc: SkillDoc) -> some View {
+        let run = runManager.latestRun(for: doc.trackingPath, in: store.project.path)
+        let isRunning = run?.status == .running
+        let isWaiting = run?.pendingQuestions.isEmpty == false
+
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: doc.icon)
+                .font(.title3)
+                .frame(width: 34, height: 34)
+                .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(doc.title).font(.headline)
+                Text(doc.blurb)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                statusLine(doc, run: run, isRunning: isRunning, isWaiting: isWaiting)
+            }
+
+            Spacer(minLength: 12)
+
+            if doc.skillCommand != nil {
+                if isWaiting {
+                    Button("Answer…") { onAnswer(doc.trackingPath) }
+                        .tint(.orange)
+                } else if isRunning {
+                    Button {} label: {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text("Running…")
+                        }
+                    }
+                    .disabled(true)
+                } else {
+                    Button("Run") { runManager.launch(doc, in: store.project.path) }
+                        .disabled(claudeAvailable == false)
+                        .help("Runs \(doc.skillCommand ?? "") headlessly in \(store.project.name)")
+                }
+            }
+        }
+        .padding(14)
+        .background(.quinary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func statusLine(_ doc: SkillDoc, run: RunManager.SkillRun?,
+                            isRunning: Bool, isWaiting: Bool) -> some View {
+        if isRunning, let run {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Generating — started \(Text(run.startedAt, style: .relative)) ago")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if isWaiting {
+            Button {
+                onAnswer(doc.trackingPath)
+            } label: {
+                Label("Needs your input — answer to continue", systemImage: "questionmark.bubble.fill")
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+            .tint(.orange)
+        } else {
+            outputStatus(doc)
+            if case .failed(let message)? = run?.status {
+                Label(String(message.prefix(120)), systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    /// Status driven by what the skill produces.
+    @ViewBuilder
+    private func outputStatus(_ doc: SkillDoc) -> some View {
+        switch doc.output {
+        case .file(let path):
+            if let artifact = store.artifacts.first(where: { $0.relativePath == path }) {
+                openLink(artifact.fileName, route: artifact.id,
+                         subtitle: "updated \(artifact.modifiedAt.formatted(.relative(presentation: .named)))")
+            } else {
+                notYet
+            }
+        case .folder(let prefix, let opens):
+            let count = store.artifacts.filter { $0.relativePath.hasPrefix(prefix) }.count
+            if count > 0 {
+                openLink(count == 1 ? "1 document" : "\(count) documents", route: opens, subtitle: nil)
+            } else {
+                notYet
+            }
+        case .handoff(let note):
+            Text(note)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func openLink(_ label: String, route: String, subtitle: String?) -> some View {
+        HStack(spacing: 6) {
+            Button { onOpen(route) } label: {
+                Label(label, systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(.link)
+            if let subtitle {
+                Text("· \(subtitle)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var notYet: some View {
+        Text("Not generated yet")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+    }
+
+    private func checkClaude() async {
+        let result = try? await ShellRunner.runAsync("zsh -lc 'command -v claude' 2>/dev/null")
+        claudeAvailable = !(result ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
