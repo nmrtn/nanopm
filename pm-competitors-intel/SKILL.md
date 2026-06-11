@@ -37,6 +37,17 @@ nanopm_context_read pm-competitors-intel
 
 If a prior entry exists, show: "Last intel run: {ts}. Checking for changes since then."
 
+Check for the Define context docs — they let the report compare us-vs-them on *real* positioning instead of a guess:
+
+```bash
+[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+[ -f ".nanopm/PRODUCT.md"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
+```
+
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. Frame competitor pricing/packaging changes against *our own* model and GTM motion in the Strategic implications, not in the abstract.
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Compare competitor feature/API moves against *what we actually ship* so "closes the gap" / "opens the gap" calls are grounded in our real product surface. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: comparing against a draft product concept." Both reads are advisory — if a doc is absent, proceed without it.
+
 ## Phase 1: Load or create competitors config
 
 ```bash

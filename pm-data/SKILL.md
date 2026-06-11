@@ -49,9 +49,12 @@ Check for prior DATA.md — if it exists, show a one-line summary of the last an
 [ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
 [ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
 [ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
+[ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 
 If AUDIT_EXISTS: scan for "biggest gap" or "question you're avoiding" — suggest turning those into data questions if the user hasn't specified one.
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Use it to *ground which events and features the metrics refer to* — map the question's funnel steps and key events onto the real product surfaces and core workflow before querying, so the analysis measures the right behavior. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept."
 
 ## Phase 1: Define the question
 

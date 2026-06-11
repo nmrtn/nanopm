@@ -3,7 +3,7 @@
 Throwaway macOS prototype for the `.nanopm/` artifacts that
 [nanopm](https://github.com/nmrtn/nanopm) generates — pick a project
 (Claude-Code-style recents), browse artifacts grouped by phase
-(**Discover / Planning / Build**), read them as rendered Markdown. No Claude Code
+(**Define / Discover / Planning / Build**), read them as rendered Markdown. No Claude Code
 window needed, no API: all file *access* goes through background shell commands.
 
 > **Two layers, two trust levels.** The browser is strictly read-only — it never
@@ -12,10 +12,11 @@ window needed, no API: all file *access* goes through background shell commands.
 > See [Safety](#safety) and [Requirements](#requirements) before using them or
 > distributing a build.
 
-Each phase (Discover, Planning, Build) has an **Overview** page: every runnable
+Each phase (Define, Discover, Planning, Build) has an **Overview** page: every runnable
 skill for that phase with its status (generated / running / waiting / missing)
-and a Run button — Discover (`/pm-user-feedback`, `/pm-data`, `/pm-scan`,
-`/pm-audit`, `/pm-discovery`, `/pm-competitors-intel`), Planning
+and a Run button — Define (`/pm-vision-mission`, `/pm-business-model`, `/pm-org`,
+`/pm-product`, `/pm-personas`, `/pm-audit`), Discover (`/pm-user-feedback`,
+`/pm-data`, `/pm-discovery`, `/pm-competitors-intel`), Planning
 (`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`), Build (`/pm-prd`,
 `/pm-breakdown`) — executed through `claude -p` in a background process. The future artifact shows up in the sidebar with a running indicator
 while you keep browsing. Runs are **interactive**: when the model needs input

@@ -52,9 +52,12 @@ Read upstream artifacts:
 [ -f ".nanopm/STRATEGY.md"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
 [ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/PRODUCT.md"    ] && echo "PRODUCT_EXISTS"    || echo "PRODUCT_MISSING"
 ```
 
 Read any that exist. A roadmap without strategy is a to-do list. Warn if STRATEGY.md is missing.
+
+**If PRODUCT.md exists:** read it. Sequence items *realistically against the current product* — what's already built dictates ordering, dependencies, and effort estimates, so anchor NOW/NEXT on real surfaces rather than greenfield assumptions. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
 
 **If PERSONAS.md exists:** read it. Every NOW/NEXT item should serve the **primary persona** — for each item, the implicit question is "which persona does this help, and how?" Items that only serve the anti-persona are prime candidates for LATER or for cutting. Flag any NOW item that doesn't map to a persona.
 

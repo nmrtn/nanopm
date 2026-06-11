@@ -130,6 +130,7 @@ struct ProjectView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selection) {
+                phaseGroup(.define)
                 phaseGroup(.discover)
                 phaseGroup(.plan)
                 phaseGroup(.ship)

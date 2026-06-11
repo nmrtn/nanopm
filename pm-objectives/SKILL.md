@@ -49,12 +49,18 @@ Key things to extract:
 ## Phase 1: Context check
 
 ```bash
-[ -f ".nanopm/AUDIT.md"     ] && echo "AUDIT_EXISTS"     || echo "AUDIT_MISSING"
-[ -f ".nanopm/PERSONAS.md"  ] && echo "PERSONAS_EXISTS"  || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"  ] && echo "FEEDBACK_EXISTS"  || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/AUDIT.md"          ] && echo "AUDIT_EXISTS"          || echo "AUDIT_MISSING"
+[ -f ".nanopm/PERSONAS.md"       ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
+[ -f ".nanopm/FEEDBACK.md"       ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/VISION-MISSION.md" ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
+[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 ```
 
 **If AUDIT.md exists:** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
+
+**If VISION_MISSION_EXISTS:** read `.nanopm/VISION-MISSION.md`. Objectives must *ladder up to the mission* — every objective should be a measurable step toward the stated mission/vision. Flag any objective that doesn't connect to it.
+
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. Objectives should target *what moves the business* — bias the KRs toward the metrics the business model says matter (revenue, activation, the core GTM motion), not vanity goals. Both reads are advisory — if a doc is absent, proceed without it.
 
 **If PERSONAS.md exists:** Read it. Objectives exist to move the **primary persona** toward their job-to-be-done — every objective should plausibly improve that persona's outcome. If an objective serves nobody in PERSONAS.md (or only the anti-persona), that's a signal it's a vanity goal — challenge it before writing it.
 

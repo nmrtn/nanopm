@@ -94,7 +94,10 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 **Planning pipeline:**
 ```
 /pm-run              → full pipeline in one command
-/pm-scan             → read an existing codebase to understand what it actually does before planning
+/pm-vision-mission   → define mission, vision, values, and company stage
+/pm-business-model   → define business model, pricing, packaging, and GTM motion
+/pm-org              → map the org, key roles, and decision-makers
+/pm-product          → deep product map — reads code + the public site, or interviews you when greenfield
 /pm-personas         → define who you're building for — JTBD personas + an explicit anti-persona
 /pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
 /pm-audit            → brutal honest assessment of product, user, and biggest gap
@@ -122,42 +125,50 @@ The pipeline compounds. Every skill also works standalone.
 
 ## Pipeline
 
-nanopm runs in three zones. Signal in. Planning cycle. Delivery out.
+nanopm runs in four zones. Context first. Signal in. Planning cycle. Delivery out.
 
 | Zone | Skills | Purpose |
 |---|---|---|
-| **1. Inputs** | `/pm-scan` · `/pm-personas` · `/pm-discovery` · `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull signal: codebase, users, analytics, competitors |
-| **2. Pipeline** | `/pm-audit` → `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Six skills run in sequence; each reads typed state from the prior |
-| **3. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
+| **1. Define** | `/pm-vision-mission` · `/pm-business-model` · `/pm-org` · `/pm-product` · `/pm-personas` · `/pm-audit` | Establish company + product context: the business, the org, who it's for, the product map, a first critical read |
+| **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull the three external signals: user research, analytics, market |
+| **3. Pipeline** | `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Skills run in sequence; each reads typed state from the prior |
+| **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
 
 ---
 
-### 1. Inputs — where signal comes from
+### 1. Define — establish company + product context
 
-Each input skill produces an artifact the pipeline reads. They're independent. Run only the ones you have data for.
+Each Define skill produces a reusable context artifact downstream skills read. Dual-mode: reverse-engineer from code + the public site when material exists, interview from scratch when greenfield. Run the ones you have material for.
 
-- **`/pm-scan`** — reads your codebase (routes, models, tests, git history) → `SCAN.md`. Use when joining an existing project.
-- **`/pm-personas`** — defines who you're building for → `PERSONAS.md`. Reverse-engineers personas from the codebase and prior artifacts when they exist, or interviews you from scratch when the repo is empty. JTBD proto-personas + an explicit anti-persona.
-- **`/pm-discovery`** — opportunity mapping for pre-product or pivots → `DISCOVERY.md`. Use when you don't yet know what to build.
+- **`/pm-vision-mission`** — mission, vision, values, company stage → `VISION-MISSION.md`.
+- **`/pm-business-model`** — business model, pricing, packaging, GTM motion → `BUSINESS-MODEL.md`.
+- **`/pm-org`** — org map, key roles, decision-makers → `ORG.md`.
+- **`/pm-product`** — deep product map → `PRODUCT.md`. Dual-mode: for an existing product it reads the codebase (routes, models, tests, git history) plus the public site and positioning; for greenfield it interviews you to define the product concept from scratch. Reads `openspec/specs/` when present.
+- **`/pm-personas`** — defines who you're building for → `PERSONAS.md`. Reverse-engineers personas from `PRODUCT.md` and prior artifacts when they exist, or interviews you from scratch when the repo is empty. JTBD proto-personas + an explicit anti-persona.
+- **`/pm-audit`** — brutal honest read → `AUDIT.md`. Reads `PRODUCT.md` + the company docs, then surfaces the biggest gap and the question you're avoiding. The adversarial gate writes a typed `question` decision.
+
+### 2. Discover — the three external signals
+
+Each signal skill produces an artifact the pipeline reads. They're independent. Run only the ones you have data for.
+
 - **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `FEEDBACK.md`. Clusters themes, surfaces top unaddressed signal.
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
 - **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by audit and PRD.
 - **`/pm-competitors-intel`** — snapshots competitor pages, diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`.
 
-### 2. Pipeline — the planning cycle
+### 3. Pipeline — the planning cycle
 
-Each skill writes a markdown artifact for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone.
+Each skill writes a markdown artifact for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone. (The first critical read, `/pm-audit`, lands in Define — see zone 1.)
 
-1. **`/pm-audit`** → `.nanopm/AUDIT.md` — what you're actually building, who for, the biggest gap. The adversarial gate writes a typed `question` decision (`kind=question, source=adversarial`).
-2. **`/pm-objectives`** → `.nanopm/OBJECTIVES.md` — OKRs with anti-goals and measurable KRs anchored to top signal.
-3. **`/pm-strategy`** → `.nanopm/STRATEGY.md` — the bet, the risk, what you're saying no to. Adversarial review forces a falsifiable claim. Writes typed `bet` and `scope-out` decisions.
-4. **`/pm-roadmap`** → `.nanopm/ROADMAP.md` — NOW/NEXT/LATER, Shape Up bets, or Scrum sprints. The gate writes one typed `target` per committed item (each must contain segment, behavior, metric, timeframe).
-5. **`/pm-prd`** → `.nanopm/prds/{feature}.md` — full PRD or Shape Up pitch. Required Falsification section, gated on 4 elements. Writes a typed `bet` decision + a `prd` status record.
-6. **`/pm-breakdown`** — tasks + handoff. See zone 3.
+1. **`/pm-objectives`** → `.nanopm/OBJECTIVES.md` — OKRs with anti-goals and measurable KRs anchored to top signal.
+2. **`/pm-strategy`** → `.nanopm/STRATEGY.md` — the bet, the risk, what you're saying no to. Adversarial review forces a falsifiable claim. Writes typed `bet` and `scope-out` decisions.
+3. **`/pm-roadmap`** → `.nanopm/ROADMAP.md` — NOW/NEXT/LATER, Shape Up bets, or Scrum sprints. The gate writes one typed `target` per committed item (each must contain segment, behavior, metric, timeframe).
+4. **`/pm-prd`** → `.nanopm/prds/{feature}.md` — full PRD or Shape Up pitch. Required Falsification section, gated on 4 elements. Writes a typed `bet` decision + a `prd` status record.
+5. **`/pm-breakdown`** — tasks + handoff. See zone 4.
 
 State lives in `~/.nanopm/projects/{slug}/{type}.jsonl` (typed, schema-validated). The next skill reads from there.
 
-### 3. Handoffs — where work lands
+### 4. Handoffs — where work lands
 
 `/pm-breakdown` writes the tasks to one of six peer targets. No preferred default. See the [Handoffs](#handoffs) section below for the full per-target output spec.
 
@@ -282,7 +293,7 @@ nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the br
 
 **GitHub Issues** — issues in the repo via MCP or `GITHUB_TOKEN`. Body links the PRD and embeds acceptance.
 
-**OpenSpec** — writes `openspec/changes/{feature}/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/{feature}/spec.md` (requirements as SHALL statements). Pick this up with `/opsx:apply` to implement. If your repo already uses OpenSpec, `/pm-scan` will read `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
+**OpenSpec** — writes `openspec/changes/{feature}/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/{feature}/spec.md` (requirements as SHALL statements). Pick this up with `/opsx:apply` to implement. If your repo already uses OpenSpec, `/pm-product` will read `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
 
 **gstack** — writes `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` with a `status: ACTIVE` frontmatter. Pick this up in a [gstack](https://github.com/garrytan/gstack) session with `/plan-ceo-review` or `/autoplan` — the file is read directly from gstack's plan glob.
 

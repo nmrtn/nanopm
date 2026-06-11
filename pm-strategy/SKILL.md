@@ -47,11 +47,20 @@ nanopm_context_all
 Read upstream artifacts if they exist:
 
 ```bash
-[ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
-[ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
-[ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/AUDIT.md"          ] && echo "AUDIT_EXISTS"          || echo "AUDIT_MISSING"
+[ -f ".nanopm/OBJECTIVES.md"     ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
+[ -f ".nanopm/PERSONAS.md"       ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
+[ -f ".nanopm/FEEDBACK.md"       ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/VISION-MISSION.md" ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
+[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+[ -f ".nanopm/PRODUCT.md"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
 ```
+
+**If VISION_MISSION_EXISTS:** read `.nanopm/VISION-MISSION.md`. The strategy must *serve the mission* — the bet should be a credible step toward the stated mission/vision, not a detour from it. If the bet pulls away from the mission, name that tension explicitly.
+
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. The strategy must *win commercially* — pressure-test the bet against the business model, pricing, and GTM motion. A bet that grows usage but doesn't move the business is incomplete; say how it pays off.
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. The strategy must *fit what exists* — ground the position and "How we win" in the current product map, not an imagined product. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept." All three reads are advisory — if a doc is absent, proceed without it.
 
 **If FEEDBACK.md exists:** read it before drafting strategy. The top unaddressed signal is the most grounded input you have — the bet should either address it directly or explicitly explain why it doesn't. A strategy that ignores the loudest user signal is a strategy with a named gap.
 

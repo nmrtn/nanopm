@@ -81,6 +81,17 @@ Check for DATA.md — quantitative analytics from /pm-data:
 - Retention or usage metrics → use as baseline targets in Success Criteria
 - Cite only 🟢 high-confidence metrics — don't use 🔴 low-confidence numbers as facts in a PRD
 
+Check for the Define context docs — they ground the feature against the real product and how it's sold:
+
+```bash
+[ -f ".nanopm/PRODUCT.md"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
+[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+```
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Scope `_FEATURE` against *what's already built* — reuse existing surfaces and workflows rather than inventing them, and put the feature's dependencies on real product capabilities into the Requirements/Dependencies sections. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
+
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. Scope `_FEATURE` against *pricing and packaging* — note which tier/plan it belongs in and whether it affects the GTM motion, so the spec is commercially coherent. Both reads are advisory — if a doc is absent, proceed without it.
+
 Check for FEEDBACK.md first — it's the pre-synthesized source that already aggregates Dovetail, Productboard, and other sources:
 
 ```bash
