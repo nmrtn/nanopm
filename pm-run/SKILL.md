@@ -29,20 +29,24 @@ nanopm_preamble
 `/pm-run` runs the full PM planning pipeline in sequence:
 
 ```
-/pm-user-feedback → /pm-personas → /pm-audit → /pm-objectives → /pm-strategy → /pm-roadmap → /pm-prd
+[Define]   /pm-vision-mission → /pm-business-model → /pm-org → /pm-product
+[Discover] /pm-user-feedback
+[Define]   /pm-personas → /pm-audit
+[Plan]     /pm-objectives → /pm-strategy → /pm-roadmap
+[Build]    /pm-prd
 ```
 
-Each skill compounds on the last. Feedback grounds the audit in real user signal. Personas crystallize who you're building for, sharpening the audit's "who for" and every downstream prioritization. The audit informs objectives. The strategy shapes the roadmap. The PRD flows from the roadmap, targets the primary persona, and quotes directly from user feedback.
+Each skill compounds on the last. **Define** establishes the ground truth first — the company (vision, business model, org) and the product map. Feedback grounds everything in real user signal. Personas crystallize who you're building for; the audit forms the first judgment against the now-stated context. Objectives, strategy, and roadmap plan on top; the PRD flows from the roadmap, targets the primary persona, and quotes user feedback.
 
 This skill orchestrates the pipeline inline — you don't need to manually invoke each skill.
 
-If you're not sure what to build yet, run `/pm-discovery` first. `/pm-run` assumes you know the product direction.
+Establishing Define context first is the **strong default, not a gate** — you can skip it (Phase 0b) and the pipeline still runs, with downstream skills warning when context is thin. Each Define skill auto-detects its mode (map an existing codebase/site vs. define from scratch), so the same flow works whether you have a product or are starting greenfield. For deeper opportunity exploration before planning, `/pm-discovery` remains available separately.
 
 ## Phase 0: Check existing artifacts
 
 ```bash
 echo "=== Existing artifacts ==="
-[ -f ".nanopm/SCAN.md"       ] && echo "  SCAN.md       ✓" || echo "  SCAN.md       (none)"
+[ -f ".nanopm/PRODUCT.md"    ] && echo "  PRODUCT.md    ✓" || echo "  PRODUCT.md    (will create)"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
 [ -f ".nanopm/PERSONAS.md"   ] && echo "  PERSONAS.md   ✓" || echo "  PERSONAS.md   (will create)"
 [ -f ".nanopm/AUDIT.md"      ] && echo "  AUDIT.md      ✓" || echo "  AUDIT.md      (will create)"
@@ -55,23 +59,28 @@ echo "========================="
 
 If any artifacts already exist, tell the user: "Existing artifacts found — this run will refresh them. Prior context is preserved in memory and will inform the new outputs."
 
-## Phase 0b: Starting point
+## Phase 0b: Establish Define context (advisory)
 
-**Skip this phase if** SCAN.md, AUDIT.md, or DISCOVERY.md already exist — context is established, proceed to Phase 1.
+The **Define** phase establishes the ground truth the rest of the pipeline reads — the company
+(vision/mission, business model, org) and the product map. This is the strong default but **not a
+gate**: the user can skip it. Each Define skill auto-detects its mode, so this works for an existing
+product or a greenfield idea.
 
-**If none exist**, ask via AskUserQuestion before anything else.
+**Skip this phase if** PRODUCT.md already exists — Define context is established, proceed to Phase 1.
 
-- **question:** "How are you starting?"
+**If PRODUCT.md is missing**, ask via AskUserQuestion before anything else.
+
+- **question:** "Start by establishing your company & product context? (Recommended — the rest of the pipeline plans on top of it.)"
 - **header:** `Start` (must be ≤12 chars — Mistral Vibe constraint)
 - **multiSelect:** false
 - **options:**
-  - A) "Existing project" — code already exists. Run pm-scan first.
-  - B) "Greenfield" — nothing built. Run pm-discovery first.
-  - C) "Skip to audit" — I know what I'm building.
+  - A) "Yes, establish context" (Recommended) — run the Define skills first.
+  - B) "Just the product map" — run only `/pm-product`, skip the company docs.
+  - C) "Skip — I'll plan directly" — jump to the pipeline; downstream skills warn if context is thin.
 
-If A: run pm-scan inline (read and follow `$(nanopm_skill_path pm-scan)`, skipping its preamble) before Phase 2. After scan completes: "✅ Codebase scanned. Moving to feedback..."
-If B: run pm-discovery inline (read and follow `$(nanopm_skill_path pm-discovery)`, skipping its preamble) before Phase 2. After discovery completes: "✅ Discovery done. Moving to feedback..."
-If C: proceed directly to Phase 1.
+If A: run inline, in order, skipping each one's "Preamble (run first)": `$(nanopm_skill_path pm-vision-mission)`, `$(nanopm_skill_path pm-business-model)`, `$(nanopm_skill_path pm-org)`, then `$(nanopm_skill_path pm-product)`. After each: "✅ {DOC}.md written." Then: "✅ Define context established. Moving to feedback..."
+If B: run only `$(nanopm_skill_path pm-product)` inline (skip its preamble). After it completes: "✅ Product mapped. Moving to feedback..."
+If C: proceed directly to Phase 1. (Personas + audit in Phases 2b/3 still run; they degrade gracefully without the company docs.)
 
 ## Phase 1: Confirm pipeline
 
@@ -108,7 +117,7 @@ If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-pe
 Read and follow `$(nanopm_skill_path pm-personas)` inline, skipping:
 - Its own "Preamble (run first)" (already sourced above)
 
-pm-personas auto-detects its mode: it reverse-engineers the personas from the codebase plus any artifacts already produced this run (FEEDBACK.md, and SCAN.md / DISCOVERY.md if present), then confirms them with you. Complete all phases through **save context**.
+pm-personas auto-detects its mode: it reverse-engineers the personas from the codebase plus any artifacts already produced this run (PRODUCT.md and FEEDBACK.md, and DISCOVERY.md if present), then confirms them with you. Complete all phases through **save context**.
 
 After pm-personas completes: "✅ Personas defined. Moving to audit..."
 
