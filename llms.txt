@@ -46,7 +46,10 @@ Each skill also works standalone.
 
 **Planning pipeline:**
 - `/pm-run` — full pipeline in one command
-- `/pm-scan` — read an existing codebase to understand what it does before planning
+- `/pm-vision-mission` — define mission, vision, values, and company stage → VISION-MISSION.md
+- `/pm-business-model` — define business model, pricing, packaging, and GTM motion → BUSINESS-MODEL.md
+- `/pm-org` — map the org, key roles, and decision-makers → ORG.md
+- `/pm-product` — deep product map: reads code + the public site for existing products, or interviews you for greenfield → PRODUCT.md
 - `/pm-personas` — define who you're building for — JTBD personas + an explicit anti-persona
 - `/pm-discovery` — figure out WHAT to build before planning HOW (pre-product / greenfield)
 - `/pm-audit` — brutal honest assessment of product, user, and biggest gap

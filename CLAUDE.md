@@ -7,6 +7,10 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | Skill | Command | Purpose |
 |-------|---------|---------|
 | pm-run | `/pm-run` | Full pipeline in one command |
+| pm-vision-mission | `/pm-vision-mission` | Define mission/vision/values/stage → VISION-MISSION.md |
+| pm-business-model | `/pm-business-model` | Define business model, pricing, GTM → BUSINESS-MODEL.md |
+| pm-org | `/pm-org` | Map the org, roles, decision-makers → ORG.md |
+| pm-product | `/pm-product` | Deep product map — from code + site, or interview if greenfield → PRODUCT.md |
 | pm-personas | `/pm-personas` | Define WHO you're building for — JTBD personas + anti-persona |
 | pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery |
 | pm-audit | `/pm-audit` | Deep product audit |
@@ -22,6 +26,8 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-data | `/pm-data` | Answer a product question with PostHog or Amplitude data |
 
 ## Architecture
+
+Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas, audit) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro).
 
 All skills source `lib/nanopm.sh` for shared runtime functions.
 State: `~/.nanopm/` (global config + memory), `.nanopm/` (per-project outputs, gitignored).
