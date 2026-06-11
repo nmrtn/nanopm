@@ -128,6 +128,24 @@ final class RunManager: ObservableObject {
     created instead.
     """
 
+    // MARK: - Permission posture
+    //
+    // We deliberately do NOT use `--permission-mode bypassPermissions`. Bypass
+    // auto-approves *every* tool call — arbitrary Bash, file writes anywhere, MCP
+    // calls — with no gate. Because skills read untrusted input (artifact text,
+    // fetched competitor pages), a bypassed run turns a prompt-injection into
+    // straight code execution on the user's machine.
+    //
+    // Instead we run in the default permission mode with an explicit allow-list
+    // scoped to what the pm-* skills actually need. Tools off this list are
+    // denied (headless print mode can't prompt). This BOUNDS — it does not
+    // eliminate — the blast radius: the skills genuinely need Bash (their
+    // preambles source nanopm.sh and probe files), so a hostile project can
+    // still do damage. Treat the projects you open as trusted, and see the
+    // Safety section in README.md before distributing builds.
+    static let permissionMode = "default"
+    static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch TodoWrite Task"
+
     func runs(in projectPath: String) -> [SkillRun] {
         runs.filter { $0.projectPath == projectPath }
     }
@@ -183,7 +201,9 @@ final class RunManager: ObservableObject {
         runs[index].turnCount += 1
         let turn = runs[index].turnCount
 
-        var cli = "claude --permission-mode bypassPermissions --output-format stream-json --verbose"
+        var cli = "claude --permission-mode \(Self.permissionMode)"
+        cli += " --allowedTools \(ShellRunner.quote(Self.allowedTools))"
+        cli += " --output-format stream-json --verbose"
         if let resumeSession {
             cli += " --resume \(ShellRunner.quote(resumeSession))"
         }
@@ -246,6 +266,18 @@ final class RunManager: ObservableObject {
 
         guard let terminal else {
             let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            // The most common failure for the target (non-terminal-native) user
+            // is simply not having the Claude CLI installed/authenticated. A bare
+            // "exited 127" is opaque — name the actual dependency.
+            let claudeMissing = exitCode == 127
+                || detail.localizedCaseInsensitiveContains("command not found")
+                || detail.localizedCaseInsensitiveContains("claude: not found")
+            if claudeMissing {
+                applyFailure(runID, message: "The `claude` CLI wasn't found on your PATH. "
+                             + "Running skills needs Claude Code installed and authenticated; "
+                             + "browsing existing artifacts works without it.")
+                return
+            }
             applyFailure(runID, message: detail.isEmpty
                          ? "claude exited \(exitCode) with no result event"
                          : String(detail.suffix(400)))

@@ -32,3 +32,7 @@ PLIST
 
 codesign --force -s - "$APP_DIR" 2>/dev/null || true
 echo "Built: $APP_DIR"
+echo "NOTE: ad-hoc signed, not sandboxed, not notarized — DEV USE ONLY."
+echo "      Runs spawn the 'claude' CLI on your machine. Before distributing to"
+echo "      external testers: Developer ID + hardened runtime + notarization +"
+echo "      an in-app run-consent step. See viewer/README.md -> Safety."
