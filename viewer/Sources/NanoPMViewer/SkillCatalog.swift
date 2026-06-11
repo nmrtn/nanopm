@@ -57,7 +57,8 @@ enum SkillCatalog {
     /// One-line intro shown under each phase overview title.
     static func subtitle(for phase: Phase) -> String {
         switch phase {
-        case .discover: return "Signal, research & audits — what's true about your users and your product, before you plan."
+        case .define: return "Company & product context — map the terrain (vision, business, org, product, personas) and form a first read, before you plan."
+        case .discover: return "The three external signals — market, user research, and data — before you plan."
         case .plan: return "Objectives, strategy, and roadmap — decide what to build and why."
         case .ship: return "Specs and handoff — turn the plan into PRDs and engineering tickets."
         case .other: return ""
@@ -65,6 +66,56 @@ enum SkillCatalog {
     }
 
     static let all: [SkillDoc] = [
+        // MARK: Define
+        SkillDoc(
+            title: "Vision & Mission",
+            blurb: "Mission, vision, values, and company stage — the north star every downstream decision ladders up to.",
+            icon: "flag",
+            skillCommand: "/pm-vision-mission",
+            headlessArgs: nil,
+            phase: .define, output: .file("VISION-MISSION.md")
+        ),
+        SkillDoc(
+            title: "Business Model",
+            blurb: "How the company makes money — business model, pricing, packaging, and go-to-market motion.",
+            icon: "dollarsign.circle",
+            skillCommand: "/pm-business-model",
+            headlessArgs: nil,
+            phase: .define, output: .file("BUSINESS-MODEL.md")
+        ),
+        SkillDoc(
+            title: "Org",
+            blurb: "The org map — key roles, teams, and the decision-makers you'll need to align.",
+            icon: "person.3",
+            skillCommand: "/pm-org",
+            headlessArgs: nil,
+            phase: .define, output: .file("ORG.md")
+        ),
+        SkillDoc(
+            title: "Product",
+            blurb: "Deep product map — surface area, features, core workflows. Reads the code and the public site.",
+            icon: "doc.text.magnifyingglass",
+            skillCommand: "/pm-product",
+            headlessArgs: nil,
+            phase: .define, output: .file("PRODUCT.md")
+        ),
+        SkillDoc(
+            title: "Personas",
+            blurb: "Who you're building for — JTBD personas and the anti-persona, reverse-engineered from the product.",
+            icon: "person.crop.circle",
+            skillCommand: "/pm-personas",
+            headlessArgs: nil,
+            phase: .define, output: .file("PERSONAS.md")
+        ),
+        SkillDoc(
+            title: "Product Audit",
+            blurb: "Brutal honest assessment: what you're building, who it's for, and the question you're avoiding.",
+            icon: "stethoscope",
+            skillCommand: "/pm-audit",
+            headlessArgs: nil,
+            phase: .define, output: .file("AUDIT.md")
+        ),
+
         // MARK: Discover
         SkillDoc(
             title: "User Feedback",
@@ -81,22 +132,6 @@ enum SkillCatalog {
             skillCommand: "/pm-data",
             headlessArgs: "Ask the user (via the interface contract) which product question to answer if one is not obvious from prior context.",
             phase: .discover, output: .file("DATA.md")
-        ),
-        SkillDoc(
-            title: "Codebase Scan",
-            blurb: "What the product actually does, reverse-engineered from routes, models, tests and git history.",
-            icon: "doc.text.magnifyingglass",
-            skillCommand: "/pm-scan",
-            headlessArgs: nil,
-            phase: .discover, output: .file("SCAN.md")
-        ),
-        SkillDoc(
-            title: "Product Audit",
-            blurb: "Brutal honest assessment: what you're building, who it's for, and the question you're avoiding.",
-            icon: "stethoscope",
-            skillCommand: "/pm-audit",
-            headlessArgs: nil,
-            phase: .discover, output: .file("AUDIT.md")
         ),
         SkillDoc(
             title: "Discovery",
