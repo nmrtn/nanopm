@@ -5,10 +5,11 @@
 #        bash setup [--host=auto|claude|vibe|codex|all]
 set -euo pipefail
 
-NANOPM_VERSION="0.8.0"
 NANOPM_REPO="https://github.com/nmrtn/nanopm"
 NANOPM_RAW="https://raw.githubusercontent.com/nmrtn/nanopm/main"
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
+# NANOPM_VERSION is the single source of truth in the VERSION file; it is
+# resolved after the install source is detected (see "resolve version" below).
 
 # ── colors ────────────────────────────────────────────────────────────────────
 _bold()  { printf '\033[1m%s\033[0m' "$*"; }
@@ -41,6 +42,17 @@ if [ -f "$_SCRIPT_DIR/lib/nanopm.sh" ]; then
 else
   _SOURCE="remote"
   _REPO_ROOT=""
+fi
+
+# ── resolve version ───────────────────────────────────────────────────────────
+# Single source of truth: the VERSION file. Local installs read it directly;
+# remote (piped curl) installs fetch it. Falls back to "unknown" if unavailable.
+NANOPM_VERSION="unknown"
+if [ "$_SOURCE" = "local" ] && [ -f "$_REPO_ROOT/VERSION" ]; then
+  NANOPM_VERSION="$(tr -d '[:space:]' < "$_REPO_ROOT/VERSION")"
+elif command -v curl >/dev/null 2>&1; then
+  _fetched_ver="$(curl -fsSL "$NANOPM_RAW/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+  [ -n "$_fetched_ver" ] && NANOPM_VERSION="$_fetched_ver"
 fi
 
 # ── banner ────────────────────────────────────────────────────────────────────
@@ -280,6 +292,7 @@ ok "Connectors installed"
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
 _SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
+_SKILL_COUNT=$(set -- $_SKILL_LIST; echo $#)
 
 for skill in $_SKILL_LIST; do
   # Download/copy source SKILL.md to a temp file once
@@ -409,7 +422,7 @@ for _te in "${_TARGETS[@]}"; do
     fi
   done
   if [ "$_te_errors" -eq 0 ]; then
-    ok "[$_tname] all 13 skills verified at $_tdir"
+    ok "[$_tname] all $_SKILL_COUNT skills verified at $_tdir"
   fi
 done
 
