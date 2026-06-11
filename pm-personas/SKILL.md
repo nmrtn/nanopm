@@ -57,7 +57,7 @@ Detect what evidence is available, then pick a mode.
 
 ```bash
 # Prior nanopm artifacts — each is a strong source of "who"
-for f in SCAN DISCOVERY FEEDBACK AUDIT DATA INTERVIEW CONTEXT; do
+for f in PRODUCT DISCOVERY FEEDBACK AUDIT DATA INTERVIEW CONTEXT SCAN; do
   [ -f ".nanopm/$f.md" ] && echo "${f}_EXISTS" || echo "${f}_MISSING"
 done
 
@@ -79,9 +79,11 @@ State the chosen mode to the user in one line and why ("Found AUDIT.md + a real 
 
 Gather the "who" signal from what already exists. Read the strongest sources first:
 
-1. **Prior artifacts** (highest signal): read any of `SCAN.md`, `DISCOVERY.md`, `FEEDBACK.md`,
-   `AUDIT.md`, `DATA.md` that exist. `DISCOVERY.md` and `AUDIT.md` often already name the user;
-   `FEEDBACK.md` names real people in real situations; `DATA.md` shows who actually uses the product.
+1. **Prior artifacts** (highest signal): read any of `PRODUCT.md`, `DISCOVERY.md`, `FEEDBACK.md`,
+   `AUDIT.md`, `DATA.md` that exist (and legacy `SCAN.md` if present). `PRODUCT.md` is the product
+   map — its "Primary User" and core workflow are the strongest starting point; `DISCOVERY.md` and
+   `AUDIT.md` often already name the user; `FEEDBACK.md` names real people in real situations;
+   `DATA.md` shows who actually uses the product.
 2. **The product's own positioning**: read `README.md`, landing-page copy, the homepage/marketing
    route, any `CONTEXT.md`. How does the product describe its user *today*?
 3. **The shape of the code**: route names, auth/roles, pricing tiers, data models, onboarding flow,

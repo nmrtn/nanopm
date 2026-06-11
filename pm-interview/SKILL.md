@@ -61,7 +61,10 @@ Read prior context to understand which assumptions have already been tested and 
 [ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
 [ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
 [ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Ground the interview guide in *what exists* — anchor the story-anchor behavior and workaround questions on the product's real workflows and surfaces, so you probe how users actually experience it rather than a hypothetical. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: interviewing against a draft product concept."
 
 ## Phase 1: Set the focus
 

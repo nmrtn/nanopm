@@ -95,6 +95,18 @@ Check for PERSONAS.md — if it exists, it defines who you're building for (from
 
 **If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md`. Use the primary persona to pre-fill Section 2 (who you're building for) — don't re-derive the user from scratch. Two checks worth making explicit in the audit: (1) if your honest assessment of the *real* user diverges from the primary persona, that divergence is a finding — surface it in Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming.
 
+Check for the Define-phase context docs — the audit is now **evaluative**, not descriptive. Where these exist, build on them instead of re-establishing the basic facts:
+
+```bash
+for f in PRODUCT VISION-MISSION BUSINESS-MODEL ORG; do
+  [ -f ".nanopm/$f.md" ] && echo "${f}_EXISTS" || echo "${f}_MISSING"
+done
+```
+
+**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. It is the descriptive ground truth — use it to pre-fill Section 1 (what you're actually building) and the workflow/feature facts. **Do NOT re-derive what the product does from scratch.** The audit's job is to judge it: where does the shipped reality diverge from the stated direction, and what's the biggest gap. If `PRODUCT.md` is stamped `Completeness: draft`, emit a one-line non-blocking warning ("auditing against a draft product concept — findings are provisional") and proceed.
+
+**If VISION-MISSION / BUSINESS-MODEL / ORG exist:** read them. The gap (Section 3) is most often the distance between the stated mission/business model and what's actually shipped — name it concretely using these docs rather than guessing the intent.
+
 Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
 
 ```bash
@@ -321,7 +333,9 @@ Project: {slug}
 
 ## 1. What You're Actually Building
 
-[Synthesized description — not the founder's pitch. What the shipped work, metrics,
+[If PRODUCT.md exists, build on its description — reference it ("per PRODUCT.md") rather than
+re-deriving the basics; spend your words on what's sharper or contradicts it. If it doesn't exist,
+synthesize from scratch — not the founder's pitch. What the shipped work, metrics,
 and user behavior reveal about what this product actually is. Must include:
 (a) one observation from code/commits/data that contradicts or sharpens the stated pitch,
 (b) what the product does that users don't expect from the description alone.

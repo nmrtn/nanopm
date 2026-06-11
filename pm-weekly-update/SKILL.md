@@ -94,6 +94,16 @@ If LINEAR available:
 [ -f ".nanopm/AUDIT.md" ] && head -40 .nanopm/AUDIT.md || echo "NO_AUDIT"
 ```
 
+**Define context (tailor the update):**
+```bash
+[ -f ".nanopm/ORG.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
+[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+```
+
+**If ORG_EXISTS:** read `.nanopm/ORG.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
+
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
+
 **Prior week's commitments:**
 If a previous update exists, extract any "next week I will..." commitments and check which were honored.
 
