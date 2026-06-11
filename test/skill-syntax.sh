@@ -38,7 +38,7 @@ fi
 # ── 3. SKILL.md frontmatter validation ───────────────────────────────────────
 echo
 echo "  SKILL.md frontmatter"
-_SKILLS=(pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data)
+_SKILLS=(pm-scan pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data)
 for skill in "${_SKILLS[@]}"; do
   _FILE="$_REPO_ROOT/$skill/SKILL.md"
   if [ ! -f "$_FILE" ]; then
@@ -88,7 +88,7 @@ done
 
 # ── 5. nanopm_context_append present (context threading) ─────────────────────
 # pm-watch is excluded — it's a hook installer, not a PM analysis skill
-_CONTEXT_SKILLS=(pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro)
+_CONTEXT_SKILLS=(pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro)
 echo
 echo "  Context threading"
 for skill in "${_CONTEXT_SKILLS[@]}"; do

@@ -7,6 +7,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | Skill | Command | Purpose |
 |-------|---------|---------|
 | pm-run | `/pm-run` | Full pipeline in one command |
+| pm-personas | `/pm-personas` | Define WHO you're building for — JTBD personas + anti-persona |
 | pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery |
 | pm-audit | `/pm-audit` | Deep product audit |
 | pm-objectives | `/pm-objectives` | Define OKRs and anti-goals |

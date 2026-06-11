@@ -87,6 +87,14 @@ Check for DATA.md — if it exists, it contains quantitative analytics from /pm-
 
 Store these for use in Phase 4 synthesis. Only 🟢 high-confidence findings should anchor audit conclusions.
 
+Check for PERSONAS.md — if it exists, it defines who you're building for (from /pm-personas):
+
+```bash
+[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+```
+
+**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md`. Use the primary persona to pre-fill Section 2 (who you're building for) — don't re-derive the user from scratch. Two checks worth making explicit in the audit: (1) if your honest assessment of the *real* user diverges from the primary persona, that divergence is a finding — surface it in Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming.
+
 Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
 
 ```bash

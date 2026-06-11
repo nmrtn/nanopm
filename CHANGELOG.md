@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.0 — 2026-06-11
+
+### New skill: `/pm-personas` — define who you're building for
+
+Adds a planning skill that answers the one question the rest of the pipeline assumes an answer to: **who is this for?** Produces `.nanopm/PERSONAS.md` — 1-3 JTBD proto-personas plus an explicit **anti-persona** (the tempting user you are deliberately NOT serving).
+
+**Adaptive by design.** The skill auto-detects its mode:
+
+- **Reverse-engineer** — when the repo has code and/or prior nanopm artifacts (`SCAN.md`, `DISCOVERY.md`, `FEEDBACK.md`, `AUDIT.md`, `DATA.md`), it reads them, scans the codebase for who-signals (roles, pricing tiers, route names, onboarding copy — dispatching a subagent for large repos), drafts the personas the product *implies*, then asks you to confirm or correct.
+- **From-scratch** — when the repo is empty / pre-product, it interviews you with four JTBD questions and builds the personas from your answers.
+
+Every claim is tagged **Evidenced** or **Assumed**, so the artifact is honest about how much is inference. The skill surfaces reality-vs-aspiration gaps (who uses it today vs. who you want) and names "the one bet" — the riskiest belief about the user.
+
+**Pipeline integration.** `pm-personas` is a Zone-1 **Inputs** skill. `/pm-run` now runs it as a new phase (`feedback → personas → audit → …`), and six downstream skills read `PERSONAS.md` where they reason about "who":
+
+- **`/pm-audit`** — pre-fills the "who for" section; flags drift toward the anti-persona as a strategic leak.
+- **`/pm-objectives`** — every objective must move the primary persona; vanity goals get challenged.
+- **`/pm-strategy`** — the bet must win for the primary persona; names which one.
+- **`/pm-roadmap`** — every NOW/NEXT item must map to a persona.
+- **`/pm-prd`** — user stories written in the persona's voice; stops if a feature mainly serves the anti-persona.
+- **`/pm-discovery`** — bidirectional: pre-fills "who is the user" from `PERSONAS.md` when it exists, recommends `/pm-personas` when discovery lands on a sharp user definition.
+
+**Registered** in `setup`, `test/skill-syntax.sh`, `README.md`, `llms.txt`, and `CLAUDE.md`. Static checks: 64 passed, 0 failed.
+
 ## 0.8.0 — 2026-06-05
 
 ### Mode-aware adversarial gates — ETHOS principle 4 corrected for the AI-native audience
