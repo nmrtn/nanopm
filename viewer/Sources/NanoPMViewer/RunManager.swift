@@ -266,21 +266,9 @@ final class RunManager: ObservableObject {
 
         guard let terminal else {
             let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            // The most common failure for the target (non-terminal-native) user
-            // is simply not having the Claude CLI installed/authenticated. A bare
-            // "exited 127" is opaque — name the actual dependency.
-            let claudeMissing = exitCode == 127
-                || detail.localizedCaseInsensitiveContains("command not found")
-                || detail.localizedCaseInsensitiveContains("claude: not found")
-            if claudeMissing {
-                applyFailure(runID, message: "The `claude` CLI wasn't found on your PATH. "
-                             + "Running skills needs Claude Code installed and authenticated; "
-                             + "browsing existing artifacts works without it.")
-                return
-            }
-            applyFailure(runID, message: detail.isEmpty
-                         ? "claude exited \(exitCode) with no result event"
-                         : String(detail.suffix(400)))
+            applyFailure(runID, message: Self.diagnose(detail, exitCode: exitCode)
+                         ?? (detail.isEmpty ? "claude exited \(exitCode) with no result event"
+                                            : String(detail.suffix(400))))
             return
         }
 
@@ -295,9 +283,9 @@ final class RunManager: ObservableObject {
         }
 
         if terminal.isError || exitCode != 0 {
-            applyFailure(runID, message: visibleText.isEmpty
-                         ? "claude exited \(exitCode)"
-                         : String(visibleText.suffix(400)))
+            applyFailure(runID, message: Self.diagnose(visibleText, exitCode: exitCode)
+                         ?? (visibleText.isEmpty ? "claude exited \(exitCode)"
+                                                 : String(visibleText.suffix(400))))
         } else if !questions.isEmpty {
             runs[index].status = .waitingForInput(questions)
             Notifier.send(
@@ -321,6 +309,32 @@ final class RunManager: ObservableObject {
         completionTick += 1
         Notifier.send(title: "\(runs[index].skillCommand) failed",
                       body: String(message.prefix(160)))
+    }
+
+    /// Map a known fatal-error signature to an actionable message. Returns nil
+    /// when the text isn't a recognized case (caller falls back to the raw tail).
+    /// The two cases the target user actually hits: the CLI isn't installed, and
+    /// the CLI is installed but can't authenticate (seen live: a managed org that
+    /// disables Claude Code subscription access and has no API key in the shell).
+    nonisolated static func diagnose(_ text: String, exitCode: Int32) -> String? {
+        let t = text.lowercased()
+        if exitCode == 127
+            || t.contains("command not found")
+            || t.contains("claude: not found") {
+            return "The `claude` CLI wasn't found on your PATH. Running skills needs "
+                + "Claude Code installed and authenticated; browsing existing artifacts "
+                + "works without it."
+        }
+        if t.contains("disabled claude subscription")
+            || t.contains("use an anthropic api key")
+            || t.contains("invalid api key")
+            || (t.contains("authentication") && t.contains("api key")) {
+            return "Claude Code couldn't authenticate. Runs need either Claude Code "
+                + "subscription access enabled for your organization, or an "
+                + "`ANTHROPIC_API_KEY` available to the shell the app launches from "
+                + "(set it in ~/.zprofile, then relaunch). Browsing works without it."
+        }
+        return nil
     }
 
     // MARK: - Stream parsing
