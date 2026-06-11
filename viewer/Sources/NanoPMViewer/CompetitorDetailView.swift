@@ -15,14 +15,6 @@ struct CompetitorsPageView: View {
     @State private var selectedReportID: String?
     @State private var content: String?
     @State private var implications: Implications?
-    @Environment(\.colorScheme) private var colorScheme
-
-    /// Claude-style warm ivory in light mode, soft elevation in dark.
-    private var calloutBackground: Color {
-        colorScheme == .dark
-            ? Color.white.opacity(0.06)
-            : Color(red: 0.980, green: 0.976, blue: 0.961)
-    }
 
     /// Newest dated INTEL report — source of the page-top Strategic implications.
     private var latestIntelReport: Artifact? {
@@ -51,9 +43,15 @@ struct CompetitorsPageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("Competitors", systemImage: "binoculars")
-                            .font(.largeTitle.bold())
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label {
+                            Text("Competitors")
+                                .foregroundStyle(Color.npInk)
+                        } icon: {
+                            Image(systemName: "binoculars")
+                                .foregroundStyle(Color.npCoral)
+                        }
+                        .font(.npDisplay(30))
                         Text(subtitle)
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -83,13 +81,13 @@ struct CompetitorsPageView: View {
 
                 if let implications {
                     Markdown(implications.text)
-                        .markdownTheme(.basic)
+                        .markdownTheme(.nanopm)
                         .textSelection(.enabled)
                         .padding(18)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(calloutBackground, in: RoundedRectangle(cornerRadius: 12))
+                        .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
                         .overlay(RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.primary.opacity(0.06)))
+                            .strokeBorder(Color.npBorder))
                 }
 
                 if let report = displayed {
@@ -106,11 +104,11 @@ struct CompetitorsPageView: View {
                                 )
                             } else {
                                 Markdown(content)
-                                    .markdownTheme(.basic)
+                                    .markdownTheme(.nanopm)
                                     .textSelection(.enabled)
                             }
                         } else {
-                            ProgressView()
+                            SparkleView(size: 16)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 40)
                         }
@@ -127,6 +125,7 @@ struct CompetitorsPageView: View {
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Color.npPaper)
         .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
             content = nil
             if let report = displayed {
@@ -214,6 +213,7 @@ struct CompetitorDetailView: View {
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Color.npPaper)
         .onAppear {
             if selectedSnapshotID == nil { selectedSnapshotID = snapshots.first?.id }
         }
@@ -221,8 +221,14 @@ struct CompetitorDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(competitor.name, systemImage: "building.2")
-                .font(.largeTitle.bold())
+            Label {
+                Text(competitor.name)
+                    .foregroundStyle(Color.npInk)
+            } icon: {
+                Image(systemName: "building.2")
+                    .foregroundStyle(Color.npCoral)
+            }
+            .font(.npDisplay(30))
             if let date = competitor.lastCheckedDate {
                 Text("Last checked \(date, format: .relative(presentation: .named))")
                     .font(.callout)
@@ -254,10 +260,10 @@ struct MarkdownFileView: View {
         Group {
             if let content {
                 Markdown(content)
-                    .markdownTheme(.gitHub)
+                    .markdownTheme(.nanopm)
                     .textSelection(.enabled)
             } else {
-                ProgressView()
+                SparkleView(size: 16)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
             }

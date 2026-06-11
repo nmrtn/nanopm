@@ -13,7 +13,11 @@ let package = Package(
             dependencies: [
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
             ],
-            path: "Sources/NanoPMViewer"
+            path: "Sources/NanoPMViewer",
+            resources: [
+                .copy("Resources/PhaseIcons"),
+                .copy("Resources/mascot.png"),
+            ]
         ),
     ]
 )

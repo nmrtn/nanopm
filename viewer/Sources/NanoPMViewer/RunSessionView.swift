@@ -31,6 +31,7 @@ struct RunSessionView: View {
                     proxy.scrollTo("footer", anchor: .bottom)
                 }
             }
+            .background(Color.npPaper)
         }
     }
 
@@ -59,13 +60,13 @@ struct RunSessionView: View {
     private var statusChip: some View {
         switch run.status {
         case .running:
-            ProgressView().controlSize(.small)
+            SparkleView(size: 13)
         case .waitingForInput:
-            Image(systemName: "questionmark.bubble.fill").foregroundStyle(.orange)
+            Image(systemName: "questionmark.bubble.fill").foregroundStyle(Color.npAmber)
         case .succeeded:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.npOlive)
         case .failed:
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.npRust)
         }
     }
 
@@ -74,16 +75,20 @@ struct RunSessionView: View {
         switch entry.role {
         case .model:
             VStack(alignment: .leading, spacing: 4) {
-                Label("Model", systemImage: "sparkle")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
+                Label {
+                    Text("Claude").font(.caption.bold())
+                } icon: {
+                    Text("✻").font(.caption.weight(.medium)).foregroundStyle(Color.npCoral)
+                }
+                .foregroundStyle(.secondary)
                 Markdown(entry.text)
-                    .markdownTheme(.gitHub)
+                    .markdownTheme(.nanopm)
                     .textSelection(.enabled)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quinary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.npBorder))
         case .user:
             VStack(alignment: .leading, spacing: 4) {
                 Label("You", systemImage: "person.fill")
@@ -94,7 +99,7 @@ struct RunSessionView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.npNight.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
         }
     }
 
@@ -103,11 +108,12 @@ struct RunSessionView: View {
         switch run.status {
         case .running:
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(run.lastActivity ?? "Working…")
-                        .font(.callout)
+                ThinkingIndicator(startedAt: run.startedAt)
+                if let activity = run.lastActivity {
+                    Text(activity)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Text("You can keep browsing — a notification fires when the model needs you or the document is ready. Open the Activity Monitor (toolbar) to follow the live console.")
                     .font(.caption)
@@ -123,7 +129,7 @@ struct RunSessionView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("\(run.expectedRelPath) is ready", systemImage: "checkmark.circle.fill")
                     .font(.headline)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.npOlive)
                 Button("Open \(run.expectedRelPath)") {
                     onOpenArtifact(run.expectedRelPath)
                 }
@@ -133,7 +139,7 @@ struct RunSessionView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Run failed", systemImage: "exclamationmark.triangle.fill")
                     .font(.headline)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.npRust)
                 Text(message)
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
@@ -155,9 +161,9 @@ struct QuestionForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Label("The model needs your input", systemImage: "questionmark.bubble.fill")
+            Label("Claude needs your input", systemImage: "questionmark.bubble.fill")
                 .font(.headline)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.npAmber)
 
             ForEach(questions) { question in
                 questionSection(question)
@@ -173,8 +179,8 @@ struct QuestionForm: View {
             }
         }
         .padding(16)
-        .background(.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.orange.opacity(0.3)))
+        .background(Color.npAmber.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.npAmber.opacity(0.3)))
     }
 
     @ViewBuilder
@@ -205,7 +211,7 @@ struct QuestionForm: View {
                 Image(systemName: isSelected
                       ? (question.isMultiSelect ? "checkmark.square.fill" : "checkmark.circle.fill")
                       : (question.isMultiSelect ? "square" : "circle"))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isSelected ? Color.npNight : Color.secondary)
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(option.label).fontWeight(.medium)
@@ -220,7 +226,7 @@ struct QuestionForm: View {
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.10) : Color.clear,
+            .background(isSelected ? Color.npNight.opacity(0.10) : Color.clear,
                         in: RoundedRectangle(cornerRadius: 8))
             .contentShape(Rectangle())
         }

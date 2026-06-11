@@ -234,7 +234,8 @@ struct IntelReportView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Text(section.title)
-                    .font(.title2.bold())
+                    .font(.npDisplay(22))
+                    .foregroundStyle(Color.npInk)
                 if let website = section.website {
                     Link(destination: website) {
                         Image(systemName: "globe")
@@ -257,7 +258,7 @@ struct IntelReportView: View {
             }
             if !section.leftover.isEmpty {
                 Markdown(section.leftover)
-                    .markdownTheme(.basic)
+                    .markdownTheme(.nanopm)
                     .textSelection(.enabled)
             }
         }
@@ -270,7 +271,7 @@ struct IntelReportView: View {
     private func pageDisclosure(_ page: IntelReport.Page) -> some View {
         DisclosureGroup {
             Markdown(page.body)
-                .markdownTheme(.basic)
+                .markdownTheme(.nanopm)
                 .textSelection(.enabled)
                 .padding(.top, 6)
         } label: {
@@ -297,9 +298,9 @@ struct IntelReportView: View {
             .trimmingCharacters(in: .whitespaces),
               first.hasPrefix("*"), first.hasSuffix("*") else { return nil }
         let inner = first.lowercased()
-        if inner.contains("fail") { return ("Fetch failed", .red) }
+        if inner.contains("fail") { return ("Fetch failed", .npRust) }
         if inner.contains("baseline") { return ("Baseline", .secondary) }
-        if inner.contains("diff") || inner.contains("change") { return ("Changed", .orange) }
+        if inner.contains("diff") || inner.contains("change") { return ("Changed", .npAmber) }
         return nil
     }
 }
@@ -317,7 +318,7 @@ struct LabeledBlock: View {
                 .textCase(.uppercase)
                 .foregroundStyle(.secondary)
             Markdown(text)
-                .markdownTheme(.basic)
+                .markdownTheme(.nanopm)
                 .textSelection(.enabled)
         }
     }

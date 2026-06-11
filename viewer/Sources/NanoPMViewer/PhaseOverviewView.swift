@@ -16,9 +16,10 @@ struct PhaseOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(phase.rawValue, systemImage: phase.icon)
-                        .font(.largeTitle.bold())
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(phase.rawValue)
+                        .font(.npDisplay(30))
+                        .foregroundStyle(Color.npInk)
                     Text(SkillCatalog.subtitle(for: phase))
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -28,9 +29,10 @@ struct PhaseOverviewView: View {
                     Label("The `claude` CLI was not found in your shell PATH — run actions are disabled.",
                           systemImage: "exclamationmark.triangle")
                         .font(.callout)
+                        .foregroundStyle(Color.npAmber)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.yellow.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                        .background(Color.npAmber.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
                 }
 
                 ForEach(SkillCatalog.docs(for: phase)) { doc in
@@ -45,6 +47,7 @@ struct PhaseOverviewView: View {
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Color.npPaper)
         .task { await checkClaude() }
     }
 
@@ -57,8 +60,9 @@ struct PhaseOverviewView: View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: doc.icon)
                 .font(.title3)
+                .foregroundStyle(Color.npCoral)
                 .frame(width: 34, height: 34)
-                .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+                .background(Color.npCoral.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(doc.title).font(.headline)
@@ -75,11 +79,11 @@ struct PhaseOverviewView: View {
             if doc.skillCommand != nil {
                 if isWaiting {
                     Button("Answer…") { onAnswer(doc.trackingPath) }
-                        .tint(.orange)
+                        .tint(Color.npAmber)
                 } else if isRunning {
                     Button {} label: {
                         HStack(spacing: 6) {
-                            ProgressView().controlSize(.small)
+                            SparkleView(size: 11)
                             Text("Running…")
                         }
                     }
@@ -92,19 +96,15 @@ struct PhaseOverviewView: View {
             }
         }
         .padding(14)
-        .background(.quinary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.npBorder))
     }
 
     @ViewBuilder
     private func statusLine(_ doc: SkillDoc, run: RunManager.SkillRun?,
                             isRunning: Bool, isWaiting: Bool) -> some View {
         if isRunning, let run {
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.small)
-                Text("Generating — started \(Text(run.startedAt, style: .relative)) ago")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            ThinkingIndicator(startedAt: run.startedAt, compact: true)
         } else if isWaiting {
             Button {
                 onAnswer(doc.trackingPath)
@@ -113,13 +113,13 @@ struct PhaseOverviewView: View {
             }
             .buttonStyle(.link)
             .font(.caption)
-            .tint(.orange)
+            .tint(Color.npAmber)
         } else {
             outputStatus(doc)
             if case .failed(let message)? = run?.status {
                 Label(String(message.prefix(120)), systemImage: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.npRust)
             }
         }
     }

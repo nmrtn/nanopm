@@ -34,38 +34,8 @@ struct ProjectView: View {
         } detail: {
             detail
                 .textSelection(.enabled)
-        }
-        .navigationTitle(project.name)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    onSwitchProject()
-                } label: {
-                    Label("Projects", systemImage: "chevron.backward")
-                }
-                .help("Back to the project picker")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    openWindow(id: NanoPMViewerApp.activityWindowID)
-                } label: {
-                    Label("Activity", systemImage: activeRunCount > 0
-                          ? "antenna.radiowaves.left.and.right"
-                          : "list.bullet.rectangle")
-                }
-                .help(activeRunCount > 0
-                      ? "\(activeRunCount) run(s) in progress — open the live activity monitor"
-                      : "Open the activity monitor")
-                .badge(activeRunCount)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    Task { await store.refresh() }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .help("Re-read .nanopm/ from disk")
-            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.npPaper)
         }
         .task { await store.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -125,19 +95,90 @@ struct ProjectView: View {
 
     @ViewBuilder
     private var sidebar: some View {
-        if store.state == .loading {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List(selection: $selection) {
-                phaseGroup(.define)
-                phaseGroup(.discover)
-                phaseGroup(.plan)
-                phaseGroup(.ship)
-                phaseGroup(.other)
+        VStack(spacing: 0) {
+            projectHeader
+            Divider()
+            if store.state == .loading {
+                SparkleView(size: 16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(selection: $selection) {
+                    phaseGroup(.define)
+                    phaseGroup(.discover)
+                    phaseGroup(.plan)
+                    phaseGroup(.ship)
+                    phaseGroup(.other)
+                }
+                .listStyle(.sidebar)
+                .contentMargins(.top, 10, for: .scrollContent)
             }
-            .listStyle(.sidebar)
+            Divider()
+            sidebarFooter
         }
+    }
+
+    /// Activity + refresh actions, pinned at the bottom of the nav column.
+    private var sidebarFooter: some View {
+        HStack(spacing: 0) {
+            Button {
+                openWindow(id: NanoPMViewerApp.activityWindowID)
+            } label: {
+                HStack(spacing: 6) {
+                    if activeRunCount > 0 {
+                        SparkleView(size: 11)
+                        Text("\(activeRunCount) running")
+                            .font(.caption)
+                            .foregroundStyle(Color.npCoral)
+                    } else {
+                        Image(systemName: "list.bullet.rectangle")
+                            .foregroundStyle(.secondary)
+                        Text("Activity")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.borderless)
+            .help(activeRunCount > 0
+                  ? "\(activeRunCount) run(s) in progress — open the live activity monitor"
+                  : "Open the activity monitor")
+
+            Spacer()
+
+            Button {
+                Task { await store.refresh() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help("Re-read .nanopm/ from disk")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+    }
+
+    /// Current project at the top of the sidebar, with the switcher.
+    private var projectHeader: some View {
+        HStack(spacing: 8) {
+            Text(project.name)
+                .font(.system(size: 14, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(project.path)
+            Spacer()
+            Button {
+                onSwitchProject()
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help("Switch project")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     /// Sidebar icon for an artifact — its skill's catalog icon when one owns
@@ -183,8 +224,9 @@ struct ProjectView: View {
 
     @ViewBuilder
     private func phaseLabel(_ phase: Phase, hasOverview: Bool) -> some View {
-        let label = Label(phase.rawValue, systemImage: phase.icon)
-            .fontWeight(.semibold)
+        let label = Text(phase.rawValue)
+            .font(.system(size: 15, weight: .semibold))
+            .padding(.vertical, 2)
         if hasOverview {
             label
                 .tag(NavRoute.overview(phase))
@@ -199,13 +241,13 @@ struct ProjectView: View {
         HStack(spacing: 6) {
             switch run.status {
             case .running:
-                ProgressView().controlSize(.small)
+                SparkleView(size: 11)
             case .waitingForInput:
                 Image(systemName: "questionmark.bubble.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.npAmber)
             default:
                 Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.npRust)
             }
             Text(prettyDocName(run.expectedRelPath))
                 .foregroundStyle(.secondary)
@@ -331,20 +373,22 @@ struct ArtifactDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(artifact.displayName)
-                        .font(.largeTitle.bold())
+                        .font(.npDisplay(30))
+                        .foregroundStyle(Color.npInk)
                         .textSelection(.enabled)
                     HStack(spacing: 6) {
                         Text(".nanopm/" + artifact.relativePath)
+                            .font(.system(.footnote, design: .monospaced))
                         Text("·")
                         Text("updated \(artifact.modifiedAt, format: .relative(presentation: .named))")
+                            .font(.footnote)
                     }
-                    .font(.callout)
                     .foregroundStyle(.secondary)
                 }
 
-                Divider()
+                Divider().overlay(Color.npBorder)
 
                 if let loadError {
                     ContentUnavailableView(
@@ -354,10 +398,10 @@ struct ArtifactDetailView: View {
                     )
                 } else if let content {
                     Markdown(artifact.isMarkdown ? content : "```json\n\(content)\n```")
-                        .markdownTheme(.gitHub)
+                        .markdownTheme(.nanopm)
                         .textSelection(.enabled)
                 } else {
-                    ProgressView()
+                    SparkleView(size: 18)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                 }
@@ -366,6 +410,7 @@ struct ArtifactDetailView: View {
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Color.npPaper)
         .task(id: "\(artifact.id)#\(store.generation)") {
             await load()
         }

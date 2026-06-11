@@ -77,13 +77,13 @@ struct StatusDot: View {
         Group {
             switch status {
             case .running:
-                ProgressView().controlSize(.small)
+                SparkleView(size: 12)
             case .waitingForInput:
-                Image(systemName: "questionmark.circle.fill").foregroundStyle(.orange)
+                Image(systemName: "questionmark.circle.fill").foregroundStyle(Color.npAmber)
             case .succeeded:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.npOlive)
             case .failed:
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                Image(systemName: "xmark.circle.fill").foregroundStyle(Color.npRust)
             }
         }
         .frame(width: 18, height: 18)
@@ -148,10 +148,10 @@ struct EventRow: View {
 
     private var tint: Color {
         switch event.kind {
-        case .toolUse: return .blue
-        case .toolResult: return .green
-        case .error: return .red
-        case .assistant: return .purple
+        case .toolUse: return .secondary
+        case .toolResult: return .npOlive
+        case .error: return .npRust
+        case .assistant: return .npCoral
         case .result: return .secondary
         default: return .secondary
         }
