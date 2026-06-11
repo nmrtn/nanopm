@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.10.0 — 2026-06-11
+
+### New phase: **Define** — company & product context, established first
+
+Adds a fourth phase ahead of the pipeline: **Define → Discover → Plan → Build**. Define is the ground-truth layer a PM or founder needs *before* planning — the company and the product, mapped or defined from scratch. It answers the questions the rest of the pipeline used to assume.
+
+**Four new skills**, each dual-mode (auto-detects existing-codebase/site vs. greenfield, like `/pm-personas`):
+
+- **`/pm-vision-mission`** → `VISION-MISSION.md` — mission, vision, values, company stage.
+- **`/pm-business-model`** → `BUSINESS-MODEL.md` — model, revenue, pricing & packaging, GTM motion.
+- **`/pm-org`** → `ORG.md` — org map, key roles, decision-makers, ways of working.
+- **`/pm-product`** → `PRODUCT.md` — deep product map (surface area, features, core workflow, technical bets). Reads the codebase **and** the public site for existing products; interviews the concept for greenfield, stamping `Completeness: complete` only when the four essentials (problem, primary user, concept, core workflow) are filled.
+
+**`/pm-scan` is retired.** Its codebase reverse-engineering folds into `/pm-product`'s existing mode — one descriptive product doc instead of a scan that drifted into judgment. `SCAN.md` readers (`pm-personas`, `pm-run`) repoint to `PRODUCT.md`; a legacy `SCAN.md` is still read as migration input.
+
+**`/pm-personas` and `/pm-audit` move into Define.** `pm-audit` is re-partitioned to *evaluate* against `PRODUCT.md` + the company docs instead of re-deriving the basics — no more scan/audit overlap. This leaves **Discover** as the three external signals: market (`/pm-competitors-intel`), user research (`/pm-user-feedback`, `/pm-interview`), data (`/pm-data`).
+
+**Advisory, not a gate.** `/pm-run` Phase 1 establishes Define context first by default but never blocks — you can skip ahead, and downstream skills warn (not fail) when context is thin. This keeps adoption measurable rather than forced.
+
+**Pipeline integration.** Eight downstream skills now read the new Define docs where it sharpens output: `pm-strategy`, `pm-objectives`, `pm-prd`, `pm-roadmap`, `pm-data`, `pm-competitors-intel`, `pm-interview`, `pm-weekly-update` — all degrading gracefully when a doc is absent.
+
+**macOS viewer** renders Define as the first phase (six skill rows), maps the new artifacts, and drops the Codebase Scan row. Build clean.
+
+**Registered** in `setup`, `test/skill-syntax.sh`, `README.md`, `llms.txt`, `CLAUDE.md`, and `viewer/README.md`. Static checks: 74 passed, 0 failed; context-threading gate passed.
+
 ## 0.9.0 — 2026-06-11
 
 ### New skill: `/pm-personas` — define who you're building for
