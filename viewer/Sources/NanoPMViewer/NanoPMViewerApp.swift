@@ -17,6 +17,7 @@ struct NanoPMViewerApp: App {
                 .frame(minWidth: 900, minHeight: 580)
         }
         .defaultSize(width: 1100, height: 720)
+        .windowStyle(.hiddenTitleBar)
 
         Window("Activity Monitor", id: Self.activityWindowID) {
             ActivityMonitorView()

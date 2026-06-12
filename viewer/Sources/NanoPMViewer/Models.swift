@@ -5,7 +5,6 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
     case discover = "Discover"
     case plan = "Plan"
     case ship = "Build"
-    case other = "Other"
 
     var id: String { rawValue }
 
@@ -15,7 +14,6 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
         case .discover: return "magnifyingglass"
         case .plan: return "map"
         case .ship: return "hammer"
-        case .other: return "tray"
         }
     }
 
@@ -77,26 +75,30 @@ func prettyDocName(_ relativePath: String) -> String {
     return base
 }
 
-/// Fixed artifact → phase mapping (PRD: files that match no rule land in a
-/// visible "Other" bucket rather than being hidden).
+/// Fixed artifact → phase mapping. Files that match no rule are internal
+/// state (configs, logs, snapshots) and are not surfaced in the viewer.
 enum PhaseMapper {
     private static let defineNames = ["vision", "mission", "business", "org", "product", "personas", "audit"]
     private static let discoverNames = ["feedback", "data", "discovery", "interview", "competitor"]
     private static let planNames = ["objectives", "strategy", "roadmap", "prd"]
     private static let shipNames = ["breakdown", "handoff", "retro", "standup", "weekly", "update", "tasks"]
 
-    static func phase(for relativePath: String) -> Phase {
+    static func phase(for relativePath: String) -> Phase? {
         let lower = relativePath.lowercased()
         let file = (lower as NSString).lastPathComponent
 
         if lower.hasPrefix("prds/") { return .ship }
-        if lower.hasPrefix("interviews/") || lower.hasPrefix("competitors/") { return .discover }
+        // intel/ belongs to the Competitors section, which reads its reports
+        // and snapshots out of the artifact store.
+        if lower.hasPrefix("interviews/") || lower.hasPrefix("competitors/") || lower.hasPrefix("intel/") {
+            return .discover
+        }
         if lower.hasPrefix("breakdowns/") || lower.hasPrefix("handoffs/") { return .ship }
 
         if defineNames.contains(where: { file.hasPrefix($0) }) { return .define }
         if discoverNames.contains(where: { file.hasPrefix($0) }) { return .discover }
         if planNames.contains(where: { file.hasPrefix($0) }) { return .plan }
         if shipNames.contains(where: { file.hasPrefix($0) }) { return .ship }
-        return .other
+        return nil
     }
 }

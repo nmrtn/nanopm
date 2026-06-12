@@ -27,9 +27,10 @@ enum ArtifactScanner {
             if path.hasPrefix("./") { path.removeFirst(2) }
             let ext = (path as NSString).pathExtension.lowercased()
             guard extensions.contains(ext) else { continue }
+            guard let phase = PhaseMapper.phase(for: path) else { continue }
             artifacts.append(Artifact(
                 relativePath: path,
-                phase: PhaseMapper.phase(for: path),
+                phase: phase,
                 modifiedAt: Date(timeIntervalSince1970: TimeInterval(epochString) ?? 0)
             ))
         }

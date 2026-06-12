@@ -4,6 +4,7 @@ import Foundation
 enum NavRoute {
     static let prdsPage = "page:prds"
     static let competitorsPage = "page:competitors"
+    static let memoryPage = "page:memory"
     static func overview(_ phase: Phase) -> String { "overview:" + phase.rawValue }
 }
 
@@ -61,7 +62,6 @@ enum SkillCatalog {
         case .discover: return "The three external signals — market, user research, and data — before you plan."
         case .plan: return "Objectives, strategy, and roadmap — decide what to build and why."
         case .ship: return "Specs and handoff — turn the plan into PRDs and engineering tickets."
-        case .other: return ""
         }
     }
 

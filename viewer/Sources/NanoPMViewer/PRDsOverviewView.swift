@@ -27,9 +27,15 @@ struct PRDsOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("PRDs", systemImage: "doc.text.fill")
-                        .font(.largeTitle.bold())
+                VStack(alignment: .leading, spacing: 6) {
+                    Label {
+                        Text("PRDs")
+                            .foregroundStyle(Color.npInk)
+                    } icon: {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundStyle(Color.npCoral)
+                    }
+                    .font(.npDisplay(30))
                     Text(prds.count == 1 ? "1 product spec" : "\(prds.count) product specs")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -51,13 +57,15 @@ struct PRDsOverviewView: View {
                             if row.id != displayRows.last?.id { Divider() }
                         }
                     }
-                    .background(.quinary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.npBorder))
                 }
             }
             .padding(28)
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .background(Color.npPaper)
         .task(id: "\(prds.map(\.id).joined())#\(store.generation)") {
             await loadRows()
         }
@@ -113,9 +121,9 @@ struct StatusBadge: View {
 
     private var tint: Color {
         switch (status ?? "").uppercased() {
-        case "DRAFT": return .orange
-        case "READY", "APPROVED": return .green
-        case "SHIPPED", "DONE": return .blue
+        case "DRAFT": return .npAmber
+        case "READY", "APPROVED": return .npOlive
+        case "SHIPPED", "DONE": return .npCoral
         case "ARCHIVED": return .secondary
         default: return .secondary
         }

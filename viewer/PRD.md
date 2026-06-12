@@ -77,7 +77,7 @@ Fewer than 40% of the 5–10 recruited non-terminal-native product people who op
 1. On launch, present a project picker. The user selects a local folder/repo. If the app remembers previously opened projects, show them as a recents list (see The One UX Decision).
 2. After selection, the app detects `.nanopm/`. If absent, show a clear empty state explaining this folder has no NanoPM artifacts yet. If present, enumerate its artifacts.
 3. The app reads `.nanopm/` contents exclusively via background shell/subprocess commands — never the Claude Code API.
-4. Each discovered file is mapped to one of the three phases via a fixed mapping table; files that don't match any rule fall into a visible "Other" bucket rather than being hidden.
+4. Each discovered file is mapped to one of the phases via a fixed mapping table; files that don't match any rule are internal state (configs, logs, snapshots) and are hidden from navigation. *(Revised 2026-06-12 — v1 shipped a visible "Other" bucket, retired because it only ever collected noise.)*
 5. Selecting an artifact renders its Markdown formatted (headings, tables, lists, code blocks), not as raw text.
 6. The view reflects the latest on-disk state: re-read on window focus or an explicit refresh, because files change when the user runs skills in the terminal between app sessions.
 7. The app exposes no write, rename, or delete operation on `.nanopm/` contents. (Run actions create files *through the skill*, never through the app's own file layer.)
@@ -112,7 +112,7 @@ Fewer than 40% of the 5–10 recruited non-terminal-native product people who op
 |----------|-------|--------|---------|
 | ~~Tech stack~~ | Guillaume | — | **RESOLVED 2026-06-10:** native Swift/SwiftUI via Swift Package Manager + MarkdownUI, assembled into a .app bundle. Implementation lives in `~/Projects/nanopm-viewer`. |
 | ~~Project discovery for the recents list~~ | Guillaume | — | **RESOLVED 2026-06-10:** manually opened folders only (Option A recents persisted in UserDefaults, max 8). No auto-scan in v1. |
-| ~~Artifact→phase mapping~~ | Guillaume | — | **RESOLVED 2026-06-10:** implemented as proposed (filename-prefix rules + `prds/` → Plan), unmatched files land in a visible "Other" bucket. Mapping is code (`PhaseMapper`), trivially adjustable. |
+| ~~Artifact→phase mapping~~ | Guillaume | — | **RESOLVED 2026-06-10:** implemented as proposed (filename-prefix rules + `prds/` → Plan), unmatched files land in a visible "Other" bucket. Mapping is code (`PhaseMapper`), trivially adjustable. **REVISED 2026-06-12:** the Other bucket was removed — unmatched files are hidden. |
 
 **Action:** All v1-blocking questions are resolved; implementation has started.
 

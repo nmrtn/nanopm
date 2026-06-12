@@ -158,21 +158,28 @@ final class RunManager: ObservableObject {
         latestRun(for: relPath, in: projectPath)?.isActive ?? false
     }
 
-    func launch(_ doc: SkillDoc, in projectPath: String) {
+    func launch(_ doc: SkillDoc, in projectPath: String, userContext: String? = nil) {
         guard let skillCommand = doc.skillCommand,
               !isActive(doc.trackingPath, in: projectPath) else { return }
 
         Notifier.requestAuthorizationIfNeeded()
 
-        let run = SkillRun(projectPath: projectPath,
+        var run = SkillRun(projectPath: projectPath,
                            skillCommand: skillCommand,
                            expectedRelPath: doc.trackingPath)
+        let context = (userContext ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !context.isEmpty {
+            run.transcript.append(TranscriptEntry(role: .user, text: context))
+        }
         runs.append(run)
 
-        let prompt = [skillCommand, doc.headlessArgs, Self.interfaceContract]
-            .compactMap { $0 }
-            .joined(separator: "\n\n")
-        startTurn(run.id, prompt: prompt, resumeSession: nil)
+        var parts = [skillCommand]
+        if !context.isEmpty {
+            parts.append("CONTEXT FROM THE USER — they typed this when launching the run; "
+                         + "let it scope and inform the work:\n\(context)")
+        }
+        parts.append(contentsOf: [doc.headlessArgs, Self.interfaceContract].compactMap(\.self))
+        startTurn(run.id, prompt: parts.joined(separator: "\n\n"), resumeSession: nil)
     }
 
     /// Resume a waiting run with the user's composed answers.

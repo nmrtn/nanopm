@@ -10,6 +10,12 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp .build/release/NanoPMViewer "$APP_DIR/Contents/MacOS/NanoPMViewer"
 cp icon/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+# SPM resource bundle (phase icons) — Bundle.module looks for it in Contents/Resources.
+cp -R .build/release/NanoPMViewer_NanoPMViewer.bundle "$APP_DIR/Contents/Resources/"
+
+# App accent color (bleu nuit) — compiled asset catalog referenced by NSAccentColorName.
+xcrun actool assets/Accent.xcassets --compile "$APP_DIR/Contents/Resources" \
+  --platform macosx --minimum-deployment-target 14.0 > /dev/null
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -24,6 +30,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>NSAccentColorName</key><string>AccentColor</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
