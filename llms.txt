@@ -1,6 +1,6 @@
 # nanopm
 
-nanopm is an AI-powered product management skill pack for AI coding agents. It automates the full product planning cycle — audit, objectives, strategy, roadmap, PRD, and tickets — directly inside your editor, with persistent memory across sessions.
+nanopm is an AI-powered product management skill pack for AI coding agents. It automates the full product planning cycle — challenges, objectives, strategy, roadmap, PRD, and tickets — directly inside your editor, with persistent memory across sessions.
 
 ## What it is
 
@@ -37,7 +37,7 @@ Skills appear as `/pm-*` commands. One command runs the full pipeline:
 
 The full planning pipeline:
 ```
-interviews → data → personas → audit → objectives → strategy → roadmap → PRD → tickets
+interviews → data → personas → challenges → objectives → strategy → roadmap → PRD → tickets
 ```
 
 Each skill also works standalone.
@@ -82,7 +82,7 @@ Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`
 - Reads your codebase directly
 - Zero-config — works with no integrations (tier 4 always available)
 - Adapts to Shape Up, Scrum, Kanban, or no methodology
-- Full pipeline: context compounds from audit through to tickets
+- Full pipeline: context compounds from challenges through to tickets
 - Daily ops loop: standup, interview debriefs, and weekly updates feed back into planning
 
 ## How it gets data

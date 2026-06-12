@@ -325,6 +325,16 @@ for skill in $_SKILL_LIST; do
   ok "  $skill"
 done
 
+# Remove skills retired/renamed in earlier versions so an upgrade doesn't leave a
+# zombie alongside the new one (pm-scan folded into pm-product in v0.10;
+# pm-audit renamed to pm-challenge-me in v0.11).
+for _te in "${_TARGETS[@]}"; do
+  _tdir="${_te##*:}"
+  for _retired in pm-audit pm-scan; do
+    [ -d "$_tdir/$_retired" ] && rm -rf "$_tdir/$_retired" && ok "  removed retired $_retired"
+  done
+done
+
 # ── global config init ────────────────────────────────────────────────────────
 step "Initializing global config"
 _CONFIG="$GLOBAL_CONFIG_DIR/config"
