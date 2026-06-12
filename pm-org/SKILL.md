@@ -58,7 +58,7 @@ is lying around. If it exists, you are *refining* a doc, not regenerating it.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_MODE=$(nanopm_define_mode "$_ORG_FILE")
+_MODE=$(nanopm_define_mode ".nanopm/ORG.md")  # literal path: shell state doesn't persist across bash blocks on all hosts
 echo "MODE: $_MODE"   # refine = ORG.md exists · create = it's missing
 
 # In CREATE mode only: is there evidence to reverse-engineer from, or is this greenfield?

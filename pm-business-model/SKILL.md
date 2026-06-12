@@ -60,7 +60,7 @@ whatever evidence is lying around. If it exists, you are *refining* a doc, not r
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_MODE=$(nanopm_define_mode "$_BIZMODEL_FILE")
+_MODE=$(nanopm_define_mode ".nanopm/BUSINESS-MODEL.md")  # literal path: shell state doesn't persist across bash blocks on all hosts
 echo "MODE: $_MODE"   # refine = BUSINESS-MODEL.md exists · create = it's missing
 
 # In CREATE mode only: is there evidence to reverse-engineer from, or is this greenfield?

@@ -65,7 +65,7 @@ map, not rebuilding it — and the code remains the ground truth for what change
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_MODE=$(nanopm_define_mode "$_PRODUCT_FILE")
+_MODE=$(nanopm_define_mode ".nanopm/PRODUCT.md")  # literal path: shell state doesn't persist across bash blocks on all hosts
 echo "MODE: $_MODE"   # refine = PRODUCT.md exists · create = it's missing
 
 # In CREATE mode only: is there code/site to reverse-engineer from, or is this greenfield?
