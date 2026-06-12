@@ -16,7 +16,10 @@ enum ArtifactScanner {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard exists == "yes" else { return .missingNanopm }
 
-        let command = "cd \(ShellRunner.quote(nanopm)) && find . -type f -not -path './.git/*' -exec stat -f '%m|%N' {} \\;"
+        // -L follows symlinks: company-level docs (VISION-MISSION, BUSINESS-MODEL,
+        // ORG) are symlinked into .nanopm/ from the shared ~/.nanopm/companies/<co>/,
+        // so without -L they'd be type `l` and skipped.
+        let command = "cd \(ShellRunner.quote(nanopm)) && find -L . -type f -not -path './.git/*' -exec stat -f '%m|%N' {} \\;"
         let output = try ShellRunner.run(command)
 
         var artifacts: [Artifact] = []
