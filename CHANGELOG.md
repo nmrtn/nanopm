@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Define skills: refine vs from-scratch context discipline
+
+The five Define skills (`pm-vision-mission`, `pm-business-model`, `pm-org`, `pm-product`, `pm-personas`) used to pick their behavior by sniffing whatever evidence was lying around — and in "reverse-engineer" mode they read *every* prior `.nanopm/*.md` artifact, flooding the model's context with noise. Now behavior is driven by **one fact: does the target doc already exist?**
+
+- **Refine mode** (doc exists) — anchors on the previous version of the doc and asks *sharpening* questions, instead of regenerating it from scratch.
+- **Create mode** (doc missing) — reverse-engineers a draft from code/site, then asks *validating* questions before writing; never ships an `Assumed` claim unchecked. Falls back to a full interview when the repo is greenfield.
+
+In both modes, cross-document context is gathered by a **retrieval subagent** that reads the *other* Define docs and returns only the relevant slices as a bounded digest — so the main agent works from signal, not raw dumps. Two new shared helpers in `lib/nanopm.sh` (`nanopm_define_mode`, `nanopm_retrieval_prompt`) keep all five skills branching identically. `pm-product` keeps the code as ground truth: in refine mode it maps only the code delta since the last run.
+
 ### Consolidated PM context brief — one source of truth, loaded everywhere
 
 The Define phase produces five separate docs (vision, business model, org, product, personas). Downstream skills re-read them unevenly, so the agent's grasp of the company drifted from skill to skill. Now each Define skill, once its document is written, dispatches a **subagent** (Agent tool) that synthesizes whatever Define docs exist into a single ~1-page brief at **`.nanopm/CONTEXT-SUMMARY.md`** — what we do, who for, how we make money, why we exist, who decides, and what's not known yet. Each section carries a "More detail" pointer to its source Define doc, so the agent knows where to dig.
