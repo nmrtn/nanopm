@@ -721,7 +721,7 @@ nanopm_company_link() {
   # the docs live once in ~/.nanopm/companies/<slug>/ and are symlinked into
   # .nanopm/, so skills, the brief, and the viewer all keep reading .nanopm/.
   # Idempotent. Migrates any pre-existing real copy up before linking.
-  local name="$1" dir slug doc link target
+  local name="$1" dir slug doc link target migrated=""
   [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
   nanopm_company_set "$name" || return 1
   dir=$(nanopm_company_dir) ; slug=$(nanopm_company_slug "$name")
@@ -732,11 +732,12 @@ nanopm_company_link() {
     if [ -f "$link" ] && [ ! -L "$link" ]; then
       # A real per-repo copy exists. Migrate it up unless the company already
       # has one (then keep the company's and back up the local copy).
-      if [ -e "$target" ]; then mv "$link" "$link.local-backup"; else mv "$link" "$target"; fi
+      if [ -e "$target" ]; then mv "$link" "$link.local-backup"; else mv "$link" "$target"; migrated="$migrated $doc"; fi
     fi
     ln -sf "$target" "$link"   # target may not exist yet; skills write through the link
   done
   echo "COMPANY_LINKED: $name"
+  [ -n "$migrated" ] && echo "  Moved your existing$migrated up into the shared company folder."
   echo "  Mission, business model & org for '$name' are now shared across all your"
   echo "  '$name' repos — stored once in ~/.nanopm/companies/$slug/, linked into this"
   echo "  repo's .nanopm/. Commit .nanopm-company so other repos/teammates inherit it."
