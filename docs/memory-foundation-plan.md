@@ -5,6 +5,17 @@ Branch: `fix/memory-identity-base`
 Goal: give nanopm a clean, collision-free memory base so the company-memory tier
 and the broader memory system can be built on top without inheriting today's bugs.
 
+## Status (2026-06-12)
+
+- **Phase A — DONE.** Per-project config split; the config leak is fixed.
+- **Phase B — DEFERRED (decided).** The slug is reimplemented in three places
+  (bash lib, the two `bin/` Python scripts, the Swift viewer) across two storage
+  trees, so even the minimal collision fix is a ~4-file cross-language change plus
+  a migration — too much for a bug that only triggers with two same-named repos on
+  one machine. The company-tier work will rewrite project identity anyway, so we
+  fix collisions once, in that context, rather than twice. Phase B notes below are
+  kept as the design for when we do it.
+
 ## The two bugs we're fixing
 
 1. **Slug collisions.** `nanopm_slug()` is just the repo/folder **basename**
