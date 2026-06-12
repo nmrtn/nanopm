@@ -30,6 +30,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro), plus **Daily Ops** (challenge-me, standup, weekly-update) running on any day, outside the pipeline.
 
 All skills source `lib/nanopm.sh` for shared runtime functions.
+Each Define skill writes TWO files: the clean, share-ready doc (claims only) and a reasoning sidecar at `.nanopm/reasoning/<same filename>` carrying the Evidenced/Assumed calls, sources, and rationale. The path convention lives in `nanopm_reasoning_path` (lib) and `ReasoningFiles` (viewer/Models.swift) — change one, change both. The viewer shows the sidecar as a "Reasoning" pane on the clean doc's detail view, never as its own sidebar row.
 After each Define skill, a subagent regenerates `.nanopm/CONTEXT-SUMMARY.md` — a one-page consolidated company + product brief. `nanopm_preamble` loads it (`nanopm_load_context`) into every skill run, so all downstream work shares one baseline and doesn't drift.
 State: `~/.nanopm/` (global config + memory), `.nanopm/` (per-project outputs, gitignored).
 Data ingestion: MCP → API → browser → CONTEXT.md manual fallback.

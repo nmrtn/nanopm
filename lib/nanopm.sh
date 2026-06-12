@@ -586,6 +586,13 @@ nanopm_load_context() {
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "CONTEXT_SUMMARY: none yet (generated after a Define skill runs)"; return 0; }
   echo "CONTEXT_SUMMARY_LOADED: $f"
+  # Surface the reasoning sidecars so every CLI run knows the "why" docs exist
+  # (paths only — their content is on-demand reading, never auto-loaded).
+  if [ -d .nanopm/reasoning ]; then
+    local _sidecars
+    _sidecars=$(ls .nanopm/reasoning/*.md 2>/dev/null | tr '\n' ' ')
+    [ -n "$_sidecars" ] && echo "REASONING_DOCS (the why behind each Define doc): $_sidecars"
+  fi
   # The brief is synthesized from Define docs that can include fetched web/README
   # content. Wrap it as reference DATA so a planted instruction can't ride the
   # brief into every skill run. Char-safe bound (no mid-multibyte split; marks
@@ -621,6 +628,20 @@ nanopm_define_mode() {
   # Usage: nanopm_define_mode .nanopm/VISION-MISSION.md
   # Echoes "refine" if the target doc exists, else "create".
   [ -f "$1" ] && echo "refine" || echo "create"
+}
+
+nanopm_reasoning_path() {
+  # Usage: nanopm_reasoning_path .nanopm/VISION-MISSION.md
+  # Echoes the reasoning-sidecar path for a Define doc and creates the
+  # directory on demand. Each Define skill writes TWO files: the clean,
+  # share-ready doc (claims only) and this sidecar, which carries everything
+  # meta — Evidenced/Assumed calls, sources, and the "why" behind each
+  # decision. The viewer pairs the two by this path convention, so changing
+  # it here requires a matching change in viewer ArtifactScanner/Models.
+  local _doc_base
+  _doc_base=$(basename "$1")
+  mkdir -p .nanopm/reasoning
+  echo ".nanopm/reasoning/$_doc_base"
 }
 
 nanopm_retrieval_prompt() {

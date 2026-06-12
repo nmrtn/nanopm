@@ -48,6 +48,24 @@ enum PRDFiles {
     }
 }
 
+/// Helpers for reasoning sidecars (the `reasoning/` subfolder of .nanopm/).
+/// Each Define skill writes a clean, share-ready doc plus
+/// `reasoning/<same filename>` carrying the Evidenced/Assumed calls, sources,
+/// and rationale. The path convention mirrors `nanopm_reasoning_path` in
+/// lib/nanopm.sh — change one and you must change the other. Sidecars are
+/// never listed in the sidebar; they surface as a "Reasoning" pane on their
+/// clean doc's detail view.
+enum ReasoningFiles {
+    static func isReasoning(_ relativePath: String) -> Bool {
+        relativePath.hasPrefix("reasoning/")
+    }
+
+    /// "VISION-MISSION.md" → "reasoning/VISION-MISSION.md"
+    static func sidecarPath(for relativePath: String) -> String {
+        "reasoning/" + (relativePath as NSString).lastPathComponent
+    }
+}
+
 struct Project: Identifiable, Hashable, Sendable {
     let path: String
 
@@ -101,6 +119,10 @@ enum PhaseMapper {
         }
         if lower.hasPrefix("breakdowns/") || lower.hasPrefix("handoffs/") { return .ship }
 
+        // reasoning/ sidecars mirror their clean doc's filename, so the
+        // name-prefix matching below assigns them the same phase. They're
+        // kept in the store (the detail view pairs them) but hidden from
+        // the sidebar by ProjectView.
         if defineNames.contains(where: { file.hasPrefix($0) }) { return .define }
         if discoverNames.contains(where: { file.hasPrefix($0) }) { return .discover }
         if planNames.contains(where: { file.hasPrefix($0) }) { return .plan }

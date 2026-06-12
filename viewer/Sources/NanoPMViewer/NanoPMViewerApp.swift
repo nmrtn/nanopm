@@ -25,9 +25,21 @@ struct NanoPMViewerApp: App {
                 .frame(minWidth: 640, minHeight: 420)
         }
         .defaultSize(width: 900, height: 640)
+
+        // One window per reasoning sidecar (re-opening the same sidecar
+        // focuses the existing window), so a doc and its reasoning can be
+        // read side by side.
+        WindowGroup("Reasoning", id: Self.reasoningWindowID, for: ReasoningWindowContext.self) { $context in
+            if let context {
+                ReasoningWindowView(context: context)
+                    .frame(minWidth: 460, minHeight: 420)
+            }
+        }
+        .defaultSize(width: 620, height: 760)
     }
 
     static let activityWindowID = "activity-monitor"
+    static let reasoningWindowID = "reasoning"
 }
 
 struct ContentView: View {
