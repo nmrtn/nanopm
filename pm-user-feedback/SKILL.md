@@ -293,7 +293,7 @@ Period: {date range of feedback analyzed, or "current snapshot"}
 > "{verbatim quote}" — {source type}
 > "{verbatim quote}" — {source type}
 
-**Action:** {specific imperative — e.g., "Add this to ROADMAP.md NEXT horizon" or "Update the audit's strategic gap section to reflect this signal before setting objectives."}
+**Action:** {specific imperative — e.g., "Add this to ROADMAP.md NEXT horizon" or "Update the challenge session's strategic gap section to reflect this signal before setting objectives."}
 
 ---
 
@@ -319,7 +319,7 @@ If STRATEGY.md exists: does the top unaddressed signal support or contradict the
 If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy should prioritize?
 2-3 sentences.}
 
-**Action:** {one imperative — e.g., "Run /pm-audit — FEEDBACK.md answers Q6 and will sharpen Section 3." or "Update STRATEGY.md 'The Bet' to address the top unaddressed signal before roadmapping."}
+**Action:** {one imperative — e.g., "Run /pm-challenge-me — FEEDBACK.md answers Q6 and will sharpen Section 3." or "Update STRATEGY.md 'The Bet' to address the top unaddressed signal before roadmapping."}
 
 ---
 
@@ -331,7 +331,7 @@ If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy s
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TOP_THEME=$(grep "## Top Unaddressed Signal" .nanopm/FEEDBACK.md -A2 2>/dev/null | tail -1 | xargs)
-nanopm_context_append "{\"skill\":\"pm-user-feedback\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"top_unaddressed\":\"$(echo $_TOP_THEME | head -c 100 | tr '\"' \"'\")\",\"sources\":\"${_SOURCES_USED:-manual}\",\"next\":\"pm-audit\"}}"
+nanopm_context_append "{\"skill\":\"pm-user-feedback\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"top_unaddressed\":\"$(echo $_TOP_THEME | head -c 100 | tr '\"' \"'\")\",\"sources\":\"${_SOURCES_USED:-manual}\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
@@ -341,6 +341,6 @@ Tell the user:
 - How many themes were identified and from which sources
 - The top unaddressed signal (one sentence)
 - Which themes are already addressed by the roadmap vs. which are gaps
-- Recommended next: "Run /pm-audit — FEEDBACK.md will pre-fill Q6 and sharpen the synthesis."
+- Recommended next: "Run /pm-challenge-me — FEEDBACK.md will pre-fill Q6 and sharpen the synthesis."
 
 **STATUS: DONE**

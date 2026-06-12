@@ -91,7 +91,8 @@ If LINEAR available:
 ```bash
 [ -f ".nanopm/ROADMAP.md" ] && cat .nanopm/ROADMAP.md || echo "NO_ROADMAP"
 [ -f ".nanopm/OBJECTIVES.md" ] && cat .nanopm/OBJECTIVES.md || echo "NO_OBJECTIVES"
-[ -f ".nanopm/AUDIT.md" ] && head -40 .nanopm/AUDIT.md || echo "NO_AUDIT"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && head -40 "$_CHALLENGES" || echo "NO_CHALLENGES"
 ```
 
 **Define context (tailor the update):**

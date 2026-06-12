@@ -16,7 +16,7 @@ mcp__notion__query_database     — query a database (e.g., feature backlog)
 **What to extract:**
 - Pages titled "Roadmap", "Product Strategy", "Q* Goals" → feeds /pm-objectives, /pm-strategy
 - Feature backlog database → feeds /pm-roadmap
-- User research or feedback pages → feeds /pm-audit
+- User research or feedback pages → feeds /pm-challenge-me
 
 **Suggested search queries:**
 ```

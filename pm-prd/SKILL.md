@@ -342,7 +342,7 @@ If the section is missing or empty, STOP and tell the user: *"PRD has no Falsifi
 
 ### 4b.2. Read build_mode + reviewer subagent
 
-First, read the project's build mode (set by `/pm-audit` Q12). This shapes what counts as a valid "observable behavior" in the Falsification:
+First, read the project's build mode (set by `/pm-challenge-me` Q12). This shapes what counts as a valid "observable behavior" in the Falsification:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true

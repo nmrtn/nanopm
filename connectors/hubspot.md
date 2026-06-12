@@ -1,7 +1,7 @@
 # Connector: HubSpot
 
 Fetches deal pipeline data, company segments, and contact notes from HubSpot CRM.
-Used by `/pm-audit` to surface product-market fit signals from the sales pipeline, and by `/pm-discovery` to identify ICP patterns and recurring objections from deal notes.
+Used by `/pm-challenge-me` to surface product-market fit signals from the sales pipeline, and by `/pm-discovery` to identify ICP patterns and recurring objections from deal notes.
 
 ## Tier 1 (MCP)
 
@@ -56,7 +56,7 @@ curl -s "https://api.hubapi.com/crm/v3/pipelines/deals" \
 **Required env vars:** `HUBSPOT_API_KEY`
 Get it: HubSpot → Settings → Integrations → Private Apps → Create private app → scope: `crm.objects.deals.read`, `crm.objects.companies.read`, `crm.objects.contacts.read`
 
-**Heuristics for `/pm-audit`:**
+**Heuristics for `/pm-challenge-me`:**
 - If >30% of open deals are in a "Proposal Sent" or "Negotiation" stage with no recent movement to Closed Won: flag as a conversion problem. Likely cause: unclear value prop, missing feature for procurement, or pricing mismatch — worth calling out as a strategic gap.
 - If Closed Lost deals cluster around a single stage (e.g., all lost at "Demo Scheduled"): the product is failing to demonstrate value, not failing at sourcing. Surface this as a messaging or onboarding issue, not a feature gap.
 - If company `numberofemployees` varies widely across Closed Won (e.g., 5-person shops and 500-person companies both winning): ICP is undefined. Flag as the highest-priority strategic clarification needed.
@@ -92,7 +92,7 @@ $B snapshot
 
 ## Tier 4 (Manual fallback)
 
-**For `/pm-audit`:** Ask the user:
+**For `/pm-challenge-me`:** Ask the user:
 > "What does your sales pipeline look like? Which deals are closing and which are being lost — and do you know why? (Skip this if sales data isn't relevant to your product.)"
 
 **For `/pm-discovery`:** Ask the user:

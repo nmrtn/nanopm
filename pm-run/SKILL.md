@@ -1,7 +1,7 @@
 ---
 name: pm-run
 version: 0.2.0
-description: "Run the full nanopm PM pipeline: feedback → personas → audit → objectives → strategy → roadmap → PRD. One command for a complete planning cycle. Each skill reads the prior output — the pipeline compounds."
+description: "Run the full nanopm PM pipeline: feedback → personas → challenges → objectives → strategy → roadmap → PRD. One command for a complete planning cycle. Each skill reads the prior output — the pipeline compounds."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -31,12 +31,12 @@ nanopm_preamble
 ```
 [Define]   /pm-vision-mission → /pm-business-model → /pm-org → /pm-product
 [Discover] /pm-user-feedback
-[Define]   /pm-personas → /pm-audit
+[Define]   /pm-personas → /pm-challenge-me
 [Plan]     /pm-objectives → /pm-strategy → /pm-roadmap
 [Build]    /pm-prd
 ```
 
-Each skill compounds on the last. **Define** establishes the ground truth first — the company (vision, business model, org) and the product map. Feedback grounds everything in real user signal. Personas crystallize who you're building for; the audit forms the first judgment against the now-stated context. Objectives, strategy, and roadmap plan on top; the PRD flows from the roadmap, targets the primary persona, and quotes user feedback.
+Each skill compounds on the last. **Define** establishes the ground truth first — the company (vision, business model, org) and the product map. Feedback grounds everything in real user signal. Personas crystallize who you're building for; the challenge session forms the first judgment against the now-stated context. Objectives, strategy, and roadmap plan on top; the PRD flows from the roadmap, targets the primary persona, and quotes user feedback.
 
 This skill orchestrates the pipeline inline — you don't need to manually invoke each skill.
 
@@ -49,7 +49,8 @@ echo "=== Existing artifacts ==="
 [ -f ".nanopm/PRODUCT.md"    ] && echo "  PRODUCT.md    ✓" || echo "  PRODUCT.md    (will create)"
 [ -f ".nanopm/FEEDBACK.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
 [ -f ".nanopm/PERSONAS.md"   ] && echo "  PERSONAS.md   ✓" || echo "  PERSONAS.md   (will create)"
-[ -f ".nanopm/AUDIT.md"      ] && echo "  AUDIT.md      ✓" || echo "  AUDIT.md      (will create)"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "  CHALLENGES.md ✓" || echo "  CHALLENGES.md (will create)"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "  OBJECTIVES.md ✓" || echo "  OBJECTIVES.md (will create)"
 [ -f ".nanopm/STRATEGY.md"   ] && echo "  STRATEGY.md   ✓" || echo "  STRATEGY.md   (will create)"
 [ -f ".nanopm/ROADMAP.md"    ] && echo "  ROADMAP.md    ✓" || echo "  ROADMAP.md    (will create)"
@@ -80,20 +81,20 @@ product or a greenfield idea.
 
 If A: run inline, in order, skipping each one's "Preamble (run first)": `$(nanopm_skill_path pm-vision-mission)`, `$(nanopm_skill_path pm-business-model)`, `$(nanopm_skill_path pm-org)`, then `$(nanopm_skill_path pm-product)`. After each: "✅ {DOC}.md written." Then: "✅ Define context established. Moving to feedback..."
 If B: run only `$(nanopm_skill_path pm-product)` inline (skip its preamble). After it completes: "✅ Product mapped. Moving to feedback..."
-If C: proceed directly to Phase 1. (Personas + audit in Phases 2b/3 still run; they degrade gracefully without the company docs.)
+If C: proceed directly to Phase 1. (Personas + challenge session in Phases 2b/3 still run; they degrade gracefully without the company docs.)
 
 ## Phase 1: Confirm pipeline
 
 Ask via AskUserQuestion.
 
-- **question:** "Ready to run the full PM pipeline for {slug}? It will run feedback → personas → audit → objectives → strategy → roadmap → PRD. Takes 15-25 min."
+- **question:** "Ready to run the full PM pipeline for {slug}? It will run feedback → personas → challenges → objectives → strategy → roadmap → PRD. Takes 15-25 min."
 - **header:** `Pipeline` (must be ≤12 chars — Mistral Vibe constraint)
 - **multiSelect:** false
 - **options:**
   - A) "Run full pipeline" (Recommended)
-  - B) "Skip feedback" — audit → PRD only
+  - B) "Skip feedback" — challenges → PRD only
   - C) "Feedback only" — stops after FEEDBACK.md
-  - D) "Skip to strategy" — assumes feedback + audit + objectives exist
+  - D) "Skip to strategy" — assumes feedback + challenges + objectives exist
   - E) "Cancel"
 
 If B: skip Phase 2 (feedback), but still run Phase 2b (personas) and Phases 3–7.
@@ -108,9 +109,9 @@ Read and follow `$(nanopm_skill_path pm-user-feedback)` inline, skipping:
 
 Complete all phases through **Phase 6: Save context**.
 
-After pm-user-feedback completes: "✅ Feedback collected. Moving to audit..."
+After pm-user-feedback completes: "✅ Feedback collected. Moving to the challenge session..."
 
-If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-personas or /pm-audit to continue."
+If user chose C: stop here. Output: "Pipeline stopped after feedback. Run /pm-personas or /pm-challenge-me to continue."
 
 ## Phase 2b: Run pm-personas inline
 
@@ -119,16 +120,16 @@ Read and follow `$(nanopm_skill_path pm-personas)` inline, skipping:
 
 pm-personas auto-detects its mode: it reverse-engineers the personas from the codebase plus any artifacts already produced this run (PRODUCT.md and FEEDBACK.md, and DISCOVERY.md if present), then confirms them with you. Complete all phases through **save context**.
 
-After pm-personas completes: "✅ Personas defined. Moving to audit..."
+After pm-personas completes: "✅ Personas defined. Moving to the challenge session..."
 
-## Phase 3: Run pm-audit inline
+## Phase 3: Run pm-challenge-me inline
 
-Read and follow `$(nanopm_skill_path pm-audit)` inline, skipping:
+Read and follow `$(nanopm_skill_path pm-challenge-me)` inline, skipping:
 - Its own "Preamble (run first)" (already sourced above)
 
-Complete all phases of pm-audit through **Phase 7: Save context**.
+Complete all phases of pm-challenge-me through **Phase 7: Save context**.
 
-After pm-audit completes: "✅ Audit complete. Moving to objectives..."
+After pm-challenge-me completes: "✅ Challenge session complete. Moving to objectives..."
 
 ## Phase 4: Run pm-objectives inline
 
@@ -175,7 +176,7 @@ Output a summary table:
 
   FEEDBACK.md   ✅  .nanopm/FEEDBACK.md
   PERSONAS.md   ✅  .nanopm/PERSONAS.md
-  AUDIT.md      ✅  .nanopm/AUDIT.md
+  CHALLENGES.md ✅  .nanopm/CHALLENGES.md
   OBJECTIVES.md ✅  .nanopm/OBJECTIVES.md
   STRATEGY.md   ✅  .nanopm/STRATEGY.md
   ROADMAP.md    ✅  .nanopm/ROADMAP.md

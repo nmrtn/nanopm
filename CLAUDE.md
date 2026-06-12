@@ -13,7 +13,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-product | `/pm-product` | Deep product map — from code + site, or interview if greenfield → PRODUCT.md |
 | pm-personas | `/pm-personas` | Define WHO you're building for — JTBD personas + anti-persona |
 | pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery |
-| pm-audit | `/pm-audit` | Deep product audit |
+| pm-challenge-me | `/pm-challenge-me` | Challenge Me — adversarial challenges based on product context |
 | pm-objectives | `/pm-objectives` | Define OKRs and anti-goals |
 | pm-strategy | `/pm-strategy` | Strategy with structured adversarial challenge |
 | pm-roadmap | `/pm-roadmap` | Outcome-driven roadmap |
@@ -27,9 +27,10 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 
 ## Architecture
 
-Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas, audit) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro).
+Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro), plus **Daily Ops** (challenge-me, standup, weekly-update) running on any day, outside the pipeline.
 
 All skills source `lib/nanopm.sh` for shared runtime functions.
+After each Define skill, a subagent regenerates `.nanopm/CONTEXT-SUMMARY.md` — a one-page consolidated company + product brief. `nanopm_preamble` loads it (`nanopm_load_context`) into every skill run, so all downstream work shares one baseline and doesn't drift.
 State: `~/.nanopm/` (global config + memory), `.nanopm/` (per-project outputs, gitignored).
 Data ingestion: MCP → API → browser → CONTEXT.md manual fallback.
 

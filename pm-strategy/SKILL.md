@@ -1,7 +1,7 @@
 ---
 name: pm-strategy
 version: 0.1.0
-description: "Define product strategy. Reads objectives + audit context, generates a strategy, dispatches adversarial subagent to challenge it, synthesizes into STRATEGY.md."
+description: "Define product strategy. Reads objectives + challenge-session context, generates a strategy, dispatches adversarial subagent to challenge it, synthesizes into STRATEGY.md."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
@@ -47,7 +47,8 @@ nanopm_context_all
 Read upstream artifacts if they exist:
 
 ```bash
-[ -f ".nanopm/AUDIT.md"          ] && echo "AUDIT_EXISTS"          || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/OBJECTIVES.md"     ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
 [ -f ".nanopm/PERSONAS.md"       ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
 [ -f ".nanopm/FEEDBACK.md"       ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
@@ -68,14 +69,14 @@ Read upstream artifacts if they exist:
 
 Read any that exist. The richer the context, the better the strategy.
 
-If both are missing: warn the user — "Strategy without audit or objectives is guesswork. Consider running /pm-audit and /pm-objectives first. Continuing with available context."
+If both are missing: warn the user — "Strategy without a challenge session or objectives is guesswork. Consider running /pm-challenge-me and /pm-objectives first. Continuing with available context."
 
 ## Phase 2: One clarifying question (only if needed)
 
 **Before asking**, derive the bet by cross-referencing:
 1. OBJECTIVES.md Objective 1 — the primary objective often names a directional choice
-2. AUDIT.md Section 3 (biggest gap) — the gap implies the bet needed to close it
-3. AUDIT.md Section 4 (the question being avoided) — the bet is often the answer to that question
+2. CHALLENGES.md Section 3 (biggest gap) — the gap implies the bet needed to close it
+3. CHALLENGES.md Section 4, Challenge 1 (the question you're avoiding) — the bet is often the answer to that question
 
 If a clear, falsifiable directional hypothesis emerges from this cross-reference, state it and skip Phase 2: "Derived bet: {hypothesis}. Proceeding with strategy."
 
@@ -97,7 +98,7 @@ Hold this draft in memory. Do NOT write it to disk yet.
 
 ## Phase 4: Adversarial challenge
 
-First, read the build mode from config (set by `/pm-audit` Q12) — this shapes what counts as a valid "cheapest test":
+First, read the build mode from config (set by `/pm-challenge-me` Q12) — this shapes what counts as a valid "cheapest test":
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -221,7 +222,7 @@ Not hedging — a specific, named risk with a specific trigger condition.}
 
 ---
 
-*Sources: {AUDIT.md, OBJECTIVES.md, adversarial review, user answers}*
+*Sources: {CHALLENGES.md, OBJECTIVES.md, adversarial review, user answers}*
 ```
 
 ## Phase 7: User review

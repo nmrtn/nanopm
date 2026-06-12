@@ -5,6 +5,7 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
     case discover = "Discover"
     case plan = "Plan"
     case ship = "Build"
+    case daily = "Day to Day"
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
         case .discover: return "magnifyingglass"
         case .plan: return "map"
         case .ship: return "hammer"
+        case .daily: return "sun.max"
         }
     }
 
@@ -78,10 +80,14 @@ func prettyDocName(_ relativePath: String) -> String {
 /// Fixed artifact → phase mapping. Files that match no rule are internal
 /// state (configs, logs, snapshots) and are not surfaced in the viewer.
 enum PhaseMapper {
-    private static let defineNames = ["vision", "mission", "business", "org", "product", "personas", "audit"]
+    // "context" matches CONTEXT-SUMMARY.md (the consolidated brief) and the legacy
+    // CONTEXT.md manual-ingestion fallback — both belong to Define.
+    private static let defineNames = ["vision", "mission", "business", "org", "product", "personas", "context"]
     private static let discoverNames = ["feedback", "data", "discovery", "interview", "competitor"]
     private static let planNames = ["objectives", "strategy", "roadmap", "prd"]
-    private static let shipNames = ["breakdown", "handoff", "retro", "standup", "weekly", "update", "tasks"]
+    private static let shipNames = ["breakdown", "handoff", "retro", "tasks"]
+    // "audit" is the legacy name for "challenges" (pre /pm-challenge-me rename).
+    private static let dailyNames = ["challenge", "audit", "standup", "weekly", "update"]
 
     static func phase(for relativePath: String) -> Phase? {
         let lower = relativePath.lowercased()
@@ -99,6 +105,7 @@ enum PhaseMapper {
         if discoverNames.contains(where: { file.hasPrefix($0) }) { return .discover }
         if planNames.contains(where: { file.hasPrefix($0) }) { return .plan }
         if shipNames.contains(where: { file.hasPrefix($0) }) { return .ship }
+        if dailyNames.contains(where: { file.hasPrefix($0) }) { return .daily }
         return nil
     }
 }

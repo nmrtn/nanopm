@@ -32,7 +32,7 @@ GET /projects/{project_id}/tags
 ```
 
 **What to extract:**
-- Top insight titles and their highlight count → feeds /pm-audit (feedback surprises)
+- Top insight titles and their highlight count → feeds /pm-challenge-me (feedback surprises)
 - Most-used tags → reveals user pain point themes
 - Recent highlights → verbatim user quotes for /pm-prd user stories
 

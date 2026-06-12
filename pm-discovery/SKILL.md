@@ -1,7 +1,7 @@
 ---
 name: pm-discovery
 version: 0.1.0
-description: "Product discovery. Figures out WHAT to build before you plan HOW to build it. Maps the opportunity space, surfaces the riskiest assumptions, and designs the cheapest tests. Run this before pm-audit when you're pre-product, pivoting, or unsure if a feature is right."
+description: "Product discovery. Figures out WHAT to build before you plan HOW to build it. Maps the opportunity space, surfaces the riskiest assumptions, and designs the cheapest tests. Run this before pm-challenge-me when you're pre-product, pivoting, or unsure if a feature is right."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -31,9 +31,9 @@ Run `/pm-discovery` when:
 - You're pre-product and unsure what to build
 - You're considering a new feature and want to validate it first
 - You're pivoting and need to re-examine the problem space
-- pm-audit gave you a strategic gap you don't know how to close
+- pm-challenge-me gave you a strategic gap you don't know how to close
 
-Run `/pm-audit` when you already know what you're building and want to assess it.
+Run `/pm-challenge-me` when you already know what you're building and want to assess it.
 
 ## Phase 0: Prior context
 
@@ -222,12 +222,12 @@ Building before the top assumptions are tested is how startups waste 6 months.}
 
 ## Recommended Next Skill
 
-**Run tests first. Then: /pm-audit**
+**Run tests first. Then: /pm-challenge-me**
 
-Once the top 2-3 assumption tests return results, run /pm-audit with the validated understanding
-of who the user is and what they actually need. The audit will be significantly sharper.
+Once the top 2-3 assumption tests return results, run /pm-challenge-me with the validated understanding
+of who the user is and what they actually need. The challenge session will be significantly sharper.
 
-{If tests already run / evidence already exists: "Evidence is sufficient — run /pm-audit now."}
+{If tests already run / evidence already exists: "Evidence is sufficient — run /pm-challenge-me now."}
 
 ---
 
@@ -238,7 +238,7 @@ of who the user is and what they actually need. The audit will be significantly 
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 .nanopm/DISCOVERY.md | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' .nanopm/DISCOVERY.md | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-audit\"}}"
+nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 .nanopm/DISCOVERY.md | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' .nanopm/DISCOVERY.md | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
@@ -248,6 +248,6 @@ Tell the user:
 - The top assumption by risk score and the cheapest way to test it
 - How long each test should take before results are actionable
 - "Run tests before building. The goal of discovery is to fail fast on paper, not in code."
-- Recommended next: run the tests, then `/pm-audit`
+- Recommended next: run the tests, then `/pm-challenge-me`
 
 **STATUS: DONE**

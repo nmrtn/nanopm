@@ -47,7 +47,8 @@ nanopm_context_all
 Read upstream artifacts:
 
 ```bash
-[ -f ".nanopm/AUDIT.md"      ] && echo "AUDIT_EXISTS"      || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
 [ -f ".nanopm/STRATEGY.md"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
 [ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
@@ -296,7 +297,7 @@ For each item, capture: the title and the outcome statement (or whatever current
 
 ### 4b.2. Read build_mode + dispatch single batched validator subagent
 
-First, read the project's build mode (set by `/pm-audit` Q12). This shapes what form "observable behavior" can take:
+First, read the project's build mode (set by `/pm-challenge-me` Q12). This shapes what form "observable behavior" can take:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true

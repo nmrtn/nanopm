@@ -35,7 +35,7 @@ mcp__github__create_issue(
 - Merged PRs in last 30 days → feeds CONTEXT.md Q4 (what shipped)
 - Open issues by `bug` label and count → signals quality/debt
 - Open issues by `feature` or `enhancement` label → signals demand signals
-- Latest release tag and notes → context for /pm-audit
+- Latest release tag and notes → context for /pm-challenge-me
 
 **Setup for users:**
 Install GitHub MCP server and add to CLAUDE.md:

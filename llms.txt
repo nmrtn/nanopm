@@ -42,6 +42,8 @@ interviews → data → personas → audit → objectives → strategy → roadm
 
 Each skill also works standalone.
 
+After each Define skill (vision-mission, business-model, org, product, personas), a subagent regenerates a one-page consolidated context brief at `.nanopm/CONTEXT-SUMMARY.md`. Every skill loads this brief at startup, so the agent always shares the same company + product baseline and context does not drift between skills or sessions.
+
 ## Skills
 
 **Planning pipeline:**
@@ -52,7 +54,6 @@ Each skill also works standalone.
 - `/pm-product` — deep product map: reads code + the public site for existing products, or interviews you for greenfield → PRODUCT.md
 - `/pm-personas` — define who you're building for — JTBD personas + an explicit anti-persona
 - `/pm-discovery` — figure out WHAT to build before planning HOW (pre-product / greenfield)
-- `/pm-audit` — brutal honest assessment of product, user, and biggest gap
 - `/pm-objectives` — OKRs with anti-goals and measurable key results
 - `/pm-user-feedback` — aggregate feedback from Dovetail, Productboard, etc; cluster themes
 - `/pm-competitors-intel` — monitor competitor pages, diff snapshots, surface strategic implications
@@ -64,6 +65,7 @@ Each skill also works standalone.
 - `/pm-upgrade` — upgrade nanopm to the latest version
 
 **Daily ops:**
+- `/pm-challenge-me` — three adversarial challenges (strategy, users, focus), starting with the question you're avoiding
 - `/pm-standup` — morning briefing: what shipped yesterday, today's meetings, top 1-3 priorities
 - `/pm-interview` — prepare a user interview guide, or debrief a Granola transcript into FEEDBACK.md
 - `/pm-weekly-update` — draft stakeholder update email (CEO, investor, or team), adapted to audience
@@ -71,7 +73,7 @@ Each skill also works standalone.
 
 ## Memory system
 
-Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`. The next skill reads this file to understand what was tried before. Re-running `/pm-audit` six months later gives the agent the full history of prior decisions.
+Every skill run appends structured entries to `~/.nanopm/memory/{project}.jsonl`. The next skill reads this file to understand what was tried before. Re-running `/pm-challenge-me` six months later gives the agent the full history of prior decisions.
 
 ## Key differentiators
 

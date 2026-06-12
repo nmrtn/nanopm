@@ -5,7 +5,8 @@
 set -euo pipefail
 
 GLOBAL_CONFIG_DIR="$HOME/.nanopm"
-_SKILL_LIST="pm-scan pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel"
+# Keep in sync with setup's _SKILL_LIST; pm-scan and pm-audit are legacy names kept so old installs get cleaned up
+_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data pm-scan pm-audit"
 
 # ── colors ────────────────────────────────────────────────────────────────────
 _bold()  { printf '\033[1m%s\033[0m' "$*"; }

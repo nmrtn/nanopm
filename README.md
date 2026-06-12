@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](CHANGELOG.md)
 
-A PM skill pack for AI coding agents. Runs the planning cycle (audit, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
+A PM skill pack for AI coding agents. Runs the planning cycle (challenge, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
 Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have.
 
@@ -15,7 +15,7 @@ Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack)
 
 Building the wrong thing fast is the failure mode AI coding agents make easy. They'll ship whatever you describe — they don't ask if it's the right thing.
 
-The PM work that catches that (audit, strategy, falsification, roadmap, retro) usually lives in tools that don't know your code, lose context between sessions, and don't talk to each other. ChatGPT for the strategy. Notion for the PRD. Linear for the tickets. Nothing compounds.
+The PM work that catches that (challenge, strategy, falsification, roadmap, retro) usually lives in tools that don't know your code, lose context between sessions, and don't talk to each other. ChatGPT for the strategy. Notion for the PRD. Linear for the tickets. Nothing compounds.
 
 nanopm runs the whole cycle where you already work, with two structural properties:
 
@@ -29,7 +29,7 @@ One command runs the full pipeline: `/pm-run`. Or invoke any skill standalone.
 ## Example
 
 ```
-You:     /pm-audit
+You:     /pm-challenge-me
 
 nanopm:  Q1: What are you building? (one sentence)
 You:     An AI agent harness for financial advisors — automates
@@ -40,7 +40,7 @@ You:     Independent RIAs managing $50M–$500M books, no ops team.
 
 ...11 questions later...
 
-nanopm:  AUDIT.md written.
+nanopm:  CHALLENGES.md written.
 
          Biggest gap: you're solving the reporting problem, but the
          job your users are actually hired to do is winning and
@@ -100,7 +100,6 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-product          → deep product map — reads code + the public site, or interviews you when greenfield
 /pm-personas         → define who you're building for — JTBD personas + an explicit anti-persona
 /pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
-/pm-audit            → brutal honest assessment of product, user, and biggest gap
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
 /pm-competitors-intel → monitor competitor pages, diff snapshots, surface strategic implications
@@ -113,6 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 
 **Daily ops:**
 ```
+/pm-challenge-me     → three adversarial challenges: strategy, users, focus — starting with the question you're avoiding
 /pm-standup          → morning briefing — what shipped, today's meetings, top 1-3 priorities
 /pm-interview        → prepare a user interview guide, or debrief a transcript from Granola
 /pm-weekly-update    → draft stakeholder update email (CEO, investor, or team), adapted to audience
@@ -129,10 +129,11 @@ nanopm runs in four zones. Context first. Signal in. Planning cycle. Delivery ou
 
 | Zone | Skills | Purpose |
 |---|---|---|
-| **1. Define** | `/pm-vision-mission` · `/pm-business-model` · `/pm-org` · `/pm-product` · `/pm-personas` · `/pm-audit` | Establish company + product context: the business, the org, who it's for, the product map, a first critical read |
+| **1. Define** | `/pm-vision-mission` · `/pm-business-model` · `/pm-org` · `/pm-product` · `/pm-personas` | Establish company + product context: the business, the org, who it's for, the product map |
 | **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull the three external signals: user research, analytics, market |
 | **3. Pipeline** | `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Skills run in sequence; each reads typed state from the prior |
 | **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
+| **Daily Ops** | `/pm-challenge-me` · `/pm-standup` · `/pm-weekly-update` | Recurring day-to-day PM ops: the daily briefing, the weekly stakeholder update, and an adversarial challenge on demand |
 
 ---
 
@@ -145,7 +146,8 @@ Each Define skill produces a reusable context artifact downstream skills read. D
 - **`/pm-org`** — org map, key roles, decision-makers → `ORG.md`.
 - **`/pm-product`** — deep product map → `PRODUCT.md`. Dual-mode: for an existing product it reads the codebase (routes, models, tests, git history) plus the public site and positioning; for greenfield it interviews you to define the product concept from scratch. Reads `openspec/specs/` when present.
 - **`/pm-personas`** — defines who you're building for → `PERSONAS.md`. Reverse-engineers personas from `PRODUCT.md` and prior artifacts when they exist, or interviews you from scratch when the repo is empty. JTBD proto-personas + an explicit anti-persona.
-- **`/pm-audit`** — brutal honest read → `AUDIT.md`. Reads `PRODUCT.md` + the company docs, then surfaces the biggest gap and the question you're avoiding. The adversarial gate writes a typed `question` decision.
+
+After any Define skill finishes, a subagent regenerates `.nanopm/CONTEXT-SUMMARY.md` — a one-page brief (what you do, who for, business model, org, why) synthesized from whatever Define docs exist. Every downstream skill loads it at startup (via the shared preamble), so the agent always works from the same company + product baseline and context doesn't drift between skills.
 
 ### 2. Discover — the three external signals
 
@@ -153,12 +155,12 @@ Each signal skill produces an artifact the pipeline reads. They're independent. 
 
 - **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `FEEDBACK.md`. Clusters themes, surfaces top unaddressed signal.
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
-- **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by audit and PRD.
+- **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by the challenge session and the PRD.
 - **`/pm-competitors-intel`** — snapshots competitor pages, diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`.
 
 ### 3. Pipeline — the planning cycle
 
-Each skill writes a markdown artifact for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone. (The first critical read, `/pm-audit`, lands in Define — see zone 1.)
+Each skill writes a markdown artifact for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone. (The adversarial challenge session, `/pm-challenge-me`, lives in Daily Ops — run it on any day, outside the pipeline.)
 
 1. **`/pm-objectives`** → `.nanopm/OBJECTIVES.md` — OKRs with anti-goals and measurable KRs anchored to top signal.
 2. **`/pm-strategy`** → `.nanopm/STRATEGY.md` — the bet, the risk, what you're saying no to. Adversarial review forces a falsifiable claim. Writes typed `bet` and `scope-out` decisions.
@@ -185,8 +187,9 @@ Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl`.
 
 ### Daily ops (parallel to the pipeline)
 
-Three skills run on a daily cadence without going through the planning sequence:
+These skills run on a day-to-day cadence without going through the planning sequence:
 
+- **`/pm-challenge-me`** — brutal honest read → `CHALLENGES.md`. Reads `PRODUCT.md` + the company docs, surfaces the biggest gap, then delivers three direct challenges — strategy, users, focus — starting with the question you're avoiding. The adversarial gate writes a typed `question` decision.
 - **`/pm-standup`** — morning briefing: commits, calendar, meeting notes.
 - **`/pm-weekly-update`** — stakeholder update email adapted to audience.
 - **`/pm-retro`** — compares roadmap commitments to actual commits, surfaces drift.
@@ -206,7 +209,7 @@ State lives in `~/.nanopm/projects/{slug}/` as append-only, schema-validated JSO
 
 Every write goes through `bin/nanopm-state-log`, which enforces the schema before append — required fields, enum allowlists, key format, confidence range, length caps. Bad records fail loud with a non-zero exit. There are no silent appends.
 
-Re-run `/pm-audit` six months later and it reads the prior decisions before asking anything new.
+Re-run `/pm-challenge-me` six months later and it reads the prior decisions before asking anything new.
 
 ---
 
@@ -216,7 +219,7 @@ Re-run `/pm-audit` six months later and it reads the prior decisions before aski
 |---|---|---|---|---|
 | Lives in your editor | ✅ | ✅ | ❌ | ❌ |
 | Typed memory across sessions | ✅ schema-validated JSONL | ❌ | ⚠️ manual writes | ❌ |
-| Full PM pipeline (audit → PRD) | ✅ | ⚠️ if you reprompt every time | ❌ | ❌ |
+| Full PM pipeline (challenge → PRD) | ✅ | ⚠️ if you reprompt every time | ❌ | ❌ |
 | Reads your codebase | ✅ | ✅ | ❌ | ❌ |
 | Adversarial gates on bets & outcomes | ✅ subagent + state validator | ❌ | ❌ | ❌ |
 | Peer handoff targets | ✅ Linear / GitHub / OpenSpec / gstack / human | ⚠️ ad-hoc | ⚠️ Linear only | ❌ |
@@ -267,7 +270,7 @@ See [`connectors/README.md`](connectors/README.md) for full setup details per co
 
 ## Methodology support
 
-nanopm detects your methodology at audit time and adapts its artifacts:
+nanopm detects your methodology at challenge time (CONTEXT.md intake) and adapts its artifacts:
 
 - **Shape Up** → roadmap uses bets + appetite + cool-down; PRDs become pitches
 - **Scrum/Agile** → roadmap uses sprint framing, epics, story points
@@ -277,10 +280,10 @@ nanopm detects your methodology at audit time and adapts its artifacts:
 
 ## Staleness detection
 
-Every skill run warns if your AUDIT.md or STRATEGY.md is more than 20 commits old:
+Every skill run warns if your CHALLENGES.md or STRATEGY.md is more than 20 commits old:
 
 ```
-⚠  nanopm: AUDIT.md is 34 commits old — consider re-running /pm-audit
+⚠  nanopm: CHALLENGES.md is 34 commits old — consider re-running /pm-challenge-me
 ```
 
 ---
@@ -332,7 +335,7 @@ Individual suites:
 bash test/skill-syntax.sh           # static checks: frontmatter, gates, state binaries, telemetry purge
 bash test/state-layer.sh            # nanopm-state-log/read validators
 bash test/multi-host.sh             # NANOPM_HOST detection + nanopm_skill_path resolution
-bash test/gates.sh                  # ETHOS gates wired in pm-audit / pm-roadmap / pm-prd
+bash test/gates.sh                  # ETHOS gates wired in pm-challenge-me / pm-roadmap / pm-prd
 bash test/update-check.sh           # semver comparison, stale-cache regression, snooze
 bash test/context-threading.e2e.sh  # legacy context append plumbing
 bash test/website-bootstrap.e2e.sh  # browse + connector tier detection

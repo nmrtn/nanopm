@@ -33,7 +33,7 @@ _OUT=$(env -i HOME="$_TMPDIR" PATH="$PATH" bash -c "
   source '$_REPO_ROOT/lib/nanopm.sh'
   echo \"HOST=\$NANOPM_HOST\"
   echo \"DIR=\$NANOPM_SKILLS_DIR\"
-  echo \"PATH=\$(nanopm_skill_path pm-audit)\"
+  echo \"PATH=\$(nanopm_skill_path pm-challenge-me)\"
 ")
 
 if echo "$_OUT" | grep -q "HOST=claude"; then
@@ -46,8 +46,8 @@ if echo "$_OUT" | grep -q "DIR=$_TMPDIR/.claude/skills"; then
 else
   fail "Default skills dir wrong. Got: $_OUT"
 fi
-if echo "$_OUT" | grep -q "PATH=$_TMPDIR/.claude/skills/pm-audit/SKILL.md"; then
-  ok "Default → nanopm_skill_path pm-audit resolves to ~/.claude/skills/"
+if echo "$_OUT" | grep -q "PATH=$_TMPDIR/.claude/skills/pm-challenge-me/SKILL.md"; then
+  ok "Default → nanopm_skill_path pm-challenge-me resolves to ~/.claude/skills/"
 else
   fail "skill_path wrong on Claude. Got: $_OUT"
 fi
