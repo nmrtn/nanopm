@@ -36,26 +36,57 @@ nanopm_skill_path() {
 
 _NANOPM_CONFIG_FILE="$HOME/.nanopm/config"
 
+# Config is split by scope so values don't leak between projects:
+#   - GLOBAL keys (machine-wide) live in ~/.nanopm/config
+#   - everything else is PER-PROJECT, in ~/.nanopm/projects/<slug>/config
+# nanopm_config_get/set route by key automatically, so callers (skills) are
+# unchanged — `nanopm_config_get company_website` is now per-project for free.
+# (Phase B will swap the <slug> key for a collision-proof project id.)
+_NANOPM_GLOBAL_KEYS="update_check_disabled auto_upgrade"
+
+_nanopm_is_global_key() {
+  case " $_NANOPM_GLOBAL_KEYS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+
+_nanopm_config_file_for() {
+  # Echoes the config file that owns this key (global vs per-project).
+  if _nanopm_is_global_key "$1"; then
+    echo "$_NANOPM_CONFIG_FILE"
+  else
+    echo "$HOME/.nanopm/projects/$(nanopm_slug)/config"
+  fi
+}
+
 nanopm_config_get() {
-  local key="$1"
-  [ -f "$_NANOPM_CONFIG_FILE" ] || return 0
-  grep "^${key}=" "$_NANOPM_CONFIG_FILE" 2>/dev/null | tail -1 | cut -d= -f2-
+  local key="$1" file
+  file=$(_nanopm_config_file_for "$key")
+  [ -f "$file" ] || return 0
+  grep "^${key}=" "$file" 2>/dev/null | tail -1 | cut -d= -f2-
 }
 
 nanopm_config_set() {
-  local key="$1" value="$2"
-  mkdir -p "$(dirname "$_NANOPM_CONFIG_FILE")"
+  local key="$1" value="$2" file
+  file=$(_nanopm_config_file_for "$key")
+  mkdir -p "$(dirname "$file")"
   local tmp
-  tmp=$(mktemp "${_NANOPM_CONFIG_FILE}.tmp.XXXXXX") || {
+  tmp=$(mktemp "${file}.tmp.XXXXXX") || {
     echo "nanopm: error: could not write config (disk full?)" >&2; return 1
   }
   # Copy existing lines except the key being set
-  grep -v "^${key}=" "$_NANOPM_CONFIG_FILE" 2>/dev/null > "$tmp" || true
+  grep -v "^${key}=" "$file" 2>/dev/null > "$tmp" || true
   echo "${key}=${value}" >> "$tmp"
-  mv "$tmp" "$_NANOPM_CONFIG_FILE" || {
+  mv "$tmp" "$file" || {
     rm -f "$tmp"
     echo "nanopm: error: could not update config" >&2; return 1
   }
+  # If a per-project key has a stale copy in the legacy global file (pre-split),
+  # drop it so it can't leak into other projects.
+  if ! _nanopm_is_global_key "$key" && grep -q "^${key}=" "$_NANOPM_CONFIG_FILE" 2>/dev/null; then
+    local gtmp
+    gtmp=$(mktemp "${_NANOPM_CONFIG_FILE}.tmp.XXXXXX") &&
+      grep -v "^${key}=" "$_NANOPM_CONFIG_FILE" > "$gtmp" 2>/dev/null &&
+      mv "$gtmp" "$_NANOPM_CONFIG_FILE" || rm -f "$gtmp" 2>/dev/null
+  fi
 }
 
 # ── Slug ─────────────────────────────────────────────────────────────────────
