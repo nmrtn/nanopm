@@ -75,20 +75,27 @@ _nanopm_memory_file() {
 
 nanopm_context_append() {
   # Usage: nanopm_context_append '{"skill":"pm-challenge-me","outputs":{...}}'
-  local json="$1"
-  local file
+  #
+  # Robust across shells and locales: the payload is piped to python as raw
+  # bytes and python writes the JSONL line to the file directly. The shell
+  # never has to expand or capture multibyte content (em-dashes, etc.), which
+  # under a non-UTF-8 locale (e.g. zsh with LC_ALL=C) previously errored with
+  # "character not in range". PYTHONUTF8=1 forces UTF-8 regardless of locale.
+  local json="$1" file
   file=$(_nanopm_memory_file)
   mkdir -p "$(dirname "$file")"
-  local entry
-  entry=$(printf '%s' "$json" | \
-    python3 -c "
-import sys, json, datetime
-d = json.loads(sys.stdin.read())
-d.setdefault('ts', datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
-d.setdefault('slug', '$(nanopm_slug)')
-print(json.dumps(d, separators=(',', ':')))
-" 2>/dev/null) || entry="$json"
-  echo "$entry" >> "$file" || {
+  printf '%s' "$json" | \
+    NANOPM_FILE="$file" NANOPM_SLUG_VAL="$(nanopm_slug)" PYTHONUTF8=1 python3 -c '
+import sys, os, json, datetime
+raw = sys.stdin.buffer.read().decode("utf-8", "replace")
+d = json.loads(raw)
+d.setdefault("ts", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+d.setdefault("slug", os.environ["NANOPM_SLUG_VAL"])
+with open(os.environ["NANOPM_FILE"], "a", encoding="utf-8") as f:
+    f.write(json.dumps(d, separators=(",", ":")) + "\n")
+' 2>/dev/null && return 0
+  # Fallback: python missing or JSON invalid — append the raw payload best-effort.
+  printf '%s\n' "$json" >> "$file" 2>/dev/null || {
     echo "nanopm: error: could not write memory (disk full?)" >&2; return 1
   }
 }

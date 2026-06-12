@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fix: `nanopm_context_append` robust under non-UTF-8 shells
+
+Saving context (the Phase 4 "Save context" step in every skill) could fail with `character not in range` when the payload contained multibyte characters (e.g. an em-dash in a mission statement) and the skill's bash ran under a non-UTF-8 locale such as zsh with `LC_ALL=C`. The payload is now piped to python as raw bytes and python writes the JSONL line directly (with `PYTHONUTF8=1`), so the shell never expands or captures multibyte content. Falls back to a best-effort raw append if python is unavailable.
+
 ### Define skills: refine vs from-scratch context discipline
 
 The five Define skills (`pm-vision-mission`, `pm-business-model`, `pm-org`, `pm-product`, `pm-personas`) used to pick their behavior by sniffing whatever evidence was lying around — and in "reverse-engineer" mode they read *every* prior `.nanopm/*.md` artifact, flooding the model's context with noise. Now behavior is driven by **one fact: does the target doc already exist?**
