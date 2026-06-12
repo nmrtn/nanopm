@@ -6,6 +6,11 @@ struct ProjectView: View {
     static let competitorTagPrefix = "competitor:"
     /// Leading indent for documents nested under a phase entry.
     static let childIndent: CGFloat = 14
+    /// Row insets driven by `.listRowInsets` (not inner `.padding`) so the
+    /// selection capsule and the row content share one geometry — without this
+    /// the content visibly nudges when a row becomes selected.
+    static let phaseRowInsets = EdgeInsets(top: 6, leading: 10, bottom: 4, trailing: 10)
+    static let childRowInsets = EdgeInsets(top: 3, leading: 10 + childIndent, bottom: 3, trailing: 10)
 
     let project: Project
     let onSwitchProject: () -> Void
@@ -107,19 +112,19 @@ struct ProjectView: View {
                     phaseGroup(.discover)
                     phaseGroup(.plan)
                     phaseGroup(.ship)
-                    phaseGroup(.other)
                 }
                 .listStyle(.sidebar)
                 .contentMargins(.top, 10, for: .scrollContent)
+                .tint(Color.npSelection)
             }
             Divider()
             sidebarFooter
         }
     }
 
-    /// Activity + refresh actions, pinned at the bottom of the nav column.
+    /// Activity + memory + refresh actions, pinned at the bottom of the nav column.
     private var sidebarFooter: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 14) {
             Button {
                 openWindow(id: NanoPMViewerApp.activityWindowID)
             } label: {
@@ -142,6 +147,20 @@ struct ProjectView: View {
             .help(activeRunCount > 0
                   ? "\(activeRunCount) run(s) in progress — open the live activity monitor"
                   : "Open the activity monitor")
+
+            Button {
+                selection = NavRoute.memoryPage
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain")
+                        .foregroundStyle(.secondary)
+                    Text("Memory")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.borderless)
+            .help("What NanoPM remembers about this project — every skill run leaves a trace here")
 
             Spacer()
 
@@ -207,16 +226,16 @@ struct ProjectView: View {
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
-                        .padding(.leading, Self.childIndent)
+                        .listRowInsets(Self.childRowInsets)
                 }
                 if showPRDs {
-                    prdsEntry.padding(.leading, Self.childIndent)
+                    prdsEntry.listRowInsets(Self.childRowInsets)
                 }
                 if phase == .discover && showCompetitorsSection {
-                    competitorsEntry.padding(.leading, Self.childIndent)
+                    competitorsEntry.listRowInsets(Self.childRowInsets)
                 }
                 ForEach(pending, id: \.expectedRelPath) { run in
-                    pendingRow(run).padding(.leading, Self.childIndent)
+                    pendingRow(run).listRowInsets(Self.childRowInsets)
                 }
             }
         }
@@ -224,9 +243,11 @@ struct ProjectView: View {
 
     @ViewBuilder
     private func phaseLabel(_ phase: Phase, hasOverview: Bool) -> some View {
-        let label = Text(phase.rawValue)
+        let label = Text(phase.rawValue.uppercased())
             .font(.system(size: 15, weight: .semibold))
-            .padding(.vertical, 2)
+            .tracking(0.6)
+            .foregroundStyle(Color.npCoral)
+            .listRowInsets(Self.phaseRowInsets)
         if hasOverview {
             label
                 .tag(NavRoute.overview(phase))
@@ -305,6 +326,8 @@ struct ProjectView: View {
             )
         } else if selection == NavRoute.competitorsPage {
             CompetitorsPageView(store: store)
+        } else if selection == NavRoute.memoryPage {
+            MemoryView(store: store)
         } else if selection == NavRoute.prdsPage {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID

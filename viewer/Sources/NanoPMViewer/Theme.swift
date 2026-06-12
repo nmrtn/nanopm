@@ -42,6 +42,9 @@ extension Color {
     /// chrome. Mirrors the AccentColor asset compiled into the app bundle;
     /// lightened in dark mode to stay visible on the navy paper.
     static let npNight = np(light: 0x0B1330, dark: 0x9FB0E8)
+    /// Deep Navy #0B1330, fixed across appearances — the sidebar selection
+    /// highlight (set as the nav List tint), kept brand-navy in both modes.
+    static let npSelection = Color(nsColor: NSColor(hex: 0x0B1330))
     /// Ink for display titles — the wordmark navy on light paper.
     static let npInk = np(light: 0x0B1330, dark: 0xEDEFF6)
     /// Success / done.

@@ -11,6 +11,9 @@ enum SmokeTest {
         if let flag = args.firstIndex(of: "--parse-stream"), args.count > flag + 1 {
             parseStream(args[flag + 1])
         }
+        if let flag = args.firstIndex(of: "--parse-memory"), args.count > flag + 1 {
+            parseMemory(args[flag + 1])
+        }
         guard let flag = args.firstIndex(of: "--smoke") else { return }
         guard args.count > flag + 1 else {
             print("usage: NanoPMViewer --smoke /path/to/project")
@@ -37,6 +40,19 @@ enum SmokeTest {
             print("SMOKE FAIL: \(error)")
             exit(1)
         }
+    }
+
+    private static func parseMemory(_ projectPath: String) {
+        let file = MemoryLog.file(forProjectAt: projectPath)
+        print("FILE: \(file)")
+        let content = (try? ShellRunner.run("cat \(ShellRunner.quote(file)) 2>/dev/null")) ?? ""
+        let entries = MemoryLog.parse(content)
+        for entry in entries {
+            let ts = entry.timestamp.map { ISO8601DateFormatter().string(from: $0) } ?? "-"
+            print("MEMORY\t\(entry.skill)\t\(ts)\toutputs:\(entry.outputs.count)")
+        }
+        print("ENTRIES: \(entries.count)")
+        exit(0)
     }
 
     private static func parseStream(_ file: String) {
