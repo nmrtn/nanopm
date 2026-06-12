@@ -15,7 +15,7 @@ git clone https://github.com/nmrtn/nanopm && cd nanopm
 ln -sfn "$(pwd)" ~/.claude/skills/nanopm
 ```
 
-Now edit any `pm-*/SKILL.md`, invoke it in Claude Code (e.g. `/pm-audit`), and your changes are live immediately. No reinstall needed.
+Now edit any `pm-*/SKILL.md`, invoke it in Claude Code (e.g. `/pm-challenge-me`), and your changes are live immediately. No reinstall needed.
 
 To go back to a clean install from the registry:
 
@@ -33,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash
 Each skill lives in its own directory:
 
 ```
-pm-audit/
+pm-challenge-me/
 └── SKILL.md        ← the entire skill: prompt + instructions for Claude
 
 pm-strategy/
@@ -78,7 +78,7 @@ Connectors tell skills how to pull data from external tools (Linear, Notion, Git
 
 1. Copy an existing skill as a starting point:
    ```bash
-   cp -r pm-audit pm-myskill
+   cp -r pm-challenge-me pm-myskill
    ```
 2. Edit `pm-myskill/SKILL.md` — update the description, instructions, and output artifact name.
 3. Keep the `lib/nanopm.sh` preamble and the memory read/write pattern from the original.
@@ -138,7 +138,7 @@ This is the recommended way to contribute: fix nanopm while doing your real work
 - **SKILL.md files are edited directly.** No build step, no templates. What you see is what Claude reads.
 - **`lib/nanopm.sh` is shared.** If you add a helper there, all skills get it. Document it with a comment.
 - **Memory is append-only.** Don't design skills that overwrite `~/.nanopm/memory/` entries — append new ones with a timestamp so history is preserved.
-- **Staleness warnings are automatic.** `lib/nanopm.sh` emits a warning when `AUDIT.md` or `STRATEGY.md` is more than 20 commits old. Don't suppress this in new skills.
+- **Staleness warnings are automatic.** `lib/nanopm.sh` emits a warning when `CHALLENGES.md` or `STRATEGY.md` is more than 20 commits old. Don't suppress this in new skills.
 - **Tier 4 (manual) must always work.** Every connector skill must degrade gracefully to "ask the user to paste it in". Never hard-require an API key or MCP setup.
 
 ---

@@ -15,15 +15,21 @@ window needed, no API: all file *access* goes through background shell commands.
 Each phase (Define, Discover, Planning, Build) has an **Overview** page: every runnable
 skill for that phase with its status (generated / running / waiting / missing)
 and a Run button — Define (`/pm-vision-mission`, `/pm-business-model`, `/pm-org`,
-`/pm-product`, `/pm-personas`, `/pm-audit`), Discover (`/pm-user-feedback`,
+`/pm-product`, `/pm-personas`), Discover (`/pm-user-feedback`,
 `/pm-data`, `/pm-discovery`, `/pm-competitors-intel`), Planning
 (`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`), Build (`/pm-prd`,
-`/pm-breakdown`) — executed through `claude -p` in a background process. The future artifact shows up in the sidebar with a running indicator
+`/pm-breakdown`), plus a Day to Day section (`/pm-challenge-me`, `/pm-standup`,
+`/pm-weekly-update`) — executed through `claude -p` in a background process. The future artifact shows up in the sidebar with a running indicator
 while you keep browsing. Runs are **interactive**: when the model needs input
 it emits a structured question block; the app notifies you, renders the
 questions natively (choices + free text) alongside the model's messages, and
 resumes the same session (`claude --resume`) with your answers until the
 document is written. A macOS notification fires when it's ready.
+
+The **Define** overview additionally leads with the **Context Brief** —
+`.nanopm/CONTEXT-SUMMARY.md` rendered inline — the consolidated company + product
+context a subagent regenerates after each Define skill and every skill reloads at
+startup. (It's shown only on the Define page, not as a sidebar document.)
 
 Runs stream live via `claude --output-format stream-json`: an **Activity
 Monitor** window (toolbar, badged with the in-flight count) lists every run

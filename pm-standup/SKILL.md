@@ -89,7 +89,8 @@ If LINEAR not available: read `.nanopm/ROADMAP.md` and check for any manually up
 **Roadmap drift check:**
 ```bash
 [ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-[ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 ```
 
 If ROADMAP_EXISTS: scan for items marked as "this week" or current sprint. Cross-reference with GitHub commits — flag items with no recent commits across any repo.
@@ -155,7 +156,7 @@ DRIFT
 ```
 
 **Rules for PRIORITIES:**
-- Infer from: in-progress Linear issues → roadmap current sprint items → AUDIT.md biggest gap
+- Infer from: in-progress Linear issues → roadmap current sprint items → CHALLENGES.md biggest gap
 - Weight toward items with meetings today (if you have a review at 14:00, that's probably a priority)
 - Never list more than 3
 - If the roadmap is stale (>20 commits old), flag it: "⚠ ROADMAP.md is {N} commits old — consider /pm-roadmap"

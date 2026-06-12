@@ -38,7 +38,7 @@ fi
 # ── 3. SKILL.md frontmatter validation ───────────────────────────────────────
 echo
 echo "  SKILL.md frontmatter"
-_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data)
+_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data)
 for skill in "${_SKILLS[@]}"; do
   _FILE="$_REPO_ROOT/$skill/SKILL.md"
   if [ ! -f "$_FILE" ]; then
@@ -88,7 +88,7 @@ done
 
 # ── 5. nanopm_context_append present (context threading) ─────────────────────
 # pm-watch is excluded — it's a hook installer, not a PM analysis skill
-_CONTEXT_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro)
+_CONTEXT_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro)
 echo
 echo "  Context threading"
 for skill in "${_CONTEXT_SKILLS[@]}"; do
@@ -121,7 +121,7 @@ fi
 # ── 6b. ETHOS gates write via nanopm_state_log (v0.6.0+) ──────────────────────
 echo
 echo "  Structural gates (v0.6.0)"
-_GATED_SKILLS=(pm-audit pm-roadmap pm-prd pm-breakdown)
+_GATED_SKILLS=(pm-challenge-me pm-roadmap pm-prd pm-breakdown)
 for skill in "${_GATED_SKILLS[@]}"; do
   _FILE="$_REPO_ROOT/$skill/SKILL.md"
   [ ! -f "$_FILE" ] && continue

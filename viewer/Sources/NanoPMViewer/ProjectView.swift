@@ -108,6 +108,7 @@ struct ProjectView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(selection: $selection) {
+                    phaseGroup(.daily)
                     phaseGroup(.define)
                     phaseGroup(.discover)
                     phaseGroup(.plan)
@@ -215,6 +216,9 @@ struct ProjectView: View {
             artifact.phase == phase
                 && !(showCompetitorsSection && CompetitorFiles.isCompetitorFile(artifact.relativePath))
                 && !PRDFiles.isPRD(artifact.relativePath)
+                // The context brief is rendered inline atop the Define overview,
+                // not listed as a child document.
+                && artifact.relativePath != "CONTEXT-SUMMARY.md"
         }
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty

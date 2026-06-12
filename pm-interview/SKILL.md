@@ -29,7 +29,7 @@ _INTERVIEW_FILE=".nanopm/INTERVIEW.md"
 ## When to run this
 
 Run `/pm-interview` when:
-- You have a specific assumption to validate (from /pm-discovery or /pm-audit)
+- You have a specific assumption to validate (from /pm-discovery or /pm-challenge-me)
 - You want to understand why users behave a certain way
 - You're about to write a PRD and need real user signal first
 - You just finished a user call and want to extract the signal
@@ -59,7 +59,8 @@ Read prior context to understand which assumptions have already been tested and 
 
 ```bash
 [ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-[ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
 [ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
@@ -83,9 +84,9 @@ Bad examples (too vague):
 - 'What users think of the product'
 - 'General feedback'
 
-If you have DISCOVERY.md or AUDIT.md open, I'll suggest the highest-risk assumption as a default."
+If you have DISCOVERY.md or CHALLENGES.md open, I'll suggest the highest-risk assumption as a default."
 
-If DISCOVERY_EXISTS or AUDIT_EXISTS: extract the top-risk assumption and suggest it. Let the user confirm or override.
+If DISCOVERY_EXISTS or CHALLENGES_EXISTS: extract the top-risk assumption and suggest it. Let the user confirm or override.
 
 From the focus, extract or infer:
 - The **specific behavior** to anchor the story on (e.g., "the last time they chose what to watch")
@@ -104,7 +105,7 @@ Ask via AskUserQuestion:
 
 If you don't have someone yet, I can write a recruitment message."
 
-**If no subject yet:** write a 3-sentence recruitment message (LinkedIn or Slack) targeting the ideal profile from DISCOVERY.md/AUDIT.md context. Include: who you're looking for, what you want to talk about (problem, not your solution), and a clear ask (30-min call).
+**If no subject yet:** write a 3-sentence recruitment message (LinkedIn or Slack) targeting the ideal profile from DISCOVERY.md/CHALLENGES.md context. Include: who you're looking for, what you want to talk about (problem, not your solution), and a clear ask (30-min call).
 
 **Interview type detection:** Based on the relationship to the problem, classify the session:
 - **Current user** → use story-based (Torres) + JTBD ongoing use questions
@@ -321,7 +322,7 @@ Append to `.nanopm/FEEDBACK.md` (create if missing):
 - {hypothesis}: {CONFIRMED / REFUTED / INCONCLUSIVE} — {evidence}
 
 **Recommended next:**
-{/pm-discovery to reframe | /pm-audit | more interviews (N total so far, {5 - N} more recommended) | /pm-prd if signal is sufficient}
+{/pm-discovery to reframe | /pm-challenge-me | more interviews (N total so far, {5 - N} more recommended) | /pm-prd if signal is sufficient}
 
 ---
 ```
@@ -332,7 +333,7 @@ Write session summary to `.nanopm/INTERVIEW.md` (overwrite — latest session on
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 .nanopm/INTERVIEW.md | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' .nanopm/INTERVIEW.md | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-audit\"}}"
+nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 .nanopm/INTERVIEW.md | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' .nanopm/INTERVIEW.md | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion

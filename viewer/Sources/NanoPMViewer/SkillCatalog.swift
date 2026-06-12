@@ -58,10 +58,11 @@ enum SkillCatalog {
     /// One-line intro shown under each phase overview title.
     static func subtitle(for phase: Phase) -> String {
         switch phase {
-        case .define: return "Company & product context — map the terrain (vision, business, org, product, personas) and form a first read, before you plan."
+        case .define: return "Company & product context — map the terrain (vision, business, org, product, personas) before you plan."
         case .discover: return "The three external signals — market, user research, and data — before you plan."
         case .plan: return "Objectives, strategy, and roadmap — decide what to build and why."
         case .ship: return "Specs and handoff — turn the plan into PRDs and engineering tickets."
+        case .daily: return "Recurring PM ops — the daily briefing, the weekly stakeholder update, and an adversarial challenge whenever you need one."
         }
     }
 
@@ -107,15 +108,6 @@ enum SkillCatalog {
             headlessArgs: nil,
             phase: .define, output: .file("PERSONAS.md")
         ),
-        SkillDoc(
-            title: "Product Audit",
-            blurb: "Brutal honest assessment: what you're building, who it's for, and the question you're avoiding.",
-            icon: "stethoscope",
-            skillCommand: "/pm-audit",
-            headlessArgs: nil,
-            phase: .define, output: .file("AUDIT.md")
-        ),
-
         // MARK: Discover
         SkillDoc(
             title: "User Feedback",
@@ -192,6 +184,32 @@ enum SkillCatalog {
             skillCommand: "/pm-breakdown",
             headlessArgs: "Ask the user (via the interface contract) which PRD to break down and which handoff target to use before doing the work.",
             phase: .ship, output: .handoff("Hands off to an external tracker — no .nanopm file is produced.")
+        ),
+
+        // MARK: Day to Day
+        SkillDoc(
+            title: "Standup",
+            blurb: "Daily briefing — what shipped across your repos, today's meetings, priorities, and drift.",
+            icon: "sunrise",
+            skillCommand: "/pm-standup",
+            headlessArgs: nil,
+            phase: .daily, output: .file("STANDUP.md")
+        ),
+        SkillDoc(
+            title: "Weekly Update",
+            blurb: "Stakeholder update email — what shipped, what slipped, what changed — adapted to the audience.",
+            icon: "envelope",
+            skillCommand: "/pm-weekly-update",
+            headlessArgs: "Ask the user (via the interface contract) which audience the update is for (manager, CEO, investors, team) if it is not obvious from prior context.",
+            phase: .daily, output: .file("WEEKLY_UPDATE.md")
+        ),
+        SkillDoc(
+            title: "Challenge Me",
+            blurb: "Three adversarial challenges from a skeptical CPO — strategy, users, focus — starting with the question you're avoiding.",
+            icon: "figure.fencing",
+            skillCommand: "/pm-challenge-me",
+            headlessArgs: nil,
+            phase: .daily, output: .file("CHALLENGES.md")
         ),
     ]
 }

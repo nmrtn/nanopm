@@ -185,7 +185,7 @@ for team-traditional, "behavior" usually means a tracked event in an
 analytics tool. Same rigor, different operationalization.
 
 **When advising:** read `build_mode` from project config (set by
-`/pm-audit` Q12). If unset, assume `solo-fast` — that's nanopm's target
+`/pm-challenge-me` Q12). If unset, assume `solo-fast` — that's nanopm's target
 audience. When a strategy presents a bet, ask for the cheapest test *in
 the mode this project actually operates in*. If a solo-fast project's gate
 suggests a Wizard of Oz MVP, that's slow-path advice; build the real thing

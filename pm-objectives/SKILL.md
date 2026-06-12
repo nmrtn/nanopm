@@ -1,7 +1,7 @@
 ---
 name: pm-objectives
 version: 0.1.0
-description: "Define product objectives (OKRs). Reads audit context, asks 2-3 clarifying questions, produces OBJECTIVES.md with measurable goals and key results."
+description: "Define product objectives (OKRs). Reads challenge-session context, asks 2-3 clarifying questions, produces OBJECTIVES.md with measurable goals and key results."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
@@ -43,20 +43,21 @@ nanopm_context_all
 ```
 
 Key things to extract:
-- Audit findings (gap, recommended next skill, what you're building)
+- Challenge session findings (gap, recommended next skill, what you're building)
 - Prior objectives (if any) — flag which ones were hit or missed
 
 ## Phase 1: Context check
 
 ```bash
-[ -f ".nanopm/AUDIT.md"          ] && echo "AUDIT_EXISTS"          || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/PERSONAS.md"       ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
 [ -f ".nanopm/FEEDBACK.md"       ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
 [ -f ".nanopm/VISION-MISSION.md" ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
 [ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 ```
 
-**If AUDIT.md exists:** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
+**If CHALLENGES.md exists (or legacy AUDIT.md):** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
 
 **If VISION_MISSION_EXISTS:** read `.nanopm/VISION-MISSION.md`. Objectives must *ladder up to the mission* — every objective should be a measurable step toward the stated mission/vision. Flag any objective that doesn't connect to it.
 
@@ -66,7 +67,7 @@ Key things to extract:
 
 **If FEEDBACK.md exists:** Read it. Extract the top unaddressed themes. At least one objective should address the highest-severity unaddressed theme — surface this to the user: "FEEDBACK.md shows {theme} is the top unaddressed signal. Should a KR target it directly?"
 
-**If AUDIT.md missing:** Tell the user: "No audit found. Running /pm-objectives without an audit gives weaker output. Consider running /pm-audit first. Continuing with what I know."
+**If CHALLENGES.md missing:** Tell the user: "No challenge session found. Running /pm-objectives without one gives weaker output. Consider running /pm-challenge-me first. Continuing with what I know."
 
 ## Phase 2: Clarifying questions
 
@@ -74,8 +75,8 @@ Ask these questions as SEPARATE sequential AskUserQuestion calls — one call pe
 
 **Before asking any question**, check these sources in order:
 1. Prior context from `nanopm_context_all` — look for a prior pm-objectives entry with a period
-2. AUDIT.md Q5 answer in CONTEXT.md — often names the quarter or goals directly
-3. AUDIT.md Section 3 (biggest gap) — often implies the top goal
+2. The /pm-challenge-me Q5 answer in CONTEXT.md — often names the quarter or goals directly
+3. CHALLENGES.md Section 3 (biggest gap) — often implies the top goal
 
 **Q1: Time horizon**
 - Check: Does CONTEXT.md Q5 reference a specific quarter or timeframe? If yes, state it and skip Q1: "Period: {X} (from CONTEXT.md Q5)."
@@ -105,7 +106,7 @@ Period: {time horizon from Q1}
 
 ## Objective 1: {name — short, active verb phrase}
 
-*{Why this matters — one sentence connecting to audit findings or user goal}*
+*{Why this matters — one sentence connecting to challenge findings or user goal}*
 
 | Key Result | Target | Metric |
 |-----------|--------|--------|
@@ -149,14 +150,14 @@ A list without these two elements is just a to-do list for later, not a boundary
 
 ---
 
-*Sources: {AUDIT.md, prior context, user answers}*
+*Sources: {CHALLENGES.md, prior context, user answers}*
 ```
 
 **Rules for writing objectives:**
 - Max 3 objectives. Two is fine. One is fine if it's the right one.
 - Key results must be measurable (numbers, dates, binary outcomes).
 - If the user gave vague goals, translate them to measurable KRs and note the translation.
-- If audit identified a strategic gap, at least one objective should address it.
+- If the challenge session identified a strategic gap, at least one objective should address it.
 
 ## Phase 4: Save context
 

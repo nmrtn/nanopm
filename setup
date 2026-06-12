@@ -291,7 +291,7 @@ ok "Connectors installed"
 
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-audit pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
+_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
 _SKILL_COUNT=$(set -- $_SKILL_LIST; echo $#)
 
 for skill in $_SKILL_LIST; do
@@ -462,7 +462,7 @@ echo "   /pm-business-model — model, pricing, GTM → BUSINESS-MODEL.md"
 echo "   /pm-org         — org map, roles, decision-makers → ORG.md"
 echo "   /pm-product     — map the product from code + site, or define it greenfield → PRODUCT.md"
 echo "   /pm-personas    — define who you're building for, produces PERSONAS.md"
-echo "   /pm-audit       — deep product audit, produces AUDIT.md"
+echo "   /pm-challenge-me — adversarial challenge session, produces CHALLENGES.md"
 echo
 echo "  Discover / Plan / Build:"
 echo "   /pm-discovery   — figure out WHAT to build before planning HOW (greenfield)"

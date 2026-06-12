@@ -1,7 +1,7 @@
 ---
 name: pm-data
 version: 0.1.0
-description: "Quantitative data analysis for PMs. Answers a specific product question using PostHog or Amplitude — trends, funnels, retention, paths. Writes findings to DATA.md, consumed by /pm-audit and /pm-prd."
+description: "Quantitative data analysis for PMs. Answers a specific product question using PostHog or Amplitude — trends, funnels, retention, paths. Writes findings to DATA.md, consumed by /pm-challenge-me and /pm-prd."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_PostHog__query-trends, mcp__claude_ai_PostHog__query-funnel, mcp__claude_ai_PostHog__query-retention, mcp__claude_ai_PostHog__query-paths, mcp__claude_ai_PostHog__query-stickiness, mcp__claude_ai_PostHog__insight-query, mcp__claude_ai_PostHog__projects-get, mcp__claude_ai_PostHog__event-definitions-list, mcp__claude_ai_PostHog__persons-list
 ---
 
@@ -29,7 +29,7 @@ _DATA_FILE=".nanopm/DATA.md"
 
 Run `/pm-data` when:
 - You have a specific question about user behavior ("why do users drop at step 3?")
-- You're about to run /pm-audit and want quanti to back the qualitatif signal
+- You're about to run /pm-challenge-me and want quanti to back the qualitatif signal
 - You're writing a PRD and need to quantify the problem size
 - You want to check the impact of a shipped feature
 
@@ -47,12 +47,13 @@ Check for prior DATA.md — if it exists, show a one-line summary of the last an
 
 ```bash
 [ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
-[ -f ".nanopm/AUDIT.md" ] && echo "AUDIT_EXISTS" || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
 [ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 
-If AUDIT_EXISTS: scan for "biggest gap" or "question you're avoiding" — suggest turning those into data questions if the user hasn't specified one.
+If CHALLENGES_EXISTS: scan for "biggest gap" or "question you're avoiding" — suggest turning those into data questions if the user hasn't specified one.
 
 **If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Use it to *ground which events and features the metrics refer to* — map the question's funnel steps and key events onto the real product surfaces and core workflow before querying, so the analysis measures the right behavior. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept."
 
@@ -182,7 +183,7 @@ Usually answered by qualitative research — flag it for /pm-interview if releva
 
 ### Recommended next
 
-{/pm-audit to fold this into the product assessment |
+{/pm-challenge-me to fold this into the product assessment |
 /pm-interview to investigate the biggest unknown qualitatively |
 /pm-prd if the problem is validated and sized}
 
@@ -193,7 +194,7 @@ Usually answered by qualitative research — flag it for /pm-interview if releva
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -10 .nanopm/DATA.md | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-audit\"}}"
+nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -10 .nanopm/DATA.md | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
@@ -202,8 +203,8 @@ Tell the user:
 - DATA.md updated
 - The single most important finding in one sentence
 - The confidence level and what would increase it
-- Whether this data suggests running more interviews (/pm-interview) or moving to planning (/pm-audit)
+- Whether this data suggests running more interviews (/pm-interview) or moving to planning (/pm-challenge-me)
 
-If the data reveals a clear problem with quantified size: "This is now ready to feed into /pm-audit — the quantitative problem size strengthens the audit's strategic recommendations."
+If the data reveals a clear problem with quantified size: "This is now ready to feed into /pm-challenge-me — the quantitative problem size strengthens the challenge session's strategic recommendations."
 
 **STATUS: DONE**

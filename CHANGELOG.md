@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Consolidated PM context brief — one source of truth, loaded everywhere
+
+The Define phase produces five separate docs (vision, business model, org, product, personas). Downstream skills re-read them unevenly, so the agent's grasp of the company drifted from skill to skill. Now each Define skill, once its document is written, dispatches a **subagent** (Agent tool) that synthesizes whatever Define docs exist into a single ~1-page brief at **`.nanopm/CONTEXT-SUMMARY.md`** — what we do, who for, how we make money, why we exist, who decides, and what's not known yet. Each section carries a "More detail" pointer to its source Define doc, so the agent knows where to dig.
+
+That brief is loaded automatically by `nanopm_preamble` (new `nanopm_load_context`, bounded to 8 KB) at the start of **every** skill run — Discover, Plan, Build, and Daily Ops all share the same baseline with zero per-skill wiring, on every host. Regenerated after each Define skill, so it never goes stale.
+
+**macOS viewer:** clicking **Define** now leads with a **Context Brief** card that opens `CONTEXT-SUMMARY.md`; the doc also appears in the Define sidebar. Build clean.
+
+### `/pm-audit` is now `/pm-challenge-me` — and it throws three punches
+
+The audit always ended on one adversarial question; that question was the whole point. So the skill is now named for it. **`/pm-challenge-me`** keeps the same context engine (website bootstrap, connectors, CONTEXT.md intake, Define-doc synthesis) but reframes the output as a challenge session: a skeptical-CPO read of what you're building, who for, and the biggest gap — then **three direct challenges**, each from a different angle:
+
+- **`strategy`** — *The Question You're Avoiding*. Still hard-gated: rubric-validated, written as a typed `question` decision via `nanopm_state_log` before the artifact can exist.
+- **`users`** — challenges who you think you're serving, using persona/signal divergence.
+- **`focus`** — challenges where the effort is going vs. the stated goals.
+
+The `users` and `focus` challenges go through the same rubric but are droppable after two failed validations; the `strategy` one aborts the run if it can't land.
+
+**Artifact rename:** `.nanopm/AUDIT.md` → `.nanopm/CHALLENGES.md` (same section numbering; Section 4 is now "The Challenges"). **Migration:** downstream skills (`pm-objectives`, `pm-strategy`, `pm-retro`, `pm-standup`, `pm-weekly-update`, `pm-run`, …) read `CHALLENGES.md` and fall back to a legacy `AUDIT.md`; the staleness check tracks both; prior `pm-audit` memory entries are still read; `uninstall` removes both skill directories.
+
+### New phase: **Day to Day** — recurring PM ops
+
+`/pm-challenge-me` no longer lives in Define — it joins `/pm-standup` and `/pm-weekly-update` in a new **Daily Ops** zone: the skills you run on any given day, outside the Define → Discover → Plan → Build pipeline.
+
+**macOS viewer** gains a **Day to Day** section at the top of the sidebar with three skill rows — Standup (`STANDUP.md`), Weekly Update (`WEEKLY_UPDATE.md`), and Challenge Me (`CHALLENGES.md`) — and maps legacy `AUDIT.md` artifacts there too. Standup and Weekly Update get catalog entries (and run buttons) for the first time. Build clean.
+
 ## 0.10.0 — 2026-06-11
 
 ### New phase: **Define** — company & product context, established first

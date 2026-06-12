@@ -2,7 +2,7 @@
 # V1 Release Gate 2: Context threading E2E test
 #
 # Tests that skill outputs written by one skill are readable by the next skill
-# in the pipeline: pm-discovery → pm-audit → pm-objectives → pm-strategy → pm-roadmap
+# in the pipeline: pm-discovery → pm-challenge-me → pm-objectives → pm-strategy → pm-roadmap
 #
 # Does NOT require LLM calls — tests the shell function plumbing only.
 # Simulates what the skills do by calling nanopm_context_append directly
@@ -51,7 +51,7 @@ echo "  Memory file: $_MEMORY_FILE"
 echo
 
 # ── test 1: empty context returns nothing ────────────────────────────────────
-_result=$(nanopm_context_read pm-audit)
+_result=$(nanopm_context_read pm-challenge-me)
 if [ -z "$_result" ]; then
   ok "Empty context returns empty string"
 else
@@ -67,7 +67,7 @@ else
 fi
 
 # ── test 3: append + read for pm-discovery ───────────────────────────────────
-nanopm_context_append '{"skill":"pm-discovery","outputs":{"discovery_question":"Should we build async standup for solo founders?","top_risk":"Founders are willing to pay for async standup tooling","next":"pm-audit"}}'
+nanopm_context_append '{"skill":"pm-discovery","outputs":{"discovery_question":"Should we build async standup for solo founders?","top_risk":"Founders are willing to pay for async standup tooling","next":"pm-challenge-me"}}'
 ok "nanopm_context_append: pm-discovery written"
 
 _result=$(nanopm_context_read pm-discovery)
@@ -83,21 +83,21 @@ else
   fail "nanopm_context_read: pm-discovery content missing"
 fi
 
-# ── test 4 (was 3): append + read for pm-audit ───────────────────────────────
-nanopm_context_append '{"skill":"pm-audit","outputs":{"gap":"Positioning mismatch — solo users vs team pitch","next":"pm-objectives"}}'
-ok "nanopm_context_append: pm-audit written"
+# ── test 4 (was 3): append + read for pm-challenge-me ────────────────────────
+nanopm_context_append '{"skill":"pm-challenge-me","outputs":{"gap":"Positioning mismatch — solo users vs team pitch","next":"pm-objectives"}}'
+ok "nanopm_context_append: pm-challenge-me written"
 
-_result=$(nanopm_context_read pm-audit)
-if echo "$_result" | grep -q '"skill":"pm-audit"'; then
-  ok "nanopm_context_read: pm-audit readable"
+_result=$(nanopm_context_read pm-challenge-me)
+if echo "$_result" | grep -q '"skill":"pm-challenge-me"'; then
+  ok "nanopm_context_read: pm-challenge-me readable"
 else
-  fail "nanopm_context_read: pm-audit not readable. Got: $_result"
+  fail "nanopm_context_read: pm-challenge-me not readable. Got: $_result"
 fi
 
 if echo "$_result" | grep -q "Positioning mismatch"; then
-  ok "nanopm_context_read: pm-audit content intact"
+  ok "nanopm_context_read: pm-challenge-me content intact"
 else
-  fail "nanopm_context_read: pm-audit content missing"
+  fail "nanopm_context_read: pm-challenge-me content missing"
 fi
 
 # ── test 5: append + read for pm-objectives ──────────────────────────────────
@@ -112,11 +112,11 @@ else
 fi
 
 # ── test 6: multiple appends — read returns LATEST for each skill ─────────────
-# Append pm-audit again with different content
-nanopm_context_append '{"skill":"pm-audit","outputs":{"gap":"UPDATED GAP","next":"pm-objectives"}}'
-ok "nanopm_context_append: pm-audit second append"
+# Append pm-challenge-me again with different content
+nanopm_context_append '{"skill":"pm-challenge-me","outputs":{"gap":"UPDATED GAP","next":"pm-objectives"}}'
+ok "nanopm_context_append: pm-challenge-me second append"
 
-_result=$(nanopm_context_read pm-audit)
+_result=$(nanopm_context_read pm-challenge-me)
 if echo "$_result" | grep -q "UPDATED GAP"; then
   ok "nanopm_context_read: returns latest entry for skill"
 else
@@ -132,7 +132,7 @@ fi
 _all=$(nanopm_context_all)
 _line_count=$(echo "$_all" | grep -c '"skill"' || true)
 if [ "$_line_count" -eq 4 ]; then
-  ok "nanopm_context_all: returns all 4 entries (1 pm-discovery + 2 pm-audit + 1 pm-objectives)"
+  ok "nanopm_context_all: returns all 4 entries (1 pm-discovery + 2 pm-challenge-me + 1 pm-objectives)"
 else
   fail "nanopm_context_all: expected 4 entries, got $_line_count. Output: $_all"
 fi
@@ -170,24 +170,24 @@ fi
 # No PM docs present → should run silently with no output (nothing to warn about)
 _stale_output=$(nanopm_staleness_check 2>&1 || true)
 if echo "$_stale_output" | grep -q "⚠"; then
-  # If it produced a warning, that would mean a .nanopm/AUDIT.md exists from a
+  # If it produced a warning, that would mean a .nanopm/CHALLENGES.md exists from a
   # previous test step AND 20+ commits happened — not expected in this temp env.
   fail "nanopm_staleness_check: unexpected staleness warning on fresh project. Got: $_stale_output"
 else
   ok "nanopm_staleness_check: runs silently on project with no PM docs"
 fi
 
-# Create a fake AUDIT.md tracked by git, then verify staleness check still runs
+# Create a fake CHALLENGES.md tracked by git, then verify staleness check still runs
 mkdir -p .nanopm
-echo "# test" > .nanopm/AUDIT.md
-git add .nanopm/AUDIT.md 2>/dev/null || true
-git -c user.email="test@test.com" -c user.name="test" commit -q -m "add audit" 2>/dev/null || true
+echo "# test" > .nanopm/CHALLENGES.md
+git add .nanopm/CHALLENGES.md 2>/dev/null || true
+git -c user.email="test@test.com" -c user.name="test" commit -q -m "add challenges" 2>/dev/null || true
 _stale_output=$(nanopm_staleness_check 2>&1 || true)
 # Freshly committed — 0 commits since, should NOT warn
 if echo "$_stale_output" | grep -q "⚠"; then
-  fail "nanopm_staleness_check: warned on freshly committed AUDIT.md (0 commits since)"
+  fail "nanopm_staleness_check: warned on freshly committed CHALLENGES.md (0 commits since)"
 else
-  ok "nanopm_staleness_check: no warning for freshly committed AUDIT.md"
+  ok "nanopm_staleness_check: no warning for freshly committed CHALLENGES.md"
 fi
 
 # ── test 11: JSONL file is valid JSON per line ────────────────────────────────

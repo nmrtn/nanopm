@@ -1,7 +1,7 @@
 # Connector: Intercom
 
 Fetches recent support conversations, contact data, and conversation tags from Intercom.
-Used by `/pm-interview` and `/pm-audit` to surface recurring support themes and user pain points.
+Used by `/pm-interview` and `/pm-challenge-me` to surface recurring support themes and user pain points.
 
 ## Tier 1 (MCP)
 
@@ -49,7 +49,7 @@ curl -s "https://api.intercom.io/contacts?per_page=10" \
 **What to extract:**
 - Conversation subjects and tag names → reveals support themes and recurring complaints
 - Latest message excerpts (`.conversation_parts.conversation_parts[0].body`) → verbatim user language
-- Tag frequency across conversations → surface the highest-volume pain point areas for `/pm-audit`
+- Tag frequency across conversations → surface the highest-volume pain point areas for `/pm-challenge-me`
 - Contact metadata (plan, company) → segments complaints by user type for `/pm-interview`
 
 **Required env vars:** `INTERCOM_API_TOKEN`
@@ -86,7 +86,7 @@ $B snapshot
 
 ## Tier 4 (Manual fallback)
 
-**For `/pm-audit`:** Ask the user:
+**For `/pm-challenge-me`:** Ask the user:
 > "Paste your top 3–5 recurring support themes from Intercom (or wherever you track support). Ticket categories, tag names, or short descriptions are all fine."
 
 **For `/pm-interview`:** Skip silently — support context is supplementary to interview data. The skill proceeds without it.

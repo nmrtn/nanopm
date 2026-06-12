@@ -2,7 +2,7 @@
 # nanopm v0.6.0+ — ETHOS structural gate tests
 #
 # Verifies the gate pattern is wired into the three gated skills:
-#   - pm-audit: gates "The Question You're Avoiding" (kind=question)
+#   - pm-challenge-me: gates "The Question You're Avoiding" (kind=question)
 #   - pm-roadmap: gates each committed NOW item (kind=target)
 #   - pm-prd: gates the Falsification section (kind=bet) + writes prd record
 #
@@ -26,9 +26,9 @@ echo "  nanopm tests: ETHOS structural gates"
 echo "  ====================================="
 echo
 
-# ── pm-audit gate: question ───────────────────────────────────────────────────
-echo "  pm-audit — gates The Question You're Avoiding (kind=question)"
-_F="$_REPO_ROOT/pm-audit/SKILL.md"
+# ── pm-challenge-me gate: question ────────────────────────────────────────────
+echo "  pm-challenge-me — gates The Question You're Avoiding (kind=question)"
+_F="$_REPO_ROOT/pm-challenge-me/SKILL.md"
 
 if grep -q "Phase 5: Adversarial gate" "$_F"; then
   ok "Phase 5 renamed to 'Adversarial gate'"
@@ -39,7 +39,13 @@ fi
 if grep -q "QUESTION:" "$_F" && grep -q "KEY:" "$_F" && grep -q "CONFIDENCE:" "$_F" && grep -q "RATIONALE:" "$_F"; then
   ok "Rubric output format declared (QUESTION/KEY/CONFIDENCE/RATIONALE)"
 else
-  fail "Rubric output format incomplete in pm-audit"
+  fail "Rubric output format incomplete in pm-challenge-me"
+fi
+
+if grep -q "ANGLE:" "$_F"; then
+  ok "Three-angle rubric declared (ANGLE: strategy/users/focus)"
+else
+  fail "ANGLE: marker missing — three-challenge rubric not declared in pm-challenge-me"
 fi
 
 if grep -q "Is / Does / Will / Would / Can / Should / Are" "$_F"; then
@@ -63,12 +69,18 @@ fi
 if grep -q "'source': 'adversarial'" "$_F"; then
   ok "source=adversarial set on state write"
 else
-  fail "source=adversarial not set in pm-audit"
+  fail "source=adversarial not set in pm-challenge-me"
 fi
 
-# ── pm-audit Q12 — build_mode capture (v0.8.0) ──────────────────────────────
+if grep -q "'skill': 'pm-challenge-me'" "$_F"; then
+  ok "State write carries skill=pm-challenge-me (renamed skill name)"
+else
+  fail "State write does not carry skill=pm-challenge-me — rename incomplete in state write"
+fi
+
+# ── pm-challenge-me Q12 — build_mode capture (v0.8.0) ────────────────────────
 echo
-echo "  pm-audit Q12 — build_mode capture (v0.8.0)"
+echo "  pm-challenge-me Q12 — build_mode capture (v0.8.0)"
 if grep -q "How does this project ship?" "$_F"; then
   ok "Q12 'How does this project ship?' present in CONTEXT.md template"
 else

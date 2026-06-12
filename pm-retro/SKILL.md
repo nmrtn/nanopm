@@ -39,11 +39,12 @@ If prior retro found: "Prior retro from {ts}. This run covers commits since then
 
 ```bash
 [ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-[ -f ".nanopm/AUDIT.md"   ] && echo "AUDIT_EXISTS"   || echo "AUDIT_MISSING"
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -d ".git" ]               && echo "GIT_REPO"        || echo "NOT_GIT_REPO"
 ```
 
-If ROADMAP_MISSING and AUDIT_MISSING: "No ROADMAP.md or AUDIT.md found. Run /pm-audit and /pm-roadmap first to get full retro value. Continuing with git history only."
+If ROADMAP_MISSING and CHALLENGES_MISSING: "No ROADMAP.md or CHALLENGES.md found. Run /pm-challenge-me and /pm-roadmap first to get full retro value. Continuing with git history only."
 
 If NOT_GIT_REPO: "This directory is not a git repo — can't read commit history. Run `git init` or navigate to your project root."
 
@@ -52,7 +53,8 @@ If NOT_GIT_REPO: "This directory is not a git repo — can't read commit history
 ```bash
 # When was the roadmap last written? Use as retro start point.
 _ROADMAP_COMMIT=$(git log --oneline -1 -- .nanopm/ROADMAP.md 2>/dev/null | awk '{print $1}')
-_AUDIT_COMMIT=$(git log --oneline -1 -- .nanopm/AUDIT.md 2>/dev/null | awk '{print $1}')
+_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_CHALLENGES_COMMIT=$(git log --oneline -1 -- "$_CHALLENGES" 2>/dev/null | awk '{print $1}')
 
 if [ -n "$_ROADMAP_COMMIT" ]; then
   echo "WINDOW_START: $_ROADMAP_COMMIT"
@@ -148,7 +150,7 @@ Sometimes the right thing appears and you do it. But flag the pattern if it's >3
 ## Drift Signal
 
 {If >30% of commits are off-roadmap: flag it. Name the pattern.
-If strategy/audit is stale: call it out.
+If the strategy or challenge session is stale: call it out.
 If carry-forward items outnumber shipped items: flag capacity/planning issue.
 If nothing to flag: "No significant drift — execution is tracking the plan."}
 
@@ -171,7 +173,7 @@ Update your roadmap with carry-forward items and new priorities from this retro.
 
 ---
 
-*Sources: ROADMAP.md, git log, AUDIT.md (if present)*
+*Sources: ROADMAP.md, git log, CHALLENGES.md (if present)*
 ```
 
 ## Phase 7: Save context

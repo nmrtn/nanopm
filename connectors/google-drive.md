@@ -1,7 +1,7 @@
 # Connector: Google Drive
 
 Fetches PRDs, research docs, strategy decks, and meeting notes stored in Google Drive.
-Used by `/pm-audit` and `/pm-prd` to pull existing product context — prior specs, customer research, OKR docs — before generating new output.
+Used by `/pm-challenge-me` and `/pm-prd` to pull existing product context — prior specs, customer research, OKR docs — before generating new output.
 
 ## Tier 1 (MCP)
 
@@ -14,7 +14,7 @@ mcp__google_drive__get_file_content — get the text content of a doc
 mcp__google_drive__list_files       — list files in a specific folder
 ```
 
-**Usage in `/pm-audit` — pull existing product context:**
+**Usage in `/pm-challenge-me` — pull existing product context:**
 ```
 mcp__google_drive__search("product spec")
 mcp__google_drive__search("user research")
@@ -33,7 +33,7 @@ If a match exists, read it before drafting. Surface any prior decisions or const
 **What to extract:**
 - Document title and last modified date → establishes recency and relevance
 - Key headings → reveals document structure and scope
-- Metrics or KPIs mentioned → feeds `/pm-audit` success criteria section
+- Metrics or KPIs mentioned → feeds `/pm-challenge-me` success criteria section
 - Decisions and anti-goals → prevents the new output from rehashing closed debates
 
 **Setup for users:**
@@ -68,7 +68,7 @@ curl -s "https://www.googleapis.com/drive/v3/files/${FILE_ID}/export?mimeType=te
 Get API key: Google Cloud Console → APIs & Services → Credentials → Create API key → restrict to Drive API.
 
 **Heuristics:**
-- If search returns 0 results for "product spec" or "strategy": the team likely docs in another tool (Notion, Linear, Confluence). Skip gracefully and note the gap in `/pm-audit`.
+- If search returns 0 results for "product spec" or "strategy": the team likely docs in another tool (Notion, Linear, Confluence). Skip gracefully and note the gap in `/pm-challenge-me`.
 - If the most recent strategy doc is >6 months old: flag as a strategic drift risk — the written strategy may not match current priorities.
 
 ---
@@ -99,7 +99,7 @@ $B snapshot
 
 ## Tier 4 (Manual fallback)
 
-**For `/pm-audit`:** Ask the user:
+**For `/pm-challenge-me`:** Ask the user:
 > "Do you have a strategy doc, prior PRD, or research doc you'd like me to use as context? Paste the content or share a URL."
 
 **For `/pm-prd`:** Ask the user:
