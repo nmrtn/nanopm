@@ -12,6 +12,10 @@ struct PhaseOverviewView: View {
     let onAnswer: (String) -> Void
 
     @State private var claudeAvailable: Bool?
+    /// Skill whose launch popover (optional context for the model) is open.
+    @State private var launchTarget: SkillDoc.ID?
+    @State private var launchContext = ""
+    @FocusState private var launchContextFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -89,9 +93,12 @@ struct PhaseOverviewView: View {
                     }
                     .disabled(true)
                 } else {
-                    Button("Run") { runManager.launch(doc, in: store.project.path) }
+                    Button("Run") { launchTarget = doc.id }
                         .disabled(claudeAvailable == false)
                         .help("Runs \(doc.skillCommand ?? "") headlessly in \(store.project.name)")
+                        .popover(isPresented: launchPopoverBinding(doc), arrowEdge: .bottom) {
+                            launchPopover(doc)
+                        }
                 }
             }
         }
@@ -167,6 +174,56 @@ struct PhaseOverviewView: View {
         Text("Not generated yet")
             .font(.caption)
             .foregroundStyle(.tertiary)
+    }
+
+    // MARK: - Launch popover
+
+    private func launchPopoverBinding(_ doc: SkillDoc) -> Binding<Bool> {
+        Binding(
+            get: { launchTarget == doc.id },
+            set: { if !$0 { launchTarget = nil } }
+        )
+    }
+
+    /// Pre-launch step: an optional free-text note passed to the model with
+    /// the skill command — the topic, scope, or anything it should know.
+    @ViewBuilder
+    private func launchPopover(_ doc: SkillDoc) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Run \(doc.skillCommand ?? doc.title)")
+                .font(.headline)
+            Text("Add context for the model — the topic, the scope, a decision already made… Optional; leave empty to just run.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextField("e.g. Focus on the new Define section",
+                      text: $launchContext, axis: .vertical)
+                .lineLimit(3...8)
+                .textFieldStyle(.roundedBorder)
+                .focused($launchContextFocused)
+                .onSubmit { launchNow(doc) }
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    launchTarget = nil
+                    launchContext = ""
+                }
+                Button(launchContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                       ? "Run" : "Run with context") {
+                    launchNow(doc)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(14)
+        .frame(width: 340)
+        .onAppear { launchContextFocused = true }
+    }
+
+    private func launchNow(_ doc: SkillDoc) {
+        runManager.launch(doc, in: store.project.path, userContext: launchContext)
+        launchTarget = nil
+        launchContext = ""
     }
 
     private func checkClaude() async {
