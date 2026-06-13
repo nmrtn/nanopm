@@ -282,6 +282,15 @@ to pursue it. If BUSINESS-MODEL.md already exists and is stale relative to this 
   surface the gap — that divergence is often the most valuable finding.
 - Name what's NOT known. A blank "Vision" with "not yet articulated" beats an invented one.
 
+## Phase 3a: Share at the company level
+
+If this repo is linked to a company, publish the doc you just wrote up to the
+shared company folder (idempotent; no-op if the repo isn't linked):
+
+```bash
+nanopm_company_publish VISION-MISSION
+```
+
 ## Phase 3b: Write the reasoning sidecar
 
 The clean doc carries the claims; this companion carries the thinking. Resolve the path:

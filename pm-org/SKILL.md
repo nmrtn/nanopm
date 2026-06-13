@@ -312,6 +312,15 @@ product context. If PRODUCT.md already exists and is stale, say so.}
 - The clean doc carries zero meta — every Evidenced/Assumed call, source, and "why" lives in
   the reasoning sidecar (Phase 3b). Be just as honest about inference there.
 
+## Phase 3a: Share at the company level
+
+If this repo is linked to a company, publish the doc you just wrote up to the
+shared company folder (idempotent; no-op if the repo isn't linked):
+
+```bash
+nanopm_company_publish ORG
+```
+
 ## Phase 3b: Write the reasoning sidecar
 
 The clean doc carries the claims; this companion carries the thinking. Resolve the path:

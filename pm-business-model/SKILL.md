@@ -306,6 +306,15 @@ must align with to move it. If ORG.md already exists and is stale, say so.}
   that isn't built), surface the gap — it's often the most valuable finding.
 - The riskiest assumption is mandatory and must be falsifiable.
 
+## Phase 3a: Share at the company level
+
+If this repo is linked to a company, publish the doc you just wrote up to the
+shared company folder (idempotent; no-op if the repo isn't linked):
+
+```bash
+nanopm_company_publish BUSINESS-MODEL
+```
+
 ## Phase 3b: Write the reasoning sidecar
 
 The clean doc carries the claims; this companion carries the thinking. Resolve the path:

@@ -715,32 +715,48 @@ nanopm_company_list() {
   ls -1 "$d" 2>/dev/null
 }
 
+# Internal: make .nanopm/<doc>.md a live link into the company folder — IF this
+# repo is linked AND the doc exists somewhere. Migrates a real local copy up
+# first. Crucially, it creates a symlink ONLY when the company doc exists, so a
+# not-yet-written doc is left alone (no dangling links). Echoes the doc name when
+# it migrated a real local copy up (so the caller can report it).
+_nanopm_company_adopt() {
+  local doc="$1" dir link target
+  dir=$(nanopm_company_dir); [ -n "$dir" ] || return 0   # repo not linked → no-op
+  link=".nanopm/$doc.md"; target="$dir/$doc.md"
+  if [ -f "$link" ] && [ ! -L "$link" ]; then
+    mkdir -p "$dir"
+    if [ -e "$target" ]; then mv "$link" "$link.local-backup"
+    else mv "$link" "$target"; echo "$doc"; fi      # migrated a real local copy up
+  fi
+  [ -e "$target" ] && ln -sfn "$target" "$link"      # live link only — never dangling
+}
+
 nanopm_company_link() {
-  # Link this repo to a company and share its company-level docs across every
-  # repo of that company, WITHOUT moving anything out of the familiar .nanopm/:
-  # the docs live once in ~/.nanopm/companies/<slug>/ and are symlinked into
-  # .nanopm/, so skills, the brief, and the viewer all keep reading .nanopm/.
-  # Idempotent. Migrates any pre-existing real copy up before linking.
-  local name="$1" dir slug doc link target migrated=""
+  # Link this repo to a company and share its company-level docs. Docs that
+  # already exist (a local copy to migrate up, or a sibling repo's copy) are
+  # adopted now; docs not yet written are shared later, by nanopm_company_publish
+  # when a skill writes them — so we never leave a dangling symlink in .nanopm/.
+  local name="$1" slug migrated
   [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
   nanopm_company_set "$name" || return 1
-  dir=$(nanopm_company_dir) ; slug=$(nanopm_company_slug "$name")
-  mkdir -p "$dir" .nanopm
+  slug=$(nanopm_company_slug "$name")
+  mkdir -p "$(nanopm_company_dir)" .nanopm
   # Literal list (not an unquoted var) so word-splitting works in bash AND zsh.
-  for doc in VISION-MISSION BUSINESS-MODEL ORG; do
-    link=".nanopm/$doc.md" ; target="$dir/$doc.md"
-    if [ -f "$link" ] && [ ! -L "$link" ]; then
-      # A real per-repo copy exists. Migrate it up unless the company already
-      # has one (then keep the company's and back up the local copy).
-      if [ -e "$target" ]; then mv "$link" "$link.local-backup"; else mv "$link" "$target"; migrated="$migrated $doc"; fi
-    fi
-    ln -sf "$target" "$link"   # target may not exist yet; skills write through the link
-  done
+  migrated=$(for doc in VISION-MISSION BUSINESS-MODEL ORG; do _nanopm_company_adopt "$doc"; done | tr '\n' ' ' | sed 's/ *$//')
   echo "COMPANY_LINKED: $name"
-  [ -n "$migrated" ] && echo "  Moved your existing$migrated up into the shared company folder."
+  [ -n "$migrated" ] && echo "  Moved your existing $migrated up into the shared company folder."
   echo "  Mission, business model & org for '$name' are now shared across all your"
   echo "  '$name' repos — stored once in ~/.nanopm/companies/$slug/, linked into this"
   echo "  repo's .nanopm/. Commit .nanopm-company so other repos/teammates inherit it."
+}
+
+nanopm_company_publish() {
+  # Call right AFTER a company skill writes .nanopm/<doc>.md: shares it at the
+  # company level (moves it up + live symlink) if this repo is linked to a
+  # company. No-op when the repo isn't linked. Usage: nanopm_company_publish ORG
+  [ -n "$1" ] || return 0
+  _nanopm_company_adopt "$1" >/dev/null
 }
 
 # ── Define-phase mode + retrieval (v0.11.0+) ─────────────────────────────────
