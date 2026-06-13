@@ -52,6 +52,35 @@ nanopm_context_all
 
 If a prior pm-vision-mission entry exists: "Prior vision/mission from {ts}. This run will refine it, not start over."
 
+## Phase 0.5: Link this repo to a company
+
+The company-level docs (mission, business model, org) are **shared** across every
+repo of the same company — you write them once. If this repo isn't linked to a
+company yet, link it now, *before* mode detection (linking is what makes a sibling
+repo's existing company docs visible here).
+
+```bash
+_COMPANY=$(nanopm_company_get)
+echo "COMPANY: ${_COMPANY:-NONE}"
+nanopm_company_list | sed 's/^/  existing-company: /'
+```
+
+**If COMPANY is NONE**, ask via **one** `AskUserQuestion` (header `Company`, ≤12 chars):
+"Which company is this repo for? Its mission, business model & org are shared across
+all repos of that company." Options = each company from `nanopm_company_list`, plus
+**"New company…"** (free-text name). Then link it:
+
+```bash
+nanopm_company_link "<chosen or newly-entered company name>"
+```
+
+Show the `COMPANY_LINKED` output to the user verbatim — it says what's now shared and
+to commit `.nanopm-company`.
+
+**If COMPANY is already set**, say one line ("This repo is part of {COMPANY}; its
+company docs are shared — refining one here updates it for every {COMPANY} repo.")
+and continue.
+
 ## Phase 1: Detect the mode (refine vs create)
 
 The mode is driven by **one fact: does `VISION-MISSION.md` already exist?** — not by sniffing
@@ -253,6 +282,15 @@ to pursue it. If BUSINESS-MODEL.md already exists and is stale relative to this 
 - In existing mode, if the stated purpose (site/README) and the user's stated mission diverge,
   surface the gap — that divergence is often the most valuable finding.
 - Name what's NOT known. A blank "Vision" with "not yet articulated" beats an invented one.
+
+## Phase 3a: Share at the company level
+
+If this repo is linked to a company, publish the doc you just wrote up to the
+shared company folder (idempotent; no-op if the repo isn't linked):
+
+```bash
+nanopm_company_publish VISION-MISSION
+```
 
 ## Phase 3b: Write the reasoning sidecar
 

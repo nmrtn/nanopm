@@ -652,9 +652,14 @@ PY
 # linked to a company, and the single read point a loader will call later.
 
 nanopm_company_slug() {
-  # Folder-safe slug for a company name: lowercased, non-alphanumerics -> '-'.
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+  # Folder-safe slug for a company name. Transliterates accents first so French
+  # names slug cleanly (Société Générale -> societe-generale), then lowercases
+  # and turns non-alphanumerics into '-'. Empty if the name has no latinizable
+  # letters/digits (e.g. CJK-only) — callers must treat empty as "no slug".
+  local s
+  s=$(printf '%s' "$1" | python3 -c 'import sys,unicodedata as u; t=sys.stdin.read(); sys.stdout.write("".join(c for c in u.normalize("NFKD",t) if not u.combining(c)))' 2>/dev/null)
+  [ -n "$s" ] || s="$1"   # python missing -> fall through to the sanitizer
+  printf '%s' "$s" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
 }
 
 nanopm_company_get() {
@@ -670,6 +675,10 @@ nanopm_company_set() {
   # Link this repo to a company (writes the committed .nanopm-company file).
   local name="$1" root
   [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
+  # Reject names that slug to empty (CJK-only, punctuation-only): otherwise the
+  # company folder would collapse to ~/.nanopm/companies/ and collide.
+  [ -n "$(nanopm_company_slug "$name")" ] || {
+    echo "nanopm: company name '$name' has no latin letters/digits to form a folder name — pick a name with latin characters" >&2; return 1; }
   root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   printf '%s\n' "$name" > "$root/.nanopm-company" || {
     echo "nanopm: error: could not write .nanopm-company" >&2; return 1
@@ -705,6 +714,63 @@ if len(t) > n:
     sys.stdout.write("\n[company brief truncated at %d chars]" % n)
 PY
   echo "--- END COMPANY BRIEF ---"
+}
+
+nanopm_company_list() {
+  # Existing companies on this machine (one per line), for the "which company?"
+  # prompt. Empty if none yet.
+  local d="$HOME/.nanopm/companies"
+  [ -d "$d" ] || return 0
+  ls -1 "$d" 2>/dev/null
+}
+
+# Internal: make .nanopm/<doc>.md a live link into the company folder — IF this
+# repo is linked AND the doc exists somewhere. Migrates a real local copy up
+# first. Crucially, it creates a symlink ONLY when the company doc exists, so a
+# not-yet-written doc is left alone (no dangling links). Echoes the doc name when
+# it migrated a real local copy up (so the caller can report it).
+_nanopm_company_adopt() {
+  local doc="$1" dir link target bk n
+  dir=$(nanopm_company_dir); [ -n "$dir" ] || return 0   # repo not linked → no-op
+  link=".nanopm/$doc.md"; target="$dir/$doc.md"
+  if [ -f "$link" ] && [ ! -L "$link" ]; then
+    mkdir -p "$dir"
+    if [ -e "$target" ]; then
+      # Company already has this doc — keep it, back up the local copy under a
+      # name that never clobbers a prior backup (.local-backup, .1, .2, …).
+      bk="$link.local-backup"; n=1
+      while [ -e "$bk" ]; do bk="$link.local-backup.$n"; n=$((n + 1)); done
+      mv "$link" "$bk"
+    else mv "$link" "$target"; echo "$doc"; fi      # migrated a real local copy up
+  fi
+  [ -e "$target" ] && ln -sfn "$target" "$link"      # live link only — never dangling
+}
+
+nanopm_company_link() {
+  # Link this repo to a company and share its company-level docs. Docs that
+  # already exist (a local copy to migrate up, or a sibling repo's copy) are
+  # adopted now; docs not yet written are shared later, by nanopm_company_publish
+  # when a skill writes them — so we never leave a dangling symlink in .nanopm/.
+  local name="$1" slug migrated
+  [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
+  nanopm_company_set "$name" || return 1
+  slug=$(nanopm_company_slug "$name")
+  mkdir -p "$(nanopm_company_dir)" .nanopm
+  # Literal list (not an unquoted var) so word-splitting works in bash AND zsh.
+  migrated=$(for doc in VISION-MISSION BUSINESS-MODEL ORG; do _nanopm_company_adopt "$doc"; done | tr '\n' ' ' | sed 's/ *$//')
+  echo "COMPANY_LINKED: $name"
+  [ -n "$migrated" ] && echo "  Moved your existing $migrated up into the shared company folder."
+  echo "  Mission, business model & org for '$name' are now shared across all your"
+  echo "  '$name' repos — stored once in ~/.nanopm/companies/$slug/, linked into this"
+  echo "  repo's .nanopm/. Commit .nanopm-company so other repos/teammates inherit it."
+}
+
+nanopm_company_publish() {
+  # Call right AFTER a company skill writes .nanopm/<doc>.md: shares it at the
+  # company level (moves it up + live symlink) if this repo is linked to a
+  # company. No-op when the repo isn't linked. Usage: nanopm_company_publish ORG
+  [ -n "$1" ] || return 0
+  _nanopm_company_adopt "$1" >/dev/null
 }
 
 # ── Define-phase mode + retrieval (v0.11.0+) ─────────────────────────────────
