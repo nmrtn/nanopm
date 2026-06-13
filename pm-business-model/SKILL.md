@@ -79,7 +79,8 @@ Show the `COMPANY_LINKED` output to the user verbatim — it says what's now sha
 to commit `.nanopm-company`.
 
 **If COMPANY is already set**, say one line ("This repo is part of {COMPANY}; its
-company docs are shared.") and continue.
+company docs are shared — refining one here updates it for every {COMPANY} repo.")
+and continue.
 
 ## Phase 1: Detect the mode (refine vs create)
 

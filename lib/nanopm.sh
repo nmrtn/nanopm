@@ -652,9 +652,14 @@ PY
 # linked to a company, and the single read point a loader will call later.
 
 nanopm_company_slug() {
-  # Folder-safe slug for a company name: lowercased, non-alphanumerics -> '-'.
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
-    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+  # Folder-safe slug for a company name. Transliterates accents first so French
+  # names slug cleanly (Société Générale -> societe-generale), then lowercases
+  # and turns non-alphanumerics into '-'. Empty if the name has no latinizable
+  # letters/digits (e.g. CJK-only) — callers must treat empty as "no slug".
+  local s
+  s=$(printf '%s' "$1" | python3 -c 'import sys,unicodedata as u; t=sys.stdin.read(); sys.stdout.write("".join(c for c in u.normalize("NFKD",t) if not u.combining(c)))' 2>/dev/null)
+  [ -n "$s" ] || s="$1"   # python missing -> fall through to the sanitizer
+  printf '%s' "$s" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
 }
 
 nanopm_company_get() {
@@ -670,6 +675,10 @@ nanopm_company_set() {
   # Link this repo to a company (writes the committed .nanopm-company file).
   local name="$1" root
   [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
+  # Reject names that slug to empty (CJK-only, punctuation-only): otherwise the
+  # company folder would collapse to ~/.nanopm/companies/ and collide.
+  [ -n "$(nanopm_company_slug "$name")" ] || {
+    echo "nanopm: company name '$name' has no latin letters/digits to form a folder name — pick a name with latin characters" >&2; return 1; }
   root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   printf '%s\n' "$name" > "$root/.nanopm-company" || {
     echo "nanopm: error: could not write .nanopm-company" >&2; return 1
@@ -721,12 +730,17 @@ nanopm_company_list() {
 # not-yet-written doc is left alone (no dangling links). Echoes the doc name when
 # it migrated a real local copy up (so the caller can report it).
 _nanopm_company_adopt() {
-  local doc="$1" dir link target
+  local doc="$1" dir link target bk n
   dir=$(nanopm_company_dir); [ -n "$dir" ] || return 0   # repo not linked → no-op
   link=".nanopm/$doc.md"; target="$dir/$doc.md"
   if [ -f "$link" ] && [ ! -L "$link" ]; then
     mkdir -p "$dir"
-    if [ -e "$target" ]; then mv "$link" "$link.local-backup"
+    if [ -e "$target" ]; then
+      # Company already has this doc — keep it, back up the local copy under a
+      # name that never clobbers a prior backup (.local-backup, .1, .2, …).
+      bk="$link.local-backup"; n=1
+      while [ -e "$bk" ]; do bk="$link.local-backup.$n"; n=$((n + 1)); done
+      mv "$link" "$bk"
     else mv "$link" "$target"; echo "$doc"; fi      # migrated a real local copy up
   fi
   [ -e "$target" ] && ln -sfn "$target" "$link"      # live link only — never dangling

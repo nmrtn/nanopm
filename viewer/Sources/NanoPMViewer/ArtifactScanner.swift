@@ -18,8 +18,10 @@ enum ArtifactScanner {
 
         // -L follows symlinks: company-level docs (VISION-MISSION, BUSINESS-MODEL,
         // ORG) are symlinked into .nanopm/ from the shared ~/.nanopm/companies/<co>/,
-        // so without -L they'd be type `l` and skipped.
-        let command = "cd \(ShellRunner.quote(nanopm)) && find -L . -type f -not -path './.git/*' -exec stat -f '%m|%N' {} \\;"
+        // so without -L they'd be type `l` and skipped. `2>/dev/null || true` keeps
+        // a single bad link (e.g. a symlink loop) from making find exit non-zero and
+        // blanking the whole scan — the files it did find are still emitted.
+        let command = "cd \(ShellRunner.quote(nanopm)) && { find -L . -type f -not -path './.git/*' -exec stat -f '%m|%N' {} \\; 2>/dev/null || true; }"
         let output = try ShellRunner.run(command)
 
         var artifacts: [Artifact] = []
