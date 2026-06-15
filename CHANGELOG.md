@@ -7,7 +7,7 @@
 The viewer's three most-used actions used to look different on every screen — Run was a bare text button on the phase overview but a `play.circle` menu on the Competitors page; Reasoning was a segmented picker in one place and a `brain` toggle in another; Refresh was an unlabelled icon in the sidebar footer. Now they all share one look.
 
 - **New shared `ActionButton`.** A single icon-plus-label control with the brand palette, hover/press feedback, and three tones (neutral, accent, waiting). Every Run / Refresh / Reasoning control is built from it, so the same action reads the same way everywhere. The Competitors Run and History menus adopt the same chrome via `.menuStyle(.button)`, keeping a down-chevron so they still read as menus.
-- **What changed per screen.** Run on the phase overview becomes a filled accent button (`play.fill`) that keeps its Answer… / Running… states. Refresh gains an icon and a label. The reasoning controls in the document detail switch from a segmented picker to a single "Reasoning" toggle, matching the Competitors page; the open-in-separate-window button picks up the same styling. Colors and design tokens are unchanged — this is purely a consistency pass.
+- **What changed per screen.** Run on the phase overview becomes a filled accent button (`play.fill`) that keeps its Answer… / Running… states. Refresh becomes a bordered icon button in the same family (icon-only, to fit the narrow sidebar footer next to Activity and Memory). The reasoning controls in the document detail switch from a segmented picker to a single "Reasoning" toggle, matching the Competitors page; the open-in-separate-window button picks up the same styling. Colors and design tokens are unchanged — this is purely a consistency pass.
 
 
 
