@@ -98,6 +98,7 @@ truth** for the product map; this subagent only pulls the relevant slices from t
 your preamble; do not read the other raw Define docs directly.
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_retrieval_prompt pm-product ".nanopm/PRODUCT.md" "what the product is, the core problem, primary user, surface area and main features, the core workflow, technical bets"
 ```
 

@@ -59,6 +59,7 @@ company yet, link it now, *before* mode detection (linking is what makes a sibli
 repo's existing company docs visible here).
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _COMPANY=$(nanopm_company_get)
 echo "COMPANY: ${_COMPANY:-NONE}"
 nanopm_company_list | sed 's/^/  existing-company: /'
@@ -70,6 +71,7 @@ all repos of that company." Options = each company from `nanopm_company_list`, p
 **"New company…"** (free-text name). Then link it:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_company_link "<chosen or newly-entered company name>"
 ```
 
@@ -125,6 +127,7 @@ yourself** — you work from this digest plus the CONTEXT-SUMMARY already in you
 Print the canonical prompt and dispatch it with the **Agent tool**:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_retrieval_prompt pm-org ".nanopm/ORG.md" "who's who, decision rights, team shape and size, ways of working, key stakeholders, gaps and open seats"
 ```
 
@@ -319,6 +322,7 @@ If this repo is linked to a company, publish the doc you just wrote up to the
 shared company folder (idempotent; no-op if the repo isn't linked):
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_company_publish ORG
 ```
 

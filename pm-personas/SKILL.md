@@ -95,6 +95,7 @@ preamble.
 Print the canonical prompt and dispatch it with the **Agent tool**:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_retrieval_prompt pm-personas ".nanopm/PERSONAS.md" "primary persona and their job-to-be-done, secondary persona, anti-persona, the one bet on who we build for"
 ```
 

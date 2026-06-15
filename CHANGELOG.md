@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.1 — 2026-06-15
+
+### pm-prd: subagent context fan-out + Phase 4b review panel
+
+`/pm-prd` stops reading the world into its own context, and stops checking a spec on one axis only.
+
+- **Phase 2 — parallel retrieval fan-out.** Instead of reading PERSONAS, DATA, PRODUCT, BUSINESS-MODEL, and FEEDBACK in full into the main reasoning context, the skill dispatches one retrieval subagent per *present* doc, concurrently. Each is keyed on the feature and returns a bounded digest (≤~200 words, every bullet carrying a `.nanopm/{FILE}.md` pointer) plus a structured `FLAG:` line the main agent's control flow keys off — `FEATURE_SERVES` (drives the anti-persona STOP), `DATA_CONFIDENCE` (🟢-only metrics), `PRODUCT_COMPLETENESS` (draft warning), `TIER`, `FEEDBACK_THEMES`. The subagents inform; the main agent decides — they never halt the skill. New helper `nanopm_prd_retrieval_prompt` reuses the Define retrieval contract (trust boundary + bounded digest + file pointers), feature-keyed per doc. The FEEDBACK-first → Dovetail fallback is unchanged.
+- **Phase 4b — advisory review panel.** The falsifiability reviewer (the hard gate) now runs alongside four advisory lenses — appetite/scope realism, success-criteria measurability, persona fit, dependency/feasibility — dispatched concurrently. Each returns a strict `LENS / VERDICT: PASS|CONCERN / NOTE` line; CONCERNs append a `## Reviewer notes` block to the PRD. Advisory in `solo-fast` (notes only, never blocks), escalating to a hard block in `team-traditional`. Falsifiability stays the only hard gate in solo-fast. New helpers `nanopm_prd_review_lenses` / `nanopm_prd_lens_prompt`; both prompts carry the untrusted-input guard, hardened against forged `VERDICT:` lines inside a PRD's quoted content. Portable: uses only the `Agent` tool, no Claude-Code-only workflow primitive. Tier-1 static assertions in `test/skill-syntax.sh` lock the contract; a live-verified scenario in `test/adversarial.e2e.sh` checks the panel surfaces a CONCERN on a weak PRD and appends the notes block.
+
+### Multi-host: Define skills source the lib in-block
+
+Five Define skills (`pm-vision-mission`, `pm-business-model`, `pm-org`, `pm-product`, `pm-personas`) called `nanopm_*` functions in bash blocks without sourcing `lib/nanopm.sh` first. On Vibe/Codex shell state doesn't persist between blocks, so those calls would fail. Added the source guard to each affected block; `test/headers.sh` now passes.
+
 ## 0.12.0 — 2026-06-15
 
 ### Competitors intel: discovery + SWOT/positioning analysis
