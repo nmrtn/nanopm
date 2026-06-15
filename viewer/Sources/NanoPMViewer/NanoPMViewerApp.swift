@@ -4,6 +4,7 @@ import SwiftUI
 struct NanoPMViewerApp: App {
     @StateObject private var recents = RecentsStore()
     @StateObject private var runManager = RunManager()
+    @StateObject private var updateChecker = UpdateChecker()
 
     init() {
         SmokeTest.runIfRequested()
@@ -14,6 +15,7 @@ struct NanoPMViewerApp: App {
             ContentView()
                 .environmentObject(recents)
                 .environmentObject(runManager)
+                .environmentObject(updateChecker)
                 .frame(minWidth: 900, minHeight: 580)
         }
         .defaultSize(width: 1100, height: 720)
@@ -44,9 +46,21 @@ struct NanoPMViewerApp: App {
 
 struct ContentView: View {
     @EnvironmentObject private var recents: RecentsStore
+    @EnvironmentObject private var updateChecker: UpdateChecker
     @State private var currentProject: Project?
 
     var body: some View {
+        VStack(spacing: 0) {
+            if updateChecker.showBanner {
+                UpdateBannerView()
+            }
+            content
+        }
+        .task { await updateChecker.check() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if let project = currentProject {
             ProjectView(project: project) {
                 currentProject = nil
