@@ -60,47 +60,81 @@ Or describe the feature in one sentence."
 
 Store the feature name as `_FEATURE`.
 
-## Phase 2: User research pull
+## Phase 2: User research pull (parallel retrieval fan-out)
 
-Check for PERSONAS.md — it names who this feature is for (from /pm-personas):
+Phase 2 pulls everything the spec needs from prior artifacts **without flooding your context
+with full docs**. A retrieval subagent reads each present doc and returns only the slice relevant
+to `_FEATURE`, plus a structured `FLAG:` line your control flow keys off. **You do NOT read
+PERSONAS / DATA / PRODUCT / BUSINESS-MODEL / FEEDBACK raw yourself** — you work from the digests
+plus the CONTEXT-SUMMARY already in your preamble.
 
-```bash
-[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
-```
-
-**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md`. Identify which persona `_FEATURE` serves, and write the User Stories in that persona's voice ("As {primary persona handle}, I want… so that {their job-to-be-done}"). Anchor the Problem Statement in that persona's workaround and the cost of it. If `_FEATURE` primarily serves the **anti-persona**, stop and flag it: "This feature mainly serves {anti-persona}, who PERSONAS.md says we're not building for — confirm before speccing."
-
-Check for DATA.md — quantitative analytics from /pm-data:
+### 2.1. Detect which context docs exist
 
 ```bash
-[ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
+for d in PERSONAS DATA PRODUCT BUSINESS-MODEL FEEDBACK; do
+  [ -f ".nanopm/$d.md" ] && echo "PRESENT: $d" || echo "ABSENT: $d"
+done
 ```
 
-**If DATA_EXISTS:** read `.nanopm/DATA.md`. Find findings relevant to `_FEATURE`:
-- Funnel drop-off rates → use to quantify the problem size in the Problem Statement
-- Retention or usage metrics → use as baseline targets in Success Criteria
-- Cite only 🟢 high-confidence metrics — don't use 🔴 low-confidence numbers as facts in a PRD
+### 2.2. Fan out one retrieval subagent per present doc — in a single turn
 
-Check for the Define context docs — they ground the feature against the real product and how it's sold:
+For **every** doc reported PRESENT, print its prompt with the helper below, then dispatch them
+**all concurrently in one turn** via the **Agent tool** (one Agent call per doc, in the same
+message — not one at a time). Skip any doc reported ABSENT. Each subagent returns a `FLAG:` line
+followed by a bounded digest. (Substitute the real feature name if your shell didn't carry
+`$_FEATURE` across blocks.)
 
 ```bash
-[ -f ".nanopm/PRODUCT.md"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
-[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+# PERSONAS — who the feature is for, plus the anti-persona gate flag
+nanopm_prd_retrieval_prompt ".nanopm/PERSONAS.md" "$_FEATURE" \
+  "which persona this feature serves and their job-to-be-done, the workaround and its cost, and 1-2 verbatim quotes; decide whether it primarily serves the anti-persona" \
+  "FEATURE_SERVES: primary|secondary|anti|unclear — which persona group \"$_FEATURE\" mainly serves"
+
+# DATA — quantified problem size, high-confidence only
+nanopm_prd_retrieval_prompt ".nanopm/DATA.md" "$_FEATURE" \
+  "funnel drop-off / retention / usage metrics relevant to this feature; quantify the problem size and any baseline targets, each metric kept with its confidence marker" \
+  "DATA_CONFIDENCE: tag each cited metric 🟢 high | 🟡 med | 🔴 low — only 🟢 may be stated as fact in the PRD"
+
+# PRODUCT — reusable surfaces + completeness
+nanopm_prd_retrieval_prompt ".nanopm/PRODUCT.md" "$_FEATURE" \
+  "existing surfaces and workflows this feature should reuse rather than reinvent, and the feature's dependencies on real product capabilities" \
+  "PRODUCT_COMPLETENESS: draft|partial|complete — read from the PRODUCT.md header"
+
+# BUSINESS-MODEL — pricing/packaging coherence
+nanopm_prd_retrieval_prompt ".nanopm/BUSINESS-MODEL.md" "$_FEATURE" \
+  "which tier/plan this feature belongs in and whether it affects the GTM motion, so the spec stays commercially coherent" \
+  "TIER: which plan/tier \"$_FEATURE\" belongs in, or 'n/a'"
+
+# FEEDBACK — verbatim user signal (pre-synthesized; aggregates Dovetail, Productboard, etc.)
+nanopm_prd_retrieval_prompt ".nanopm/FEEDBACK.md" "$_FEATURE" \
+  "themes and verbatim user quotes relevant to this feature, for the Problem Statement and User Stories" \
+  "FEEDBACK_THEMES: 1-3 theme labels relevant to \"$_FEATURE\", or 'none'"
 ```
 
-**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Scope `_FEATURE` against *what's already built* — reuse existing surfaces and workflows rather than inventing them, and put the feature's dependencies on real product capabilities into the Requirements/Dependencies sections. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
+Keep the returned digests — together they are your cross-document context for the rest of the run.
 
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. Scope `_FEATURE` against *pricing and packaging* — note which tier/plan it belongs in and whether it affects the GTM motion, so the spec is commercially coherent. Both reads are advisory — if a doc is absent, proceed without it.
+### 2.3. Act on the flags — control flow stays with YOU
 
-Check for FEEDBACK.md first — it's the pre-synthesized source that already aggregates Dovetail, Productboard, and other sources:
+The subagents inform; **you** decide. A subagent never halts the skill. Apply these from the
+returned `FLAG:` lines:
 
-```bash
-[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
-```
+- **PERSONAS `FEATURE_SERVES: anti`** → STOP and flag: "This feature mainly serves {anti-persona},
+  who PERSONAS.md says we're not building for — confirm before speccing." Do not continue until the
+  user confirms. Otherwise, write the User Stories in the served persona's voice ("As {primary
+  persona handle}, I want… so that {their job-to-be-done}") and anchor the Problem Statement in
+  that persona's workaround and its cost.
+- **DATA `DATA_CONFIDENCE`** → cite only metrics tagged 🟢 as fact (problem size in the Problem
+  Statement, baselines in Success Criteria). Never state a 🟡/🔴 number as a fact in a PRD.
+- **PRODUCT `PRODUCT_COMPLETENESS: draft`** → surface a one-line non-blocking warning: "Note:
+  planning on a draft product concept." Scope `_FEATURE` against the existing surfaces in the
+  digest; put real-capability dependencies into Requirements/Dependencies.
+- **BUSINESS-MODEL `TIER`** → note the tier/plan so the spec is commercially coherent.
+- **FEEDBACK** → use the verbatim quotes from the digest in the Problem Statement / User Stories.
 
-**If FEEDBACK_EXISTS:** read FEEDBACK.md. Find themes and verbatim quotes relevant to `_FEATURE`. Use these for the Problem Statement and User Stories. Do not fetch from Dovetail directly — FEEDBACK.md already contains that data.
+### 2.4. FEEDBACK fallback — only if FEEDBACK.md was ABSENT
 
-**If FEEDBACK_MISSING:** fall back to Dovetail connector:
+If 2.1 reported `ABSENT: FEEDBACK`, there's no digest for it — fall back to the Dovetail connector:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -108,9 +142,9 @@ _TIER_DOVETAIL=$(nanopm_has_connector dovetail)
 echo "DOVETAIL: $_TIER_DOVETAIL"
 ```
 
-If Dovetail data is available (tier 1/2/3): fetch insights and highlights relevant to `_FEATURE`.
-
-Extract verbatim user quotes for the PRD's "User stories" section.
+If Dovetail is available (tier 1/2/3): fetch insights and highlights relevant to `_FEATURE` and
+extract verbatim quotes for the User Stories. If FEEDBACK.md was PRESENT, do **not** also query
+Dovetail — the digest already carries that signal.
 
 ## Phase 3: Clarifying questions
 
@@ -332,7 +366,7 @@ The "What will be different in commits?" row is REQUIRED. If you cannot answer i
 
 ## Phase 4b: Adversarial gate — falsification
 
-This phase enforces ETHOS principles 4 and 6: *"Evidence Before Conviction"* and *"Ship, Then Learn."* No PRD ships without a single concrete claim that would prove the central bet wrong. The gate is two-layered: a reviewer subagent checks the Falsification paragraph against a 4-element rubric, then `nanopm_state_log` writes a typed `bet` decision keyed by the feature slug — the schema validator is the structural gate.
+This phase enforces ETHOS principles 4 and 6: *"Evidence Before Conviction"* and *"Ship, Then Learn."* No PRD ships without a single concrete claim that would prove the central bet wrong. The review is a **panel**: the falsifiability reviewer (the hard gate) runs alongside advisory lens-reviewers, all dispatched concurrently. Falsifiability is gated two ways — a reviewer subagent checks the paragraph against a 4-element rubric, then `nanopm_state_log` writes a typed `bet` decision keyed by the feature slug (the schema validator is the structural gate). The advisory lenses (scope, success-criteria measurability, persona fit, dependencies) only **surface** problems: in `solo-fast` they append must-fix notes to the PRD without blocking; in `team-traditional` a lens CONCERN escalates to a hard block.
 
 ### 4b.1. Extract the Falsification paragraph
 
@@ -379,10 +413,68 @@ Falsification paragraph:
 
 Capture output.
 
+### 4b.2b. Advisory review panel (parallel lenses)
+
+Dispatch the falsifiability reviewer above **together with** the advisory lenses — all in one
+concurrent turn (one Agent call each, same message). The lenses don't gate falsifiability; they
+catch the other ways a PRD fails. List the lenses:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_prd_review_lenses
+```
+
+For each lens, print its prompt and append the full drafted PRD text after the trailing `PRD:`
+marker, then dispatch it via the **Agent tool**:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_LENSES=$(nanopm_prd_review_lenses)
+[ -z "$_LENSES" ] && { echo "ERROR: review lenses unavailable — lib not sourced. The panel cannot run; fix before continuing (do NOT skip the panel silently)."; exit 1; }
+for _lens in $_LENSES; do
+  echo "===== LENS: $_lens ====="
+  nanopm_prd_lens_prompt "$_lens"
+done
+```
+
+Each lens returns exactly three lines: `LENS:` / `VERDICT: PASS|CONCERN` / `NOTE:`. Collect all
+verdicts. They feed 4b.3b (notes) and 4b.3c (gating) below.
+
 ### 4b.3. Apply verdict
 
 - **VERDICT: FAIL** → replace the `## Falsification` paragraph in the PRD file with REWRITE. Add a one-line note above: `*⚠ rewritten by adversarial gate to satisfy 4-element rubric*`.
 - **VERDICT: PASS** → keep the user's wording in the PRD; use REWRITE only for the state record.
+
+### 4b.3b. Append the advisory lens notes
+
+For every lens that returned `VERDICT: CONCERN`, append a `## Reviewer notes` block to the end of
+the PRD file (create the heading once, then one bullet per CONCERN, labelled by lens):
+
+```markdown
+## Reviewer notes
+
+*Advisory — surfaced by the /pm-prd review panel. Must-fix before handoff.*
+
+- **{lens}:** {the lens's NOTE}
+- ...
+```
+
+If every lens returned PASS, write nothing — no empty section.
+
+### 4b.3c. Build-mode gating
+
+Read `_BUILD_MODE` (from 4b.2). The lenses are **advisory in `solo-fast`, blocking in
+`team-traditional`**:
+
+- **`solo-fast`** → the `## Reviewer notes` are advisory. Proceed to 4b.4/4b.5 regardless of any
+  CONCERN — velocity over ceremony; the founder reads the notes and decides.
+- **`team-traditional`** → if **any** lens returned CONCERN, **STOP before 4b.4**. Tell the user:
+  "Review panel raised {N} concern(s) (see `## Reviewer notes`). Resolve them in the PRD and
+  re-run, or explicitly waive to proceed." Do NOT run the Phase 4b.4/4b.5 state writes or Phase 5
+  until the concerns are resolved or the user waives. A **waive** is an explicit user confirmation
+  (the same kind of gate as the anti-persona STOP in 2.3) — on waive, append `*waived: {lenses}*`
+  under `## Reviewer notes`, then proceed to 4b.4. (Falsifiability — 4b.3 — is a hard gate in
+  **both** modes and is unaffected by this.)
 
 ### 4b.4. State write (structural gate)
 

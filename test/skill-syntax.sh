@@ -170,6 +170,36 @@ else
   fail "nanopm_skill_path() missing from lib — multi-host orchestration broken"
 fi
 
+# ── 6f. pm-prd subagent context & review (v0.12.0) ────────────────────────────
+echo
+echo "  pm-prd subagent context & review"
+_LIB="$_REPO_ROOT/lib/nanopm.sh"
+for fn in nanopm_prd_retrieval_prompt nanopm_prd_review_lenses nanopm_prd_lens_prompt; do
+  if grep -q "^$fn()" "$_LIB"; then
+    ok "$fn() defined in lib"
+  else
+    fail "$fn() missing from lib (pm-prd Phase 2/4b helper)"
+  fi
+done
+_PRD="$_REPO_ROOT/pm-prd/SKILL.md"
+if [ -f "$_PRD" ]; then
+  if grep -q "nanopm_prd_retrieval_prompt" "$_PRD"; then
+    ok "pm-prd — Phase 2 retrieval fan-out present"
+  else
+    fail "pm-prd — Phase 2 does not call nanopm_prd_retrieval_prompt (fan-out missing)"
+  fi
+  if grep -q "nanopm_prd_lens_prompt" "$_PRD" && grep -q "## Reviewer notes" "$_PRD"; then
+    ok "pm-prd — Phase 4b review panel + Reviewer notes present"
+  else
+    fail "pm-prd — Phase 4b panel/Reviewer-notes missing (Axe 2 not wired)"
+  fi
+  if grep -q "team-traditional" "$_PRD" && grep -q "_BUILD_MODE" "$_PRD"; then
+    ok "pm-prd — build_mode-aware panel gating present"
+  else
+    fail "pm-prd — build_mode gating missing from Phase 4b"
+  fi
+fi
+
 # ── 7. Connector files ────────────────────────────────────────────────────────
 echo
 echo "  Connectors"
