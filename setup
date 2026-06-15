@@ -389,6 +389,14 @@ fi
 # instead of comparing against a stale cached remote version.
 echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
 rm -f "$GLOBAL_CONFIG_DIR/last-update-check"
+# Record install provenance so the viewer's one-click update can refuse to
+# overwrite a maintainer's working copy: the repo path for a local clone
+# install, or "remote" for a curl/piped install.
+if [ "$_SOURCE" = "local" ] && [ -n "$_REPO_ROOT" ]; then
+  echo "$_REPO_ROOT" > "$GLOBAL_CONFIG_DIR/install-source"
+else
+  echo "remote" > "$GLOBAL_CONFIG_DIR/install-source"
+fi
 ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION (update cache cleared)"
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
