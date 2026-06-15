@@ -5,6 +5,25 @@ import MarkdownUI
 /// with a History menu to read any past report (newest → oldest).
 struct CompetitorsPageView: View {
     @ObservedObject var store: ArtifactStore
+    @EnvironmentObject private var runManager: RunManager
+
+    /// The Competitor Intel skill, used to launch its modes from this page.
+    private var intelDoc: SkillDoc? {
+        SkillCatalog.all.first { $0.skillCommand == "/pm-competitors-intel" }
+    }
+
+    private var intelRunning: Bool {
+        guard let doc = intelDoc else { return false }
+        return runManager.isActive(doc.trackingPath, in: store.project.path)
+    }
+
+    /// Launches Competitor Intel in one of its three modes. The mode is carried
+    /// in the launch context; the skill detects discovery / `analyze` intent
+    /// from it (see pm-competitors-intel Preamble + Phase 1).
+    private func launchIntel(_ context: String?) {
+        guard let doc = intelDoc else { return }
+        runManager.launch(doc, in: store.project.path, userContext: context)
+    }
 
     struct Implications: Equatable {
         let sourceID: String
@@ -68,6 +87,33 @@ struct CompetitorsPageView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    Menu {
+                        Button {
+                            launchIntel(nil)
+                        } label: {
+                            Label("Intel check", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        Button {
+                            launchIntel("Re-scan the web for new competitor entrants I'm not tracking yet "
+                                        + "(discovery maintenance mode), propose only net-new ones for me to confirm, "
+                                        + "then run the intel check.")
+                        } label: {
+                            Label("Find new competitors", systemImage: "sparkle.magnifyingglass")
+                        }
+                        Button {
+                            launchIntel("Run the full competitive analysis in analyze mode: first discover any new "
+                                        + "entrants, then produce the per-competitor SWOT and the scored positioning "
+                                        + "matrix with a reasoning sidecar.")
+                        } label: {
+                            Label("Full analysis (SWOT + matrix)", systemImage: "chart.bar.doc.horizontal")
+                        }
+                    } label: {
+                        Label(intelRunning ? "Running…" : "Run", systemImage: "play.circle")
+                    }
+                    .fixedSize()
+                    .disabled(intelRunning)
+                    .help("Launch Competitor Intel: diff veille, discover new entrants, or full SWOT + positioning analysis")
+
                     if reasoningArtifact != nil {
                         Button {
                             showReasoning.toggle()
@@ -138,7 +184,7 @@ struct CompetitorsPageView: View {
                     ContentUnavailableView(
                         "No intel report yet",
                         systemImage: "doc.richtext",
-                        description: Text("Run Competitor Intel from the Discover overview to generate the first report.")
+                        description: Text("Use the Run menu above to generate the first report — or Find new competitors to start from scratch.")
                     )
                 }
 
