@@ -144,7 +144,10 @@ final class RunManager: ObservableObject {
     // still do damage. Treat the projects you open as trusted, and see the
     // Safety section in README.md before distributing builds.
     static let permissionMode = "default"
-    static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch TodoWrite Task"
+    // WebSearch is needed by pm-competitors-intel's discovery mode (find new
+    // competitor entrants); without it the headless run falls back to only the
+    // competitors it can name from memory.
+    static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch WebSearch TodoWrite Task"
 
     func runs(in projectPath: String) -> [SkillRun] {
         runs.filter { $0.projectPath == projectPath }
