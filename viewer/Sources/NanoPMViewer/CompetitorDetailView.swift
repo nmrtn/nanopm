@@ -50,17 +50,26 @@ struct CompetitorsPageView: View {
     @State private var reasoningContent: String?
     @State private var showReasoning = false
 
-    /// Pull "**Where we win:** …" / "**Where we're exposed:** …" out of the
-    /// COMPETITORS.md positioning-matrix section, if present.
+    /// Pull the "Where we win / Where we're exposed" verdict lines out of the
+    /// COMPETITORS.md positioning-matrix section. Tolerant of bold markers and
+    /// either apostrophe (the LLM that writes the doc may use ASCII ' or U+2019),
+    /// and scoped to the matrix section so a quoted verdict elsewhere can't match.
     private static func matrixVerdict(in markdown: String) -> (win: String?, exposed: String?) {
-        func value(after marker: String) -> String? {
-            guard let r = markdown.range(of: marker) else { return nil }
-            let rest = markdown[r.upperBound...]
-            let line = rest.prefix { $0 != "\n" }
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            return trimmed.isEmpty ? nil : trimmed
+        let scope: Substring = markdown.range(of: "## Positioning matrix")
+            .map { markdown[$0.upperBound...] } ?? markdown[...]
+        var win: String?
+        var exposed: String?
+        for raw in scope.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = raw.replacingOccurrences(of: "*", with: "").trimmingCharacters(in: .whitespaces)
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            let label = line[..<colon].lowercased()
+            let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            if value.isEmpty { continue }
+            if win == nil, label.contains("where we win") { win = value }
+            else if exposed == nil, label.contains("exposed") { exposed = value }
+            if win != nil, exposed != nil { break }
         }
-        return (value(after: "**Where we win:**"), value(after: "**Where we're exposed:**"))
+        return (win, exposed)
     }
 
     /// The reasoning sidecar for COMPETITORS.md (written by /pm-competitors-intel

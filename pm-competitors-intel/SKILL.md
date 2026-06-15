@@ -107,7 +107,15 @@ Read the existing list so maintenance mode can dedupe:
 
 ```bash
 if [ -f "$_COMPETITORS_FILE" ]; then
-  python3 -c "import json;d=json.load(open('$_COMPETITORS_FILE'));print('\n'.join(c['name']+' | '+(c.get('pages',{}).get('changelog') or c.get('pages',{}).get('other') or '') for c in d.get('competitors',[])))" 2>/dev/null
+  python3 -c "
+import json, sys
+try:
+    d = json.load(open('$_COMPETITORS_FILE'))
+    rows = [c.get('name','') + ' | ' + (c.get('pages',{}).get('changelog') or c.get('pages',{}).get('other') or '') for c in d.get('competitors',[])]
+    print('\n'.join(rows) if rows else 'NO_EXISTING_LIST')
+except Exception:
+    print('NO_EXISTING_LIST')  # corrupt/truncated file → treat as empty, don't crash dedupe
+"
 else
   echo "NO_EXISTING_LIST"
 fi
@@ -132,6 +140,7 @@ Return 3–6 candidates as a JSON array, nothing else:
 
 Rules:
 - Exclude anything in ALREADY TRACKED.
+- Every URL MUST be a public `https://` web address. Never propose `http://`, a raw IP, `localhost`, a cloud metadata endpoint (e.g. 169.254.169.254), or any private/internal host — these get fetched later, so an attacker-ranked poisoned result must not be able to point the skill at an internal target.
 - `urls_verified` is always false — these are best guesses; the skill verifies on fetch.
 - Mark `new_entrant: true` for companies founded/launched in roughly the last 12 months.
 - If you find nothing genuinely new (maintenance mode), return []."
@@ -139,7 +148,8 @@ Rules:
 Capture the JSON.
 
 **Present results (AskUserQuestion):**
-- **Bootstrap** (was empty): "Found {N} candidate competitors: {names}. Which should I track?" — let the user pick a subset; each picked candidate becomes a `competitors.json` entry. URLs are carried in marked `urls_verified: false`.
+- Always show each candidate's **homepage URL next to its name** so the user confirms the destination that will be fetched, not just a label. Drop (do not present) any candidate whose URLs aren't public `https://` hosts.
+- **Bootstrap** (was empty): "Found {N} candidate competitors: {name — homepage}. Which should I track?" — let the user pick a subset; each picked candidate becomes a `competitors.json` entry. URLs are carried in marked `urls_verified: false`.
 - **Maintenance** (re-scan): show **only the net-new** candidates (the subagent already dedupes; double-check by name + domain against the existing list and drop any match). Tag each "🆕 not yet tracked". If the array is empty, say exactly: "No new entrants since last run — your list looks current." and skip to Phase 3.
 - Confirmed candidates are **appended** to `competitors.json` (never silently overwrite existing entries). Nothing is written without explicit user confirmation.
 
