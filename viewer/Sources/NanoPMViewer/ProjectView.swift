@@ -165,10 +165,14 @@ struct ProjectView: View {
 
             Spacer()
 
-            ActionButton(title: "Refresh", systemImage: "arrow.clockwise",
-                         help: "Re-read .nanopm/ from disk") {
+            Button {
                 Task { await store.refresh() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
             }
+            .buttonStyle(ActionButtonStyle())
+            .fixedSize()
+            .help("Re-read .nanopm/ from disk")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
