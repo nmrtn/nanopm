@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 — 2026-06-15
+
+### Memory: per-project config + company-shared docs
+
+Two fixes to how nanopm stores state across projects:
+
+- **Per-project config — stops the global leak.** `~/.nanopm/config` was a single global file with no project key, so per-project values (`company_website`, connector `*_url`, `methodology`, `build_mode`, …) set in one repo leaked into every other. `nanopm_config_get`/`set` now route by key: global keys (`update_check_disabled`, `auto_upgrade`) stay in `~/.nanopm/config`; everything else lands in `~/.nanopm/projects/<slug>/config`. The ~25 skill call sites are unchanged — routing is internal — and a stale legacy copy of a per-project key in the global file is dropped on the next write so it can't leak further. (Keyed by `<slug>` for now; a collision-proof project id is deferred to Phase B.)
+- **Company-tier shared docs.** Company-level Define docs (`VISION-MISSION.md`, `BUSINESS-MODEL.md`, `ORG.md`) can now live once in `~/.nanopm/companies/<slug>/` and be symlinked into each repo's `.nanopm/`, so multiple repos of the same company share one source of truth. New `nanopm_company_link <name>` migrates any existing docs up to the company folder and symlinks them back (idempotent; writes through the link update the shared doc); `nanopm_company_list` powers the "which company?" prompt; the three company skills (`pm-vision-mission`, `pm-business-model`, `pm-org`) offer to link. Skills, the brief generator, and the viewer keep reading `.nanopm/` unchanged — the only viewer change is `find` → `find -L` to follow the symlinks. Review hardening: empty-slug collapse, `find -L` abort guard, backup clobber, and no dangling symlinks (link existing / publish on write).
+
+### Define skills: clean share-ready docs + reasoning sidecar
+
+The five Define skills no longer interleave the model's reasoning (`Confidence: Evidenced/Assumed` tags, sources, rationale) inside the generated docs. Each now writes **two files**: the clean, claims-only doc, and a **reasoning sidecar** at `.nanopm/reasoning/<same filename>` that mirrors the doc's headings with the confidence call, source, and "why this call" per section. Refine mode re-reads the prior sidecar so confidence calls compound; the Completion step surfaces `Assumed` sections in the terminal; the `CONTEXT-SUMMARY` subagent reads the clean docs only (sidecars explicitly excluded — founder decision). New shared helper `nanopm_reasoning_path` owns the path convention (and `nanopm_load_context` lists existing sidecars so every run knows the "why" docs exist). **macOS viewer:** sidecars are hidden from the sidebar and shown as a Document/Reasoning segmented picker on the clean doc's detail view, plus a button to open the reasoning in a separate window for side-by-side reading.
+
+### macOS viewer: brand, Memory page, robustness
+
+- **Nano brand identity** — colors, typography, mascot, Claude-style loaders.
+- **Memory page** added; the "Other" bucket dropped; sidebar polish.
+- **Optional user context** when launching a skill run from the viewer.
+- **Crash fix** — the viewer no longer crashes on launch when running outside a `.app` bundle.
+
+### `setup` reads the version from the VERSION file
+
+`setup` now reads the installed version from the `VERSION` file instead of a hardcoded literal, so the two can't drift.
 
 ### Fix: `nanopm_context_append` robust under non-UTF-8 shells
 
