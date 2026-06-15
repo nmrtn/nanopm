@@ -143,21 +143,28 @@ struct CompetitorsPageView: View {
                             Label("Full analysis (SWOT + matrix)", systemImage: "chart.bar.doc.horizontal")
                         }
                     } label: {
-                        Label(intelRunning ? "Running…" : "Run", systemImage: "play.circle")
+                        HStack(spacing: 5) {
+                            Image(systemName: "play.fill")
+                            Text(intelRunning ? "Running…" : "Run")
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
                     }
+                    .menuStyle(.button)
+                    .buttonStyle(ActionButtonStyle(tone: .accent, prominent: !intelRunning))
                     .fixedSize()
                     .disabled(intelRunning)
                     .help("Launch Competitor Intel: diff veille, discover new entrants, or full SWOT + positioning analysis")
 
                     if reasoningArtifact != nil {
-                        Button {
+                        ActionButton(
+                            title: showReasoning ? "Hide reasoning" : "Reasoning",
+                            systemImage: "brain",
+                            tone: showReasoning ? .accent : .neutral,
+                            prominent: showReasoning,
+                            help: "Evidenced/Assumed calls, scoring rationale, and sources behind the landscape"
+                        ) {
                             showReasoning.toggle()
-                        } label: {
-                            Label(showReasoning ? "Hide reasoning" : "Reasoning",
-                                  systemImage: "brain")
                         }
-                        .fixedSize()
-                        .help("Evidenced/Assumed calls, scoring rationale, and sources behind the landscape")
                     }
                     if !reports.isEmpty {
                         Menu {
@@ -174,8 +181,14 @@ struct CompetitorsPageView: View {
                                 }
                             }
                         } label: {
-                            Label("History", systemImage: "clock.arrow.circlepath")
+                            HStack(spacing: 5) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                Text("History")
+                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                            }
                         }
+                        .menuStyle(.button)
+                        .buttonStyle(ActionButtonStyle())
                         .fixedSize()
                         .help("Read past intel reports, newest to oldest")
                     }

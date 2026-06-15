@@ -170,8 +170,11 @@ struct PhaseOverviewView: View {
 
             if doc.skillCommand != nil {
                 if isWaiting {
-                    Button("Answer…") { onAnswer(doc.trackingPath) }
-                        .tint(Color.npAmber)
+                    ActionButton(title: "Answer…", systemImage: "questionmark.bubble.fill",
+                                 tone: .waiting,
+                                 help: "\(doc.skillCommand ?? "") needs your input — answer to continue") {
+                        onAnswer(doc.trackingPath)
+                    }
                 } else if isRunning {
                     Button {} label: {
                         HStack(spacing: 6) {
@@ -179,14 +182,18 @@ struct PhaseOverviewView: View {
                             Text("Running…")
                         }
                     }
+                    .buttonStyle(ActionButtonStyle(tone: .accent))
                     .disabled(true)
                 } else {
-                    Button("Run") { launchTarget = doc.id }
-                        .disabled(claudeAvailable == false)
-                        .help("Runs \(doc.skillCommand ?? "") headlessly in \(store.project.name)")
-                        .popover(isPresented: launchPopoverBinding(doc), arrowEdge: .bottom) {
-                            launchPopover(doc)
-                        }
+                    Button { launchTarget = doc.id } label: {
+                        Label("Run", systemImage: "play.fill")
+                    }
+                    .buttonStyle(ActionButtonStyle(tone: .accent, prominent: true))
+                    .disabled(claudeAvailable == false)
+                    .help("Runs \(doc.skillCommand ?? "") headlessly in \(store.project.name)")
+                    .popover(isPresented: launchPopoverBinding(doc), arrowEdge: .bottom) {
+                        launchPopover(doc)
+                    }
                 }
             }
         }

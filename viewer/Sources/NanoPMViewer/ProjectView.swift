@@ -165,14 +165,10 @@ struct ProjectView: View {
 
             Spacer()
 
-            Button {
+            ActionButton(title: "Refresh", systemImage: "arrow.clockwise",
+                         help: "Re-read .nanopm/ from disk") {
                 Task { await store.refresh() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
-            .help("Re-read .nanopm/ from disk")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
@@ -394,7 +390,7 @@ struct ProjectView: View {
 }
 
 struct ArtifactDetailView: View {
-    enum Pane: String, CaseIterable {
+    enum Pane: String {
         case document = "Document"
         case reasoning = "Reasoning"
     }
@@ -430,14 +426,15 @@ struct ArtifactDetailView: View {
                             .textSelection(.enabled)
                         Spacer()
                         if let reasoning = reasoningArtifact {
-                            Picker("", selection: $pane) {
-                                ForEach(Pane.allCases, id: \.self) { pane in
-                                    Text(pane.rawValue).tag(pane)
-                                }
+                            ActionButton(
+                                title: "Reasoning",
+                                systemImage: "brain",
+                                tone: pane == .reasoning ? .accent : .neutral,
+                                prominent: pane == .reasoning,
+                                help: "Reasoning: why each section was written this way — what's evidenced vs assumed, and the sources"
+                            ) {
+                                pane = (pane == .reasoning) ? .document : .reasoning
                             }
-                            .pickerStyle(.segmented)
-                            .fixedSize()
-                            .help("Reasoning: why each section was written this way — what's evidenced vs assumed, and the sources")
                             Button {
                                 openWindow(
                                     id: NanoPMViewerApp.reasoningWindowID,
@@ -449,7 +446,7 @@ struct ArtifactDetailView: View {
                             } label: {
                                 Image(systemName: "macwindow.on.rectangle")
                             }
-                            .buttonStyle(.borderless)
+                            .buttonStyle(ActionButtonStyle())
                             .help("Open the reasoning in a separate window, to read alongside the document")
                         }
                     }
