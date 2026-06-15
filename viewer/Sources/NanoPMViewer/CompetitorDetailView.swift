@@ -31,11 +31,37 @@ struct CompetitorsPageView: View {
         let text: String
     }
 
+    /// One-glance summary shown at the very top of the page: the most
+    /// significant change + recommended action (from the newest INTEL report)
+    /// and, if an analyze run produced a positioning matrix, where we win /
+    /// where we're exposed (from COMPETITORS.md).
+    struct TLDR: Equatable {
+        var latestChange: String?
+        var action: String?
+        var win: String?
+        var exposed: String?
+        var isEmpty: Bool { latestChange == nil && action == nil && win == nil && exposed == nil }
+    }
+
     @State private var selectedReportID: String?
     @State private var content: String?
     @State private var implications: Implications?
+    @State private var tldr: TLDR?
     @State private var reasoningContent: String?
     @State private var showReasoning = false
+
+    /// Pull "**Where we win:** …" / "**Where we're exposed:** …" out of the
+    /// COMPETITORS.md positioning-matrix section, if present.
+    private static func matrixVerdict(in markdown: String) -> (win: String?, exposed: String?) {
+        func value(after marker: String) -> String? {
+            guard let r = markdown.range(of: marker) else { return nil }
+            let rest = markdown[r.upperBound...]
+            let line = rest.prefix { $0 != "\n" }
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        return (value(after: "**Where we win:**"), value(after: "**Where we're exposed:**"))
+    }
 
     /// The reasoning sidecar for COMPETITORS.md (written by /pm-competitors-intel
     /// in analyze mode). Surfaces as a "Reasoning" pane on the landscape report,
@@ -146,6 +172,10 @@ struct CompetitorsPageView: View {
                     }
                 }
 
+                if let tldr, !tldr.isEmpty {
+                    tldrCard(tldr)
+                }
+
                 if let implications {
                     Markdown(implications.text)
                         .markdownTheme(.nanopm)
@@ -217,29 +247,88 @@ struct CompetitorsPageView: View {
         .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
             content = nil
             reasoningContent = nil
+            var loadedContent: String?
             if let report = displayed {
-                content = try? await store.content(of: report)
+                loadedContent = try? await store.content(of: report)
+                content = loadedContent
             }
             if let reasoning = reasoningArtifact {
                 reasoningContent = try? await store.content(of: reasoning)
             }
-            guard let intel = latestIntelReport else {
-                implications = nil
-                return
-            }
-            if let intelContent = try? await store.content(of: intel),
-               let parsed = IntelReportParser.parse(intelContent),
-               let section = parsed.sections.first(where: { $0.title.lowercased().contains("strategic implications") }),
-               !section.combinedBody.isEmpty {
-                implications = Implications(
-                    sourceID: intel.id,
-                    sourceTitle: CompetitorFiles.reportTitle(intel.relativePath),
-                    text: section.combinedBody
-                )
+
+            var newTLDR = TLDR()
+
+            // Strategic implications + TL;DR change/action from the newest INTEL report.
+            if let intel = latestIntelReport,
+               let intelContent = try? await store.content(of: intel),
+               let parsed = IntelReportParser.parse(intelContent) {
+                if let section = parsed.sections.first(where: { $0.title.lowercased().contains("strategic implications") }),
+                   !section.combinedBody.isEmpty {
+                    implications = Implications(
+                        sourceID: intel.id,
+                        sourceTitle: CompetitorFiles.reportTitle(intel.relativePath),
+                        text: section.combinedBody
+                    )
+                } else {
+                    implications = nil
+                }
+                newTLDR.latestChange = parsed.summaryBody
+                newTLDR.action = parsed.action
             } else {
                 implications = nil
             }
+
+            // Win / exposed from the COMPETITORS.md positioning matrix (analyze mode).
+            var landscape = displayed?.relativePath == "COMPETITORS.md" ? loadedContent : nil
+            if landscape == nil, let comp = store.artifacts.first(where: { $0.relativePath == "COMPETITORS.md" }) {
+                landscape = try? await store.content(of: comp)
+            }
+            if let landscape {
+                let verdict = Self.matrixVerdict(in: landscape)
+                newTLDR.win = verdict.win
+                newTLDR.exposed = verdict.exposed
+            }
+
+            tldr = newTLDR.isEmpty ? nil : newTLDR
         }
+    }
+
+    @ViewBuilder
+    private func tldrCard(_ t: TLDR) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("TL;DR", systemImage: "sparkles")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.npCoral)
+            if let change = t.latestChange {
+                Text(change)
+                    .font(.body)
+                    .foregroundStyle(Color.npInk)
+                    .textSelection(.enabled)
+            }
+            if let action = t.action {
+                (Text("Action: ").fontWeight(.semibold) + Text(action))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            if t.win != nil || t.exposed != nil {
+                Divider().padding(.vertical, 2)
+                if let win = t.win {
+                    (Text("Win: ").fontWeight(.semibold).foregroundColor(.npOlive) + Text(win))
+                        .font(.callout)
+                        .textSelection(.enabled)
+                }
+                if let exposed = t.exposed {
+                    (Text("Exposed: ").fontWeight(.semibold).foregroundColor(.npRust) + Text(exposed))
+                        .font(.callout)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.npBorder))
     }
 
     private var subtitle: String {
