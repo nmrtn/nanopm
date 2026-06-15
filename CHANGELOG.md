@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.12.1 — 2026-06-15
+## 0.12.2 — 2026-06-15
+
+### Viewer: one consistent look for Run, Refresh, and Reasoning
+
+The viewer's three most-used actions used to look different on every screen — Run was a bare text button on the phase overview but a `play.circle` menu on the Competitors page; Reasoning was a segmented picker in one place and a `brain` toggle in another; Refresh was an unlabelled icon in the sidebar footer. Now they all share one look.
+
+- **New shared `ActionButton`.** A single icon-plus-label control with the brand palette, hover/press feedback, and three tones (neutral, accent, waiting). Every Run / Refresh / Reasoning control is built from it, so the same action reads the same way everywhere. The Competitors Run and History menus adopt the same chrome via `.menuStyle(.button)`, keeping a down-chevron so they still read as menus.
+- **What changed per screen.** Run on the phase overview becomes a filled accent button (`play.fill`) that keeps its Answer… / Running… states. Refresh gains an icon and a label. The reasoning controls in the document detail switch from a segmented picker to a single "Reasoning" toggle, matching the Competitors page; the open-in-separate-window button picks up the same styling. Colors and design tokens are unchanged — this is purely a consistency pass.
+
+
 
 ### pm-prd: subagent context fan-out + Phase 4b review panel
 
