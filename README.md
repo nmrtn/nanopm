@@ -1,7 +1,7 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](CHANGELOG.md)
 
 A PM skill pack for AI coding agents. Runs the planning cycle (challenge, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
@@ -102,7 +102,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
-/pm-competitors-intel → monitor competitor pages, diff snapshots, surface strategic implications
+/pm-competitors-intel → discover competitors, monitor + diff their pages, run SWOT + positioning analysis
 /pm-strategy         → strategy + mandatory adversarial challenge (assumption, test, cost)
 /pm-roadmap          → outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
 /pm-prd              → full PRD or Shape Up pitch, adapts to your methodology
@@ -156,7 +156,7 @@ Each signal skill produces an artifact the pipeline reads. They're independent. 
 - **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `FEEDBACK.md`. Clusters themes, surfaces top unaddressed signal.
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
 - **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by the challenge session and the PRD.
-- **`/pm-competitors-intel`** — snapshots competitor pages, diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`.
+- **`/pm-competitors-intel`** — discovers competitors from your product description, snapshots their pages and diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`. An opt-in `analyze` mode runs per-competitor SWOT (vs `PRODUCT.md`) plus a scored positioning matrix, with a reasoning sidecar.
 
 ### 3. Pipeline — the planning cycle
 
