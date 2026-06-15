@@ -381,7 +381,8 @@ struct ProjectView: View {
             )
         default:
             if let artifact = store.artifacts.first(where: { $0.id == selection }) {
-                ArtifactDetailView(store: store, artifact: artifact)
+                ArtifactDetailView(store: store, artifact: artifact,
+                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath })
             } else {
                 ContentUnavailableView(
                     "Pick a phase or document",
@@ -401,11 +402,21 @@ struct ArtifactDetailView: View {
 
     @ObservedObject var store: ArtifactStore
     let artifact: Artifact
+    /// Navigate to the live run session when a launched skill needs input.
+    var onAnswer: (String) -> Void = { _ in }
 
     @Environment(\.openWindow) private var openWindow
     @State private var content: String?
     @State private var loadError: String?
     @State private var pane: Pane = .document
+    @State private var claudeAvailable: Bool?
+
+    /// The skill that produces this document, so it can be re-run from here —
+    /// the same Run action as the phase overview. Nil for docs no skill owns.
+    private var runDoc: SkillDoc? {
+        SkillCatalog.doc(forArtifact: artifact.relativePath)
+            .flatMap { $0.skillCommand == nil ? nil : $0 }
+    }
 
     /// The reasoning sidecar paired with this doc, when one exists on disk.
     private var reasoningArtifact: Artifact? {
@@ -429,6 +440,10 @@ struct ArtifactDetailView: View {
                             .foregroundStyle(Color.npInk)
                             .textSelection(.enabled)
                         Spacer()
+                        if let runDoc {
+                            SkillRunButton(doc: runDoc, store: store,
+                                           claudeAvailable: claudeAvailable, onAnswer: onAnswer)
+                        }
                         if let reasoning = reasoningArtifact {
                             ActionButton(
                                 title: "Reasoning",
@@ -490,6 +505,7 @@ struct ArtifactDetailView: View {
         .task(id: "\(shownArtifact.id)#\(store.generation)") {
             await load()
         }
+        .task { claudeAvailable = await ShellRunner.claudeAvailable() }
         .onChange(of: artifact.id) { _, _ in
             pane = .document
         }

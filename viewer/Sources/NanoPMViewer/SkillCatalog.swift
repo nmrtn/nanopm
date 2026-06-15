@@ -50,6 +50,20 @@ enum SkillCatalog {
         }?.icon
     }
 
+    /// The skill whose output owns this artifact, so a document's own detail
+    /// page can offer the same Run action as the phase overview. Matches a
+    /// `.file` output exactly or a `.folder` output by path prefix; returns nil
+    /// for artifacts no skill produces (e.g. reasoning sidecars).
+    static func doc(forArtifact relativePath: String) -> SkillDoc? {
+        all.first { doc in
+            switch doc.output {
+            case .file(let path): return path == relativePath
+            case .folder(let prefix, _): return relativePath.hasPrefix(prefix)
+            case .handoff: return false
+            }
+        }
+    }
+
     /// The PRDs folder skill icon, so the nav folder matches its overview row.
     static var prdsIcon: String {
         all.first { $0.title == "PRDs" }?.icon ?? "folder"

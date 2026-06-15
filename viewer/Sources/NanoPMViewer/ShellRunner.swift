@@ -59,4 +59,12 @@ enum ShellRunner {
     /// Used by both the availability check and the run command — keep them in
     /// sync by routing through this constant.
     static let claudePathPrefix = #"export PATH="$HOME/.local/bin:$PATH"; "#
+
+    /// Whether the `claude` CLI resolves in the run shell — Run actions are
+    /// disabled when it doesn't. Shared by every surface that offers a Run.
+    static func claudeAvailable() async -> Bool {
+        let probe = claudePathPrefix + "command -v claude"
+        let result = try? await runAsync("zsh -lc \(quote(probe)) 2>/dev/null")
+        return !(result ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }
