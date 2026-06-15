@@ -50,4 +50,13 @@ enum ShellRunner {
     static func quote(_ path: String) -> String {
         "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
+
+    /// Prefix that guarantees the `claude` CLI resolves regardless of how the
+    /// app was launched. The native Claude Code installer drops the binary in
+    /// `~/.local/bin` but only adds that dir to the interactive `.zshrc`, which
+    /// a non-interactive login shell (`zsh -lc`, what we use to run skills from
+    /// Finder) never sources — so the CLI looks missing. Prepend it explicitly.
+    /// Used by both the availability check and the run command — keep them in
+    /// sync by routing through this constant.
+    static let claudePathPrefix = #"export PATH="$HOME/.local/bin:$PATH"; "#
 }

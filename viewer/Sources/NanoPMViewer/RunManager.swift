@@ -216,8 +216,10 @@ final class RunManager: ObservableObject {
         }
         cli += " -p \(ShellRunner.quote(prompt)) </dev/null"
         // zsh -l loads the user's PATH so the `claude` CLI resolves when the
-        // app is launched from Finder.
-        let shellCommand = "cd \(ShellRunner.quote(projectPath)) && \(cli)"
+        // app is launched from Finder; the prefix adds the native installer's
+        // `~/.local/bin`, which login shells miss (see ShellRunner).
+        let shellCommand = ShellRunner.claudePathPrefix
+            + "cd \(ShellRunner.quote(projectPath)) && \(cli)"
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
