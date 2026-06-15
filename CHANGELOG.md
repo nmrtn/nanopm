@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 — 2026-06-15
+
+### Competitors intel: discovery + SWOT/positioning analysis
+
+`pm-competitors-intel` grows from "watch the competitors you named" to "find them and see where you stand." Two additions, both opt-in so the default diff veille stays cheap (one subagent, no extra cost):
+
+- **Discovery agent.** When `competitors.json` is empty it proposes 3–6 competitors from your product description; when it already exists, a re-scan surfaces only net-new entrants (deduped by name + domain, tagged "🆕"). Candidate URLs are marked unverified and the Phase 3 fetch is the verification step. You confirm before anything is written, and `WebSearch` is now in the skill's `allowed-tools` so this is sanctioned instead of improvised (it previously failed with permission errors). Fixes the WebSearch fallback the discovery flow hit.
+- **Analyze mode** (keyword `analyze`/`deep`/`landscape`, or the Phase 1 menu). Reuses the snapshots already fetched, then runs one Analysis subagent per competitor (forces/faiblesses/gaps vs `PRODUCT.md`, every claim tagged Evidenced/Assumed) followed by a Positioning subagent that proposes strategy-anchored axes (you confirm them) and scores a GFM matrix of every player including us, plus a "where we win / where we're exposed" read. Output enriches `COMPETITORS.md` with the matrix + SWOT and writes a reasoning sidecar at `.nanopm/reasoning/COMPETITORS.md`.
+
+**Viewer.** The Competitors page gains a **Run** menu (intel check / find new competitors / full analysis), a **Reasoning** pane for the new sidecar, and a **TL;DR** card at the top — the most significant change + recommended action, plus where we win/are exposed from the positioning matrix.
+
 ## 0.11.1 — 2026-06-15
 
 ### macOS viewer: one-click skill-pack updates
