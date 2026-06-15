@@ -15,6 +15,17 @@ struct CompetitorsPageView: View {
     @State private var selectedReportID: String?
     @State private var content: String?
     @State private var implications: Implications?
+    @State private var reasoningContent: String?
+    @State private var showReasoning = false
+
+    /// The reasoning sidecar for COMPETITORS.md (written by /pm-competitors-intel
+    /// in analyze mode). Surfaces as a "Reasoning" pane on the landscape report,
+    /// never as its own sidebar row — mirrors the Define-doc convention.
+    private var reasoningArtifact: Artifact? {
+        guard displayed?.relativePath == "COMPETITORS.md" else { return nil }
+        let path = ReasoningFiles.sidecarPath(for: "COMPETITORS.md")
+        return store.artifacts.first { $0.relativePath == path }
+    }
 
     /// Newest dated INTEL report — source of the page-top Strategic implications.
     private var latestIntelReport: Artifact? {
@@ -57,6 +68,16 @@ struct CompetitorsPageView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    if reasoningArtifact != nil {
+                        Button {
+                            showReasoning.toggle()
+                        } label: {
+                            Label(showReasoning ? "Hide reasoning" : "Reasoning",
+                                  systemImage: "brain")
+                        }
+                        .fixedSize()
+                        .help("Evidenced/Assumed calls, scoring rationale, and sources behind the landscape")
+                    }
                     if !reports.isEmpty {
                         Menu {
                             ForEach(reports) { report in
@@ -120,6 +141,27 @@ struct CompetitorsPageView: View {
                         description: Text("Run Competitor Intel from the Discover overview to generate the first report.")
                     )
                 }
+
+                if showReasoning, reasoningArtifact != nil {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Reasoning", systemImage: "brain")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        if let reasoningContent {
+                            Markdown(reasoningContent)
+                                .markdownTheme(.nanopm)
+                                .textSelection(.enabled)
+                        } else {
+                            SparkleView(size: 14)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                        }
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.npBorder))
+                }
             }
             .padding(28)
             .frame(maxWidth: 860, alignment: .leading)
@@ -128,8 +170,12 @@ struct CompetitorsPageView: View {
         .background(Color.npPaper)
         .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
             content = nil
+            reasoningContent = nil
             if let report = displayed {
                 content = try? await store.content(of: report)
+            }
+            if let reasoning = reasoningArtifact {
+                reasoningContent = try? await store.content(of: reasoning)
             }
             guard let intel = latestIntelReport else {
                 implications = nil
