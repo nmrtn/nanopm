@@ -845,7 +845,7 @@ other doc is relevant, say so in one line. No preamble — just the digest.
 EOF
 }
 
-# ── pm-prd Phase 2 retrieval + Phase 4b review panel (v0.12.0+) ───────────────
+# ── pm-prd Phase 2 retrieval + Phase 4b review panel (v0.12.1+) ───────────────
 #
 # pm-prd is a Plan-phase skill. It reuses the Define retrieval *contract*
 # (trust boundary + bounded digest + file pointers) but differs in two ways:

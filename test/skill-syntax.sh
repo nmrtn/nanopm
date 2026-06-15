@@ -170,7 +170,7 @@ else
   fail "nanopm_skill_path() missing from lib — multi-host orchestration broken"
 fi
 
-# ── 6f. pm-prd subagent context & review (v0.12.0) ────────────────────────────
+# ── 6f. pm-prd subagent context & review (v0.12.1) ────────────────────────────
 echo
 echo "  pm-prd subagent context & review"
 _LIB="$_REPO_ROOT/lib/nanopm.sh"
