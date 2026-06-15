@@ -315,7 +315,8 @@ struct PhaseOverviewView: View {
     }
 
     private func checkClaude() async {
-        let result = try? await ShellRunner.runAsync("zsh -lc 'command -v claude' 2>/dev/null")
+        let probe = ShellRunner.claudePathPrefix + "command -v claude"
+        let result = try? await ShellRunner.runAsync("zsh -lc \(ShellRunner.quote(probe)) 2>/dev/null")
         claudeAvailable = !(result ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
