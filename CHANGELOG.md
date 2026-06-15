@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1 — 2026-06-15
+
+### macOS viewer: one-click skill-pack updates
+
+The viewer now surfaces nanopm updates the way Claude Code does — a dismissible banner appears at launch when a newer skill pack is available ("nanopm vX available — you have vY"), and a single **Update now** button brings the pack current without opening a terminal. Detection delegates to the CLI's `nanopm_update_check` (same semver comparison + 24h cache), so the viewer and the terminal never disagree about whether an update exists; the check is async and fail-silent, so it never delays launch. The update re-runs `setup` from `main` with `set -o pipefail` so a failed download surfaces as an error instead of a false "Updated", and success is confirmed by an actual `~/.nanopm/VERSION` change rather than the pipeline's exit code alone. A **maintainer guard** reads a new `~/.nanopm/install-source` marker (written by `setup`: the repo path for a local clone, `remote` for a curl install) and refuses the in-app update on a dev clone — so a maintainer never overwrites their working copy — while ignoring a stale marker whose clone no longer exists. `parse()` is covered by a new `--parse-update-check` smoke hook.
+
 ## 0.11.0 — 2026-06-15
 
 ### Memory: per-project config + company-shared docs
