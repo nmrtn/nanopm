@@ -48,6 +48,14 @@ In the **Build** section, PRDs are grouped in an expandable **PRDs**
 folder: clicking it shows a recap of every product spec and its status
 (parsed from each file's header); expanding lists the individual PRDs.
 
+When a newer nanopm skill pack is available, a dismissible **update banner**
+appears at the top of the window ("nanopm vX available — you have vY") with a
+one-click **Update now** button — the GUI mirror of the CLI's update check.
+Detection delegates to `nanopm_update_check` (same semver + 24h cache as the
+terminal); the update re-runs `setup` from `main`. On a local clone the update
+is refused with a maintainer warning (it reads the `~/.nanopm/install-source`
+marker `setup` writes) so you never overwrite your working copy.
+
 This is the proof instrument for the form-factor bet in the nanopm Q3 strategy
 (see [PRD.md](./PRD.md)). It is deliberately minimal and explicitly throwaway —
 no editing, no connector management, no cross-skill orchestration (single-skill runs only).
@@ -69,6 +77,13 @@ swift build
 ```
 
 Prints the phase-mapped artifact list the UI would show, then exits.
+
+```bash
+.build/debug/NanoPMViewer --parse-update-check
+```
+
+Runs the update-banner version parser against a fixed table of cases (clean
+line, buried in shell output, malformed) and exits non-zero on any mismatch.
 
 ## Requirements
 
