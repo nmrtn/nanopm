@@ -481,13 +481,24 @@ final class RunManager: ObservableObject {
 enum Notifier {
     private static var authRequested = false
 
+    /// UNUserNotificationCenter.current() ABORTS the process (NSAssertion →
+    /// SIGABRT) when the executable runs outside a real .app bundle — which is
+    /// how the viewer ships today (bare SwiftPM binary). Gate every UN call on
+    /// this and fall back to AppleScript notifications.
+    private static var hasBundleIdentifier: Bool { Bundle.main.bundleIdentifier != nil }
+
     static func requestAuthorizationIfNeeded() {
+        guard hasBundleIdentifier else { return }
         guard !authRequested else { return }
         authRequested = true
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     static func send(title: String, body: String) {
+        guard hasBundleIdentifier else {
+            sendViaAppleScript(title: title, body: body)
+            return
+        }
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             switch settings.authorizationStatus {
