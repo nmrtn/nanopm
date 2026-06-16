@@ -169,6 +169,8 @@ Each skill writes a markdown artifact for humans and a typed JSONL record for th
 4. **`/pm-prd`** → `.nanopm/prds/{feature}.md` — full PRD or Shape Up pitch. Required Falsification section, gated on 4 elements. Writes a typed `bet` decision + a `prd` status record.
 5. **`/pm-breakdown`** — tasks + handoff. See zone 4.
 
+After any Plan skill (`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`) finishes, a subagent regenerates `.nanopm/PLAN-SUMMARY.md` — a one-page brief (what you're betting on, what you're aiming for, what you're building now, what you're saying no to) synthesized from whatever OBJECTIVES/STRATEGY/ROADMAP docs exist. It's the Plan-phase counterpart to the Context Brief: every downstream skill loads it at startup too, right after the context brief, so the agent always carries both who the company is and what it's working on right now.
+
 State lives in `~/.nanopm/projects/{slug}/{type}.jsonl` (typed, schema-validated). The next skill reads from there.
 
 ### 4. Handoffs — where work lands
