@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0 — 2026-06-16
+
+### New skill: /pm-brainstorm — jam with Nano, your expert CPO
+
+A daily-ops surface for thinking out loud. `/pm-brainstorm` is an informal, context-loaded jam with **Nano**, the expert CPO at the user's service — no gate, no PRD, no artifact. Nano loads the company + objectives context (`CONTEXT-SUMMARY.md` + `OBJECTIVES.md`) and pushes back per the nanopm ethos: problem first, name the question you're avoiding. It's the surface that replaces the ChatGPT thread you can't find again.
+
+- **Resumable, host-native.** Sessions are named and resumed via your host's own session picker (Claude `--resume`, Vibe `--resume`, Codex `resume`) — full-transcript reload, no transcript persistence of our own. A new `brainstorm` typed-state record (topic + summary) makes past jams listable across all three hosts.
+- **Viewer Brainstorm surface.** A graphical chat in the macOS viewer: an always-on entry at the top of Day-to-Day, a free-text composer on the existing `claude` run engine, and a History menu that lists past jams — auto-titled by Claude's own `ai-title` — and resumes them with full prior context. Claude Code backend.
+- **Read-only by construction.** Brainstorm runs deny `Bash`/`Edit`/`Write` via `--disallowedTools`, so a free chat over untrusted project content can't mutate the repo. (Verified live: `--allowedTools` alone does not gate in headless default mode — the deny-list is the real control.)
+
 ## 0.12.2 — 2026-06-15
 
 ### Viewer: one consistent look for Run, Refresh, and Reasoning
