@@ -102,7 +102,9 @@ enum PhaseMapper {
     // CONTEXT.md manual-ingestion fallback — both belong to Define.
     private static let defineNames = ["vision", "mission", "business", "org", "product", "personas", "context"]
     private static let discoverNames = ["feedback", "data", "discovery", "interview", "competitor"]
-    private static let planNames = ["objectives", "strategy", "roadmap", "prd"]
+    // "plan" matches PLAN-SUMMARY.md (the consolidated current-work brief) — the
+    // Plan-phase counterpart to CONTEXT-SUMMARY.md, rendered atop the Plan overview.
+    private static let planNames = ["objectives", "strategy", "roadmap", "prd", "plan"]
     private static let shipNames = ["breakdown", "handoff", "retro", "tasks"]
     // "audit" is the legacy name for "challenges" (pre /pm-challenge-me rename).
     private static let dailyNames = ["challenge", "audit", "standup", "weekly", "update"]

@@ -218,9 +218,10 @@ struct ProjectView: View {
             artifact.phase == phase
                 && !(showCompetitorsSection && CompetitorFiles.isCompetitorFile(artifact.relativePath))
                 && !PRDFiles.isPRD(artifact.relativePath)
-                // The context brief is rendered inline atop the Define overview,
-                // not listed as a child document.
+                // The context & plan briefs are rendered inline atop their phase
+                // overviews (Define / Plan), not listed as child documents.
                 && artifact.relativePath != "CONTEXT-SUMMARY.md"
+                && artifact.relativePath != "PLAN-SUMMARY.md"
                 // Reasoning sidecars open from a "Reasoning" button on their
                 // clean doc's detail view, not as sidebar rows.
                 && !ReasoningFiles.isReasoning(artifact.relativePath)
