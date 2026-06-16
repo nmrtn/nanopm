@@ -165,20 +165,6 @@ struct ProjectView: View {
             .buttonStyle(.borderless)
             .help("What NanoPM remembers about this project — every skill run leaves a trace here")
 
-            Button {
-                selection = NavRoute.brainstormPage
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "bubble.left.and.bubble.right")
-                        .foregroundStyle(.secondary)
-                    Text("Brainstorm")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .buttonStyle(.borderless)
-            .help("Jam with a virtual CPO — informal, context-loaded, resumable")
-
             Spacer()
 
             Button {
@@ -242,9 +228,18 @@ struct ProjectView: View {
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
-        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs {
+        // Brainstorm is an always-on interactive surface (not artifact-driven),
+        // pinned at the top of DAY TO DAY so it's always reachable.
+        let showBrainstorm = phase == .daily
+        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
+                if showBrainstorm {
+                    Label("Brainstorm", systemImage: "bubble.left.and.bubble.right")
+                        .tag(NavRoute.brainstormPage)
+                        .help("Jam with a virtual CPO — informal, context-loaded, resumable")
+                        .listRowInsets(Self.childRowInsets)
+                }
                 ForEach(items) { artifact in
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
