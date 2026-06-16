@@ -85,6 +85,16 @@ struct Artifact: Identifiable, Hashable, Sendable {
     var isMarkdown: Bool { relativePath.lowercased().hasSuffix(".md") }
 
     var displayName: String { prettyDocName(relativePath) }
+
+    /// The consolidated briefs (CONTEXT-SUMMARY / PLAN-SUMMARY) render as cards
+    /// atop their phase overview, never as sidebar rows. Matched case-insensitively
+    /// on the filename: a subagent may write the file in any case, and on a
+    /// case-sensitive filesystem an exact-string match would silently miss it —
+    /// leaving the brief both listed in the sidebar AND absent from its card.
+    var isPhaseBrief: Bool {
+        let f = fileName.lowercased()
+        return f == "context-summary.md" || f == "plan-summary.md"
+    }
 }
 
 /// "STRATEGY.md" → "Strategy", "prds/foo-bar.md" → "foo-bar"

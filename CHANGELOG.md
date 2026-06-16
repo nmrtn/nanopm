@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1 — 2026-06-16
+
+### Viewer: match brief filenames case-insensitively
+
+The Context Brief and Plan Brief are matched by filename in two places — the sidebar exclusion (so the brief isn't listed as a child doc) and the phase-overview card lookup. Both compared exactly against `PLAN-SUMMARY.md` / `CONTEXT-SUMMARY.md`. When a brief was written in a different case (e.g. `plan-summary.md`), it slipped past the exclusion (showing as a stray sidebar row) and was missed by the card (which rendered empty). Now matched case-insensitively via `Artifact.isPhaseBrief`, so the brief is always excluded from the list and always found by its card — and it won't break on a case-sensitive filesystem.
+
 ## 0.14.0 — 2026-06-16
 
 ### Plan Brief: current-work context loaded into every skill run
