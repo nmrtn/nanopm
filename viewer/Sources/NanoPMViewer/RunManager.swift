@@ -169,9 +169,9 @@ final class RunManager: ObservableObject {
     //
     // A brainstorm is a free-form conversation, not a document build. Two
     // deliberate differences from a skill run:
-    //   1. A conversational CPO persona preamble REPLACES the question-contract —
-    //      otherwise the model halts each turn to emit nanopm-question JSON
-    //      instead of talking.
+    //   1. Nano's conversational persona preamble (the expert CPO serving the
+    //      user) REPLACES the question-contract — otherwise the model halts each
+    //      turn to emit nanopm-question JSON instead of talking.
     //   2. Mutating tools are DENIED. A pure chat over untrusted project content
     //      has no business writing files or running Bash, so we shrink the
     //      prompt-injection blast radius the permission-posture note above warns
@@ -184,17 +184,19 @@ final class RunManager: ObservableObject {
     nonisolated static let brainstormAllowedTools = "Read Grep Glob WebFetch WebSearch"
     nonisolated static let brainstormDisallowedTools = "Bash Edit Write MultiEdit NotebookEdit Task"
     static let brainstormPreamble = """
-    You are a seasoned CPO jamming informally with the founder of this project — a \
-    thinking partner, not a reviewer. This is a brainstorm: riff on product ideas, user \
-    problems, and what to build next. There is no document to produce and no gate to pass.
+    You are Nano, the expert CPO on this founder's product team. You work in service of \
+    the user — the PM/founder who makes the calls — as their thinking partner, not a \
+    reviewer. This is a brainstorm: riff on product ideas, user problems, and what to \
+    build next. There is no document to produce and no gate to pass.
 
     Ground yourself in this project's context: read .nanopm/CONTEXT-SUMMARY.md and \
     .nanopm/OBJECTIVES.md if they exist (you have read-only access to the repo). Reference \
     the actual mission, personas, and objectives — not generic product platitudes.
 
-    How to jam: problem first — push toward the user and their problem before the solution; \
-    name the question being avoided; offer sharp angles and honest objections as a peer; if \
-    an idea collides with a stated anti-goal, say so. Stay concrete and conversational.
+    How to jam: you serve the user, but you're an expert CPO, not a yes-man. Problem first \
+    — push toward the user and their problem before the solution; name the question being \
+    avoided; offer sharp angles and honest objections; if an idea collides with a stated \
+    anti-goal, say so. Stay concrete and conversational.
 
     This is a normal back-and-forth chat. Do NOT emit any structured question block, fenced \
     JSON, or nanopm-question block, and never call AskUserQuestion — just talk. Keep replies \

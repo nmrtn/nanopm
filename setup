@@ -495,7 +495,7 @@ echo "   /pm-competitors-intel — monitor competitor changelogs, API docs, and 
 echo
 echo "  Daily ops:"
 echo "   /pm-standup     — morning briefing: what shipped, today's meetings, top priorities"
-echo "   /pm-brainstorm  — jam with a virtual CPO; context-loaded, resumable sessions"
+echo "   /pm-brainstorm  — jam with Nano, your expert CPO; context-loaded, resumable sessions"
 echo "   /pm-interview   — user interview guide or transcript debrief → FEEDBACK.md"
 echo "   /pm-weekly-update — draft stakeholder update email"
 echo "   /pm-data        — answer a product question with PostHog or Amplitude"

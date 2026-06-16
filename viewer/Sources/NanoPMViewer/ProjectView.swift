@@ -237,7 +237,7 @@ struct ProjectView: View {
                 if showBrainstorm {
                     Label("Brainstorm", systemImage: "bubble.left.and.bubble.right")
                         .tag(NavRoute.brainstormPage)
-                        .help("Jam with a virtual CPO — informal, context-loaded, resumable")
+                        .help("Jam with Nano, your expert CPO — informal, context-loaded, resumable")
                         .listRowInsets(Self.childRowInsets)
                 }
                 ForEach(items) { artifact in

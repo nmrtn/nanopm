@@ -22,7 +22,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-retro | `/pm-retro` | Compare roadmap vs commits, surface drift |
 | pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
 | pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |
-| pm-brainstorm | `/pm-brainstorm` | Jam with a virtual CPO — informal, context-loaded, resumable sessions |
+| pm-brainstorm | `/pm-brainstorm` | Jam with Nano, the expert CPO — informal, context-loaded, resumable sessions |
 | pm-weekly-update | `/pm-weekly-update` | Draft stakeholder update email, adapted to audience |
 | pm-data | `/pm-data` | Answer a product question with PostHog or Amplitude data |
 

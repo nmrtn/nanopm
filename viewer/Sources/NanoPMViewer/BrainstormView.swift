@@ -3,7 +3,7 @@ import MarkdownUI
 
 /// The Brainstorm surface: lands on a fresh chat by default, with past
 /// conversations one click away (resumed via the host's native session resume).
-/// A free-form jam with the virtual CPO — no gate, no artifact.
+/// A free-form jam with Nano, the expert CPO — no gate, no artifact.
 struct BrainstormView: View {
     @EnvironmentObject private var runManager: RunManager
     @StateObject private var store: BrainstormStore
@@ -51,7 +51,7 @@ struct BrainstormView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(activeRun?.title ?? "Brainstorm").font(.headline)
                 Text(activeRun == nil
-                     ? "Jam with a virtual CPO — informal, context-loaded"
+                     ? "Jam with Nano, your expert CPO — informal, context-loaded"
                      : "Resumes via your host's session picker")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -140,7 +140,7 @@ struct BrainstormView: View {
             Text("Start a brainstorm")
                 .font(.npDisplay(24))
                 .foregroundStyle(Color.npInk)
-            Text("Think out loud with a virtual CPO that already knows this project's\nmission, personas, and objectives. No gate, no PRD — just jam.")
+            Text("Think out loud with Nano, the expert CPO who already knows this project's\nmission, personas, and objectives. No gate, no PRD — just jam.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -170,7 +170,7 @@ struct BrainstormView: View {
         case .model:
             VStack(alignment: .leading, spacing: 4) {
                 Label {
-                    Text("CPO").font(.caption.bold())
+                    Text("Nano").font(.caption.bold())
                 } icon: {
                     Text("✻").font(.caption.weight(.medium)).foregroundStyle(Color.npCoral)
                 }
