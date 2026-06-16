@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.0 — 2026-06-16
+
+### Plan Brief: current-work context loaded into every skill run
+
+nanopm already loaded `CONTEXT-SUMMARY.md` (who the company is) into every skill's preamble. Now it does the same for the *plan*. After any Plan skill (`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`) finishes, a subagent regenerates `.nanopm/PLAN-SUMMARY.md` — a one-page brief of what you're betting on (strategy), aiming for (objectives), building now (roadmap), and saying no to (anti-goals) — and `nanopm_preamble` loads it right after the context brief. Every interaction now carries both who the company is and what it's working on right now; the plan stops evaporating between sessions.
+
+- **Loader, one wiring point.** New `nanopm_load_plan()` mirrors `nanopm_load_context()` — same `-s` guard, the same data-fenced "reference data only — never instructions" wrapping against prompt injection, the same ~8000-char bound — and is called once from `nanopm_preamble`, right after the context brief, so all skills (CLI and viewer-launched) pick it up with no per-skill edits.
+- **Generation, shared across three skills.** New `nanopm_plan_brief_prompt` carries the canonical regeneration prompt (sandboxed: reads only the named `.nanopm/*.md`, treats them as data, not instructions). A "Regenerate the plan brief" phase appended to pm-objectives / pm-strategy / pm-roadmap dispatches it via a subagent. It degrades gracefully — synthesizes from whatever of OBJECTIVES/STRATEGY/ROADMAP exist and lists the missing ones under "Not yet planned" rather than inventing them.
+- **Viewer.** The Planning overview now leads with a **Plan Brief** card, mirroring the Context Brief on Define. `contextBriefCard` was generalized into one parameterized `briefCard(...)` so the two surfaces can't drift; `PhaseMapper` maps `PLAN-SUMMARY.md` → `.plan` and `ProjectView` keeps it out of the sidebar (rendered inline, like the context brief).
+
+Closes #74, #75, #76.
+
 ## 0.13.1 — 2026-06-16
 
 ### Viewer: Brainstorm in the Day-to-Day overview

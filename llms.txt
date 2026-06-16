@@ -44,6 +44,8 @@ Each skill also works standalone.
 
 After each Define skill (vision-mission, business-model, org, product, personas), a subagent regenerates a one-page consolidated context brief at `.nanopm/CONTEXT-SUMMARY.md`. Every skill loads this brief at startup, so the agent always shares the same company + product baseline and context does not drift between skills or sessions.
 
+Likewise, after each Plan skill (objectives, strategy, roadmap), a subagent regenerates a one-page consolidated plan brief at `.nanopm/PLAN-SUMMARY.md` — what you're betting on, aiming for, building now, and saying no to. Every skill loads this brief at startup too, right after the context brief, so the agent always knows both who the company is and what it's working on right now.
+
 ## Skills
 
 **Planning pipeline:**

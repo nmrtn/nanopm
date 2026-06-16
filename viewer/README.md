@@ -31,6 +31,12 @@ The **Define** overview additionally leads with the **Context Brief** —
 context a subagent regenerates after each Define skill and every skill reloads at
 startup. (It's shown only on the Define page, not as a sidebar document.)
 
+The **Planning** overview mirrors this with a **Plan Brief** —
+`.nanopm/PLAN-SUMMARY.md` rendered inline — the consolidated objectives, strategy
++ roadmap a subagent regenerates after each Plan skill and every skill reloads at
+startup, right after the context brief. (Same treatment: shown only on the Planning
+page, not as a sidebar document.)
+
 Runs stream live via `claude --output-format stream-json`: an **Activity
 Monitor** window (toolbar, badged with the in-flight count) lists every run
 across the session and shows a live console for the selected one — session
