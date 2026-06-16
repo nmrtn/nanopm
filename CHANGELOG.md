@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.1 — 2026-06-16
+
+### Viewer: Brainstorm in the Day-to-Day overview
+
+The Day-to-Day phase overview now lists **Brainstorm** alongside Standup, Weekly Update, and Challenge Me — with an **Open** action that routes to the chat with Nano (not a headless Run, since a brainstorm is a conversation, not an artifact-producing skill).
+
 ## 0.13.0 — 2026-06-16
 
 ### New skill: /pm-brainstorm — jam with Nano, your expert CPO

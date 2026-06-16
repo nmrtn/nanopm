@@ -42,6 +42,10 @@ struct PhaseOverviewView: View {
                         .background(Color.npAmber.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
                 }
 
+                if phase == .daily {
+                    brainstormCard
+                }
+
                 ForEach(SkillCatalog.docs(for: phase)) { doc in
                     row(doc)
                 }
@@ -137,6 +141,40 @@ struct PhaseOverviewView: View {
         if let first = lines.first, first.hasPrefix("Generated") { lines.removeFirst() }
         dropLeadingBlanks()
         return lines.joined(separator: "\n")
+    }
+
+    /// Brainstorm sits in the Day-to-Day actions but isn't a headless artifact
+    /// run — it's an interactive chat with Nano. So it gets an "Open" action that
+    /// routes to the Brainstorm surface instead of a Run button.
+    private var brainstormCard: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.title3)
+                .foregroundStyle(Color.npCoral)
+                .frame(width: 34, height: 34)
+                .background(Color.npCoral.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Brainstorm").font(.headline)
+                Text("Jam with Nano, your expert CPO — an informal, context-loaded thinking partner for product ideas, user problems, and what to build next. No gate, no PRD; sessions are resumable.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Opens a chat — not a run")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer(minLength: 12)
+
+            ActionButton(title: "Open", systemImage: "bubble.left.and.bubble.right",
+                         help: "Open the Brainstorm chat with Nano") {
+                onOpen(NavRoute.brainstormPage)
+            }
+        }
+        .padding(14)
+        .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.npBorder))
     }
 
     @ViewBuilder
