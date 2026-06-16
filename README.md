@@ -1,11 +1,11 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.13.0-blue.svg)](CHANGELOG.md)
 
-A PM skill pack for AI coding agents. Runs the planning cycle (challenge, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
+A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
-Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have.
+Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have. An optional macOS viewer browses the artifacts and re-runs skills on the Claude Code backend, for the moments you'd rather not be in a terminal.
 
 Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack). nanopm is the PM layer.
 
