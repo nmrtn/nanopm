@@ -73,7 +73,9 @@ struct ProjectView: View {
     /// placeholder rows in the phase they will land in.
     private func pendingRuns(for phase: Phase) -> [RunManager.SkillRun] {
         var latestByPath: [String: RunManager.SkillRun] = [:]
-        for run in runManager.runs(in: project.path) {
+        // Brainstorm runs produce no artifact — they never belong in a phase's
+        // pending-document rows (they live in the Brainstorm surface instead).
+        for run in runManager.runs(in: project.path) where run.kind == .skill {
             latestByPath[run.expectedRelPath] = run
         }
         return latestByPath.values
@@ -162,6 +164,20 @@ struct ProjectView: View {
             }
             .buttonStyle(.borderless)
             .help("What NanoPM remembers about this project — every skill run leaves a trace here")
+
+            Button {
+                selection = NavRoute.brainstormPage
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                        .foregroundStyle(.secondary)
+                    Text("Brainstorm")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.borderless)
+            .help("Jam with a virtual CPO — informal, context-loaded, resumable")
 
             Spacer()
 
@@ -335,6 +351,8 @@ struct ProjectView: View {
             CompetitorsPageView(store: store)
         } else if selection == NavRoute.memoryPage {
             MemoryView(store: store)
+        } else if selection == NavRoute.brainstormPage {
+            BrainstormView(projectPath: project.path)
         } else if selection == NavRoute.prdsPage {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID
