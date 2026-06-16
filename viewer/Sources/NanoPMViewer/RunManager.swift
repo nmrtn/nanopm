@@ -88,6 +88,9 @@ final class RunManager: ObservableObject {
         /// Per-run tool allow-list, read by startTurn when building the CLI.
         /// Skill runs get the full set; brainstorm runs a reduced read-only one.
         var allowedTools: String = RunManager.allowedTools
+        /// Tools to hard-deny via `--disallowedTools` — the only real gate (see
+        /// the brainstorm-posture note). nil for skill runs; set for brainstorm.
+        var disallowedTools: String?
 
         enum Kind { case skill, brainstorm }
 
@@ -169,12 +172,17 @@ final class RunManager: ObservableObject {
     //   1. A conversational CPO persona preamble REPLACES the question-contract —
     //      otherwise the model halts each turn to emit nanopm-question JSON
     //      instead of talking.
-    //   2. A REDUCED, read-only tool allow-list. A pure chat over untrusted
-    //      project content has no business writing files or running Bash; dropping
-    //      Write/Edit/Bash/Task shrinks the prompt-injection blast radius the
-    //      permission-posture note above warns about. Read/Grep/Glob keep the CPO
-    //      able to ground itself in the repo; WebFetch/WebSearch for outside facts.
+    //   2. Mutating tools are DENIED. A pure chat over untrusted project content
+    //      has no business writing files or running Bash, so we shrink the
+    //      prompt-injection blast radius the permission-posture note above warns
+    //      about. Verified live (2026-06-16): in `-p --permission-mode default`,
+    //      `--allowedTools` does NOT deny the tools left off it — non-listed tools
+    //      still run. `--disallowedTools` is the only hard gate, so it carries the
+    //      restriction; the reduced allow-list is intent + no-prompt only.
+    //      Read/Grep/Glob keep the CPO grounded in the repo; WebFetch/WebSearch
+    //      for outside facts.
     nonisolated static let brainstormAllowedTools = "Read Grep Glob WebFetch WebSearch"
+    nonisolated static let brainstormDisallowedTools = "Bash Edit Write MultiEdit NotebookEdit Task"
     static let brainstormPreamble = """
     You are a seasoned CPO jamming informally with the founder of this project — a \
     thinking partner, not a reviewer. This is a brainstorm: riff on product ideas, user \
@@ -252,6 +260,7 @@ final class RunManager: ObservableObject {
         var run = SkillRun(projectPath: projectPath, skillCommand: "Brainstorm", expectedRelPath: "")
         run.kind = .brainstorm
         run.allowedTools = Self.brainstormAllowedTools
+        run.disallowedTools = Self.brainstormDisallowedTools
         run.transcript.append(TranscriptEntry(role: .user, text: message))
         runs.append(run)
         startTurn(run.id, prompt: Self.brainstormPreamble + "\n\n" + message, resumeSession: nil)
@@ -267,6 +276,7 @@ final class RunManager: ObservableObject {
         var run = SkillRun(projectPath: projectPath, skillCommand: "Brainstorm", expectedRelPath: "")
         run.kind = .brainstorm
         run.allowedTools = Self.brainstormAllowedTools
+        run.disallowedTools = Self.brainstormDisallowedTools
         run.sessionID = sessionID
         run.title = title
         run.status = .succeeded   // idle/ready — composer enabled, no turn in flight
@@ -304,6 +314,9 @@ final class RunManager: ObservableObject {
 
         var cli = "claude --permission-mode \(Self.permissionMode)"
         cli += " --allowedTools \(ShellRunner.quote(runs[index].allowedTools))"
+        if let disallowed = runs[index].disallowedTools, !disallowed.isEmpty {
+            cli += " --disallowedTools \(ShellRunner.quote(disallowed))"
+        }
         cli += " --output-format stream-json --verbose"
         if let resumeSession {
             cli += " --resume \(ShellRunner.quote(resumeSession))"
