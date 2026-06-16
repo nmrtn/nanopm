@@ -166,6 +166,22 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_context_append "{\"skill\":\"pm-objectives\",\"outputs\":{\"period\":\"$(head -5 .nanopm/OBJECTIVES.md | grep Period | cut -d: -f2- | xargs)\",\"objective_count\":\"$(grep -c '^## Objective' .nanopm/OBJECTIVES.md)\",\"next\":\"pm-strategy\"}}"
 ```
 
+## Phase: Regenerate the plan brief
+
+After OBJECTIVES.md is written, refresh the consolidated current-work brief so every
+downstream skill run carries the latest plan. Print the canonical prompt and dispatch
+it with the **Agent tool**:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_plan_brief_prompt
+```
+
+The subagent reads whichever of OBJECTIVES/STRATEGY/ROADMAP exist and writes
+`.nanopm/PLAN-SUMMARY.md`, overwriting any previous version. This brief is loaded into
+every skill's preamble (`nanopm_load_plan`), so keeping it current is what stops
+downstream work from drifting from the live plan.
+
 ## Completion
 
 Tell the user:
