@@ -84,7 +84,7 @@ struct PhaseOverviewView: View {
     @ViewBuilder
     private func briefCard(file: String, title: String, loadedSubtitle: String,
                            emptySubtitle: String, emptyBody: String) -> some View {
-        let brief = store.artifacts.first { $0.relativePath == file }
+        let brief = store.artifacts.first { $0.relativePath.caseInsensitiveCompare(file) == .orderedSame }
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -134,7 +134,7 @@ struct PhaseOverviewView: View {
     }
 
     private func loadBrief(file: String) async {
-        guard let brief = store.artifacts.first(where: { $0.relativePath == file }) else {
+        guard let brief = store.artifacts.first(where: { $0.relativePath.caseInsensitiveCompare(file) == .orderedSame }) else {
             briefContent = nil
             return
         }
