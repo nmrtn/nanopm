@@ -6,6 +6,7 @@ import MarkdownUI
 struct CompetitorsPageView: View {
     @ObservedObject var store: ArtifactStore
     @EnvironmentObject private var runManager: RunManager
+    @Environment(\.openWindow) private var openWindow
 
     /// The Competitor Intel skill, used to launch its modes from this page.
     private var intelDoc: SkillDoc? {
@@ -47,8 +48,6 @@ struct CompetitorsPageView: View {
     @State private var content: String?
     @State private var implications: Implications?
     @State private var tldr: TLDR?
-    @State private var reasoningContent: String?
-    @State private var showReasoning = false
 
     /// Pull the "Where we win / Where we're exposed" verdict lines out of the
     /// COMPETITORS.md positioning-matrix section. Tolerant of bold markers and
@@ -73,7 +72,7 @@ struct CompetitorsPageView: View {
     }
 
     /// The reasoning sidecar for COMPETITORS.md (written by /pm-competitors-intel
-    /// in analyze mode). Surfaces as a "Reasoning" pane on the landscape report,
+    /// in analyze mode). Opens from a "Reasoning" button in a separate window,
     /// never as its own sidebar row — mirrors the Define-doc convention.
     private var reasoningArtifact: Artifact? {
         guard displayed?.relativePath == "COMPETITORS.md" else { return nil }
@@ -143,21 +142,32 @@ struct CompetitorsPageView: View {
                             Label("Full analysis (SWOT + matrix)", systemImage: "chart.bar.doc.horizontal")
                         }
                     } label: {
-                        Label(intelRunning ? "Running…" : "Run", systemImage: "play.circle")
+                        HStack(spacing: 5) {
+                            Image(systemName: "play.fill")
+                            Text(intelRunning ? "Running…" : "Run")
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
                     }
+                    .menuStyle(.button)
+                    .buttonStyle(ActionButtonStyle(tone: .accent, prominent: !intelRunning))
                     .fixedSize()
                     .disabled(intelRunning)
                     .help("Launch Competitor Intel: diff veille, discover new entrants, or full SWOT + positioning analysis")
 
-                    if reasoningArtifact != nil {
-                        Button {
-                            showReasoning.toggle()
-                        } label: {
-                            Label(showReasoning ? "Hide reasoning" : "Reasoning",
-                                  systemImage: "brain")
+                    if let reasoning = reasoningArtifact {
+                        ActionButton(
+                            title: "Reasoning",
+                            systemImage: "macwindow.on.rectangle",
+                            help: "Open the reasoning in a separate window — Evidenced/Assumed calls, scoring rationale, and the sources behind the landscape"
+                        ) {
+                            openWindow(
+                                id: NanoPMViewerApp.reasoningWindowID,
+                                value: ReasoningWindowContext(
+                                    absolutePath: store.project.nanopmPath + "/" + reasoning.relativePath,
+                                    docName: "Competitors"
+                                )
+                            )
                         }
-                        .fixedSize()
-                        .help("Evidenced/Assumed calls, scoring rationale, and sources behind the landscape")
                     }
                     if !reports.isEmpty {
                         Menu {
@@ -174,8 +184,14 @@ struct CompetitorsPageView: View {
                                 }
                             }
                         } label: {
-                            Label("History", systemImage: "clock.arrow.circlepath")
+                            HStack(spacing: 5) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                Text("History")
+                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                            }
                         }
+                        .menuStyle(.button)
+                        .buttonStyle(ActionButtonStyle())
                         .fixedSize()
                         .help("Read past intel reports, newest to oldest")
                     }
@@ -227,26 +243,6 @@ struct CompetitorsPageView: View {
                     )
                 }
 
-                if showReasoning, reasoningArtifact != nil {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Reasoning", systemImage: "brain")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                        if let reasoningContent {
-                            Markdown(reasoningContent)
-                                .markdownTheme(.nanopm)
-                                .textSelection(.enabled)
-                        } else {
-                            SparkleView(size: 14)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 24)
-                        }
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.npSurface.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.npBorder))
-                }
             }
             .padding(28)
             .frame(maxWidth: 860, alignment: .leading)
@@ -255,14 +251,10 @@ struct CompetitorsPageView: View {
         .background(Color.npPaper)
         .task(id: "\(displayed?.id ?? "none")#\(store.generation)") {
             content = nil
-            reasoningContent = nil
             var loadedContent: String?
             if let report = displayed {
                 loadedContent = try? await store.content(of: report)
                 content = loadedContent
-            }
-            if let reasoning = reasoningArtifact {
-                reasoningContent = try? await store.content(of: reasoning)
             }
 
             var newTLDR = TLDR()

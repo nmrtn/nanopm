@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.12.1 — 2026-06-15
+## 0.12.2 — 2026-06-15
+
+### Viewer: one consistent look for Run, Refresh, and Reasoning
+
+The viewer's three most-used actions used to look different on every screen — Run was a bare text button on the phase overview but a `play.circle` menu on the Competitors page; Reasoning was a segmented picker in one place and a `brain` toggle in another; Refresh was an unlabelled icon in the sidebar footer. Now they all share one look.
+
+- **New shared `ActionButton`.** A single icon-plus-label control with the brand palette, hover/press feedback, and three tones (neutral, accent, waiting). Every Run / Refresh / Reasoning control is built from it, so the same action reads the same way everywhere. The Competitors Run and History menus adopt the same chrome via `.menuStyle(.button)`, keeping a down-chevron so they still read as menus.
+- **What changed per screen.** Run on the phase overview becomes a filled accent button (`play.fill`) that keeps its Answer… / Running… states. Refresh becomes a bordered icon button in the same family (icon-only, to fit the narrow sidebar footer next to Activity and Memory). In the document detail, the reasoning controls collapse to one "Reasoning" button (icon + label) that opens the sidecar in a separate window — replacing both the old segmented Document/Reasoning picker and the bare window icon. The Competitors page makes the same move: its in-place reasoning toggle (and the inline card it expanded) becomes the same window-opening "Reasoning" button, so reasoning opens the same way on every screen. Colors and design tokens are unchanged — this is purely a consistency pass.
+- **Run is now on the document pages too.** The Run action used to live only on the phase overview. Open any document a skill produces (Strategy, Business-Model, a PRD…) and its header now carries the same Run button, with the same context popover and Run / Answer… / Running… states — so you can re-run a skill from the doc you're reading without going back to the overview. Backed by a single shared `SkillRunButton`, so the phase overview and the document header can never drift apart.
+
+
 
 ### pm-prd: subagent context fan-out + Phase 4b review panel
 

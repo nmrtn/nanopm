@@ -169,9 +169,9 @@ struct ProjectView: View {
                 Task { await store.refresh() }
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(ActionButtonStyle())
+            .fixedSize()
             .help("Re-read .nanopm/ from disk")
         }
         .padding(.horizontal, 14)
@@ -219,8 +219,8 @@ struct ProjectView: View {
                 // The context brief is rendered inline atop the Define overview,
                 // not listed as a child document.
                 && artifact.relativePath != "CONTEXT-SUMMARY.md"
-                // Reasoning sidecars surface as a pane on their clean doc's
-                // detail view, not as sidebar rows.
+                // Reasoning sidecars open from a "Reasoning" button on their
+                // clean doc's detail view, not as sidebar rows.
                 && !ReasoningFiles.isReasoning(artifact.relativePath)
         }
         let pending = pendingRuns(for: phase)
@@ -381,7 +381,8 @@ struct ProjectView: View {
             )
         default:
             if let artifact = store.artifacts.first(where: { $0.id == selection }) {
-                ArtifactDetailView(store: store, artifact: artifact)
+                ArtifactDetailView(store: store, artifact: artifact,
+                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath })
             } else {
                 ContentUnavailableView(
                     "Pick a phase or document",
@@ -394,29 +395,28 @@ struct ProjectView: View {
 }
 
 struct ArtifactDetailView: View {
-    enum Pane: String, CaseIterable {
-        case document = "Document"
-        case reasoning = "Reasoning"
-    }
-
     @ObservedObject var store: ArtifactStore
     let artifact: Artifact
+    /// Navigate to the live run session when a launched skill needs input.
+    var onAnswer: (String) -> Void = { _ in }
 
     @Environment(\.openWindow) private var openWindow
     @State private var content: String?
     @State private var loadError: String?
-    @State private var pane: Pane = .document
+    @State private var claudeAvailable: Bool?
+
+    /// The skill that produces this document, so it can be re-run from here —
+    /// the same Run action as the phase overview. Nil for docs no skill owns.
+    private var runDoc: SkillDoc? {
+        SkillCatalog.doc(forArtifact: artifact.relativePath)
+            .flatMap { $0.skillCommand == nil ? nil : $0 }
+    }
 
     /// The reasoning sidecar paired with this doc, when one exists on disk.
     private var reasoningArtifact: Artifact? {
         guard !ReasoningFiles.isReasoning(artifact.relativePath) else { return nil }
         let sidecar = ReasoningFiles.sidecarPath(for: artifact.relativePath)
         return store.artifacts.first { $0.relativePath == sidecar }
-    }
-
-    /// What the body actually renders — the doc, or its reasoning sidecar.
-    private var shownArtifact: Artifact {
-        pane == .reasoning ? (reasoningArtifact ?? artifact) : artifact
     }
 
     var body: some View {
@@ -429,16 +429,16 @@ struct ArtifactDetailView: View {
                             .foregroundStyle(Color.npInk)
                             .textSelection(.enabled)
                         Spacer()
+                        if let runDoc {
+                            SkillRunButton(doc: runDoc, store: store,
+                                           claudeAvailable: claudeAvailable, onAnswer: onAnswer)
+                        }
                         if let reasoning = reasoningArtifact {
-                            Picker("", selection: $pane) {
-                                ForEach(Pane.allCases, id: \.self) { pane in
-                                    Text(pane.rawValue).tag(pane)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .fixedSize()
-                            .help("Reasoning: why each section was written this way — what's evidenced vs assumed, and the sources")
-                            Button {
+                            ActionButton(
+                                title: "Reasoning",
+                                systemImage: "macwindow.on.rectangle",
+                                help: "Open the reasoning in a separate window — why each section was written this way, what's evidenced vs assumed, and the sources"
+                            ) {
                                 openWindow(
                                     id: NanoPMViewerApp.reasoningWindowID,
                                     value: ReasoningWindowContext(
@@ -446,18 +446,14 @@ struct ArtifactDetailView: View {
                                         docName: artifact.displayName
                                     )
                                 )
-                            } label: {
-                                Image(systemName: "macwindow.on.rectangle")
                             }
-                            .buttonStyle(.borderless)
-                            .help("Open the reasoning in a separate window, to read alongside the document")
                         }
                     }
                     HStack(spacing: 6) {
-                        Text(".nanopm/" + shownArtifact.relativePath)
+                        Text(".nanopm/" + artifact.relativePath)
                             .font(.system(.footnote, design: .monospaced))
                         Text("·")
-                        Text("updated \(shownArtifact.modifiedAt, format: .relative(presentation: .named))")
+                        Text("updated \(artifact.modifiedAt, format: .relative(presentation: .named))")
                             .font(.footnote)
                     }
                     .foregroundStyle(.secondary)
@@ -472,7 +468,7 @@ struct ArtifactDetailView: View {
                         description: Text(loadError)
                     )
                 } else if let content {
-                    Markdown(shownArtifact.isMarkdown ? content : "```json\n\(content)\n```")
+                    Markdown(artifact.isMarkdown ? content : "```json\n\(content)\n```")
                         .markdownTheme(.nanopm)
                         .textSelection(.enabled)
                 } else {
@@ -486,17 +482,15 @@ struct ArtifactDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.npPaper)
-        .task(id: "\(shownArtifact.id)#\(store.generation)") {
+        .task(id: "\(artifact.id)#\(store.generation)") {
             await load()
         }
-        .onChange(of: artifact.id) { _, _ in
-            pane = .document
-        }
+        .task { claudeAvailable = await ShellRunner.claudeAvailable() }
     }
 
     private func load() async {
         do {
-            content = try await store.content(of: shownArtifact)
+            content = try await store.content(of: artifact)
             loadError = nil
         } catch {
             content = nil
