@@ -79,6 +79,21 @@ final class RunManager: ObservableObject {
         /// 1-based count of turns started (initial launch + each resume).
         var turnCount = 0
 
+        /// Skill runs produce an artifact behind the question-contract; brainstorm
+        /// runs are free-form CPO jams with a conversational preamble and a reduced
+        /// read-only tool allow-list. Drives prompt assembly and the allow-list.
+        var kind: Kind = .skill
+        /// Display title for a brainstorm conversation (host ai-title / topic).
+        var title: String?
+        /// Per-run tool allow-list, read by startTurn when building the CLI.
+        /// Skill runs get the full set; brainstorm runs a reduced read-only one.
+        var allowedTools: String = RunManager.allowedTools
+        /// Tools to hard-deny via `--disallowedTools` — the only real gate (see
+        /// the brainstorm-posture note). nil for skill runs; set for brainstorm.
+        var disallowedTools: String?
+
+        enum Kind { case skill, brainstorm }
+
         enum Status: Equatable {
             case running
             case waitingForInput([UserQuestion])
@@ -147,7 +162,46 @@ final class RunManager: ObservableObject {
     // WebSearch is needed by pm-competitors-intel's discovery mode (find new
     // competitor entrants); without it the headless run falls back to only the
     // competitors it can name from memory.
-    static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch WebSearch TodoWrite Task"
+    // nonisolated: referenced from the nonisolated default of SkillRun.allowedTools.
+    nonisolated static let allowedTools = "Read Edit Write Glob Grep Bash WebFetch WebSearch TodoWrite Task"
+
+    // MARK: - Brainstorm posture
+    //
+    // A brainstorm is a free-form conversation, not a document build. Two
+    // deliberate differences from a skill run:
+    //   1. Nano's conversational persona preamble (the expert CPO serving the
+    //      user) REPLACES the question-contract — otherwise the model halts each
+    //      turn to emit nanopm-question JSON instead of talking.
+    //   2. Mutating tools are DENIED. A pure chat over untrusted project content
+    //      has no business writing files or running Bash, so we shrink the
+    //      prompt-injection blast radius the permission-posture note above warns
+    //      about. Verified live (2026-06-16): in `-p --permission-mode default`,
+    //      `--allowedTools` does NOT deny the tools left off it — non-listed tools
+    //      still run. `--disallowedTools` is the only hard gate, so it carries the
+    //      restriction; the reduced allow-list is intent + no-prompt only.
+    //      Read/Grep/Glob keep the CPO grounded in the repo; WebFetch/WebSearch
+    //      for outside facts.
+    nonisolated static let brainstormAllowedTools = "Read Grep Glob WebFetch WebSearch"
+    nonisolated static let brainstormDisallowedTools = "Bash Edit Write MultiEdit NotebookEdit Task"
+    static let brainstormPreamble = """
+    You are Nano, the expert CPO on this founder's product team. You work in service of \
+    the user — the PM/founder who makes the calls — as their thinking partner, not a \
+    reviewer. This is a brainstorm: riff on product ideas, user problems, and what to \
+    build next. There is no document to produce and no gate to pass.
+
+    Ground yourself in this project's context: read .nanopm/CONTEXT-SUMMARY.md and \
+    .nanopm/OBJECTIVES.md if they exist (you have read-only access to the repo). Reference \
+    the actual mission, personas, and objectives — not generic product platitudes.
+
+    How to jam: you serve the user, but you're an expert CPO, not a yes-man. Problem first \
+    — push toward the user and their problem before the solution; name the question being \
+    avoided; offer sharp angles and honest objections; if an idea collides with a stated \
+    anti-goal, say so. Stay concrete and conversational.
+
+    This is a normal back-and-forth chat. Do NOT emit any structured question block, fenced \
+    JSON, or nanopm-question block, and never call AskUserQuestion — just talk. Keep replies \
+    focused: a few tight paragraphs, not an essay.
+    """
 
     func runs(in projectPath: String) -> [SkillRun] {
         runs.filter { $0.projectPath == projectPath }
@@ -194,6 +248,55 @@ final class RunManager: ObservableObject {
         startTurn(runID, prompt: answerText, resumeSession: runs[index].sessionID)
     }
 
+    // MARK: - Brainstorm
+
+    /// Start a new brainstorm jam: a conversational run with the CPO persona
+    /// preamble and the reduced allow-list. The first turn fires immediately.
+    /// Returns the run id so the view can follow it.
+    @discardableResult
+    func startBrainstorm(in projectPath: String, firstMessage: String) -> UUID? {
+        let message = firstMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else { return nil }
+        Notifier.requestAuthorizationIfNeeded()
+
+        var run = SkillRun(projectPath: projectPath, skillCommand: "Brainstorm", expectedRelPath: "")
+        run.kind = .brainstorm
+        run.allowedTools = Self.brainstormAllowedTools
+        run.disallowedTools = Self.brainstormDisallowedTools
+        run.transcript.append(TranscriptEntry(role: .user, text: message))
+        runs.append(run)
+        startTurn(run.id, prompt: Self.brainstormPreamble + "\n\n" + message, resumeSession: nil)
+        return run.id
+    }
+
+    /// Open a brainstorm bound to a prior host session. No turn fires yet — the
+    /// session already holds the persona and full prior context; the user's next
+    /// message resumes it via `claude --resume`. v1 shows only new turns (the
+    /// host reloads the transcript server-side).
+    @discardableResult
+    func resumeBrainstorm(in projectPath: String, sessionID: String, title: String?) -> UUID {
+        var run = SkillRun(projectPath: projectPath, skillCommand: "Brainstorm", expectedRelPath: "")
+        run.kind = .brainstorm
+        run.allowedTools = Self.brainstormAllowedTools
+        run.disallowedTools = Self.brainstormDisallowedTools
+        run.sessionID = sessionID
+        run.title = title
+        run.status = .succeeded   // idle/ready — composer enabled, no turn in flight
+        runs.append(run)
+        return run.id
+    }
+
+    /// Send a free-text message into an existing brainstorm and resume its
+    /// session. Used for every turn after the first (new or resumed jam).
+    func sendMessage(_ runID: UUID, _ text: String) {
+        guard let index = runs.firstIndex(where: { $0.id == runID }), !runs[index].isActive else { return }
+        let message = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else { return }
+        runs[index].transcript.append(TranscriptEntry(role: .user, text: message))
+        runs[index].status = .running
+        startTurn(runID, prompt: message, resumeSession: runs[index].sessionID)
+    }
+
     func cancel(_ runID: UUID) {
         guard let index = runs.firstIndex(where: { $0.id == runID }),
               runs[index].isActive else { return }
@@ -212,7 +315,10 @@ final class RunManager: ObservableObject {
         let turn = runs[index].turnCount
 
         var cli = "claude --permission-mode \(Self.permissionMode)"
-        cli += " --allowedTools \(ShellRunner.quote(Self.allowedTools))"
+        cli += " --allowedTools \(ShellRunner.quote(runs[index].allowedTools))"
+        if let disallowed = runs[index].disallowedTools, !disallowed.isEmpty {
+            cli += " --disallowedTools \(ShellRunner.quote(disallowed))"
+        }
         cli += " --output-format stream-json --verbose"
         if let resumeSession {
             cli += " --resume \(ShellRunner.quote(resumeSession))"
@@ -307,10 +413,14 @@ final class RunManager: ObservableObject {
         } else {
             runs[index].status = .succeeded
             completionTick += 1
-            Notifier.send(
-                title: "\(run.expectedRelPath) is ready",
-                body: "\(run.skillCommand) finished — open NanoPM Viewer to read it."
-            )
+            // Brainstorm replies are watched live — a per-turn notification is just
+            // noise. Only skill runs (which produce an artifact) notify on success.
+            if run.kind == .skill {
+                Notifier.send(
+                    title: "\(run.expectedRelPath) is ready",
+                    body: "\(run.skillCommand) finished — open NanoPM Viewer to read it."
+                )
+            }
         }
     }
 

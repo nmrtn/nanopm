@@ -150,7 +150,7 @@ nanopm_context_all() {
 
 # ── Typed state (v0.6.0+) ────────────────────────────────────────────────────
 # Schema-validated JSONL under ~/.nanopm/projects/{slug}/{type}.jsonl
-# Types: timeline | decision | prd | handoff
+# Types: timeline | decision | prd | handoff | brainstorm
 # Skills should prefer these over the legacy nanopm_context_append above.
 
 nanopm_state_log() {
@@ -294,6 +294,36 @@ nanopm_skill_completed() {
   "$HOME/.nanopm/bin/nanopm-state-log" --type timeline \
     "{\"skill\":\"$skill\",\"event\":\"completed\",\"branch\":\"$branch\",\"outcome\":\"$outcome\",\"duration_s\":$duration}" \
     >/dev/null 2>&1 || true
+}
+
+# ── Brainstorm sessions (v0.13.0+) ───────────────────────────────────────────
+# Thin wrappers over the typed-state binaries for the `brainstorm` type, used by
+# /pm-brainstorm. One record per completed jam (append-only): topic (required),
+# plus optional summary and host_session (the host-native session id for resume).
+# Resume itself is delegated to the host's native picker — these only record and
+# list, they never reload a transcript.
+
+nanopm_brainstorm_record() {
+  # Usage: nanopm_brainstorm_record '{"topic":"pricing doubts","summary":"...","host_session":"..."}'
+  # Validates against the brainstorm schema and appends on success.
+  if [ -x "$HOME/.nanopm/bin/nanopm-state-log" ]; then
+    "$HOME/.nanopm/bin/nanopm-state-log" --type brainstorm "$@"
+  else
+    echo "nanopm: bin/nanopm-state-log not installed; run setup" >&2
+    return 127
+  fi
+}
+
+nanopm_brainstorm_list() {
+  # Usage: nanopm_brainstorm_list [--limit N] [--filter KEY=VAL]
+  # Prints past brainstorm records as JSONL (chronological; --limit N = recent N).
+  # Empty output = no past jams yet.
+  if [ -x "$HOME/.nanopm/bin/nanopm-state-read" ]; then
+    "$HOME/.nanopm/bin/nanopm-state-read" --type brainstorm "$@"
+  else
+    echo "nanopm: bin/nanopm-state-read not installed; run setup" >&2
+    return 127
+  fi
 }
 
 nanopm_context_summary() {

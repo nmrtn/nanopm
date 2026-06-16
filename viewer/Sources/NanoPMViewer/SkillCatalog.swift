@@ -5,6 +5,7 @@ enum NavRoute {
     static let prdsPage = "page:prds"
     static let competitorsPage = "page:competitors"
     static let memoryPage = "page:memory"
+    static let brainstormPage = "page:brainstorm"
     static func overview(_ phase: Phase) -> String { "overview:" + phase.rawValue }
 }
 

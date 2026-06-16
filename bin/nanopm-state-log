@@ -38,6 +38,12 @@ Types and schemas:
     target       required  enum: linear | github | openspec | gstack | human
     path         required  string
 
+  brainstorm   jam sessions with the virtual CPO (append-only, one per session)
+    topic        required  string, max 200 — the jam's title/label
+    summary      optional  string — one-line takeaway from the session
+    host_session optional  string — host-native session id for --resume
+    session      optional  string — nanopm 16-hex session (auto-injected)
+
 Output: writes to ~/.nanopm/projects/{slug}/{type}.jsonl
         Injects ts (ISO 8601 UTC) and slug automatically.
         Exits 0 on success; non-zero with stderr on validation failure.
@@ -118,6 +124,15 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                 "linear", "github", "openspec", "gstack", "human",
             }},
             "path": {"type": "string", "max": MAX_PATH_LEN},
+            "session": {"type": "session", "optional": True},
+        },
+    },
+    "brainstorm": {
+        "required": {"topic"},
+        "fields": {
+            "topic": {"type": "string", "max": 200},
+            "summary": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
+            "host_session": {"type": "string", "max": 200, "optional": True},
             "session": {"type": "session", "optional": True},
         },
     },

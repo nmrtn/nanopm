@@ -37,6 +37,14 @@ across the session and shows a live console for the selected one — session
 start, each tool call and its result, assistant messages, and the final
 cost/duration. Built to follow several parallel runs at once.
 
+**Brainstorm** is an always-on entry at the top of the Day-to-Day section: a
+free-form chat with **Nano**, the expert CPO. It opens on a new conversation,
+streams replies on the same `claude` run engine, and a History menu lists past
+jams — auto-titled by Claude's own `ai-title` and resumable with full prior
+context via `claude --resume`. Brainstorm runs are read-only: Bash/Edit/Write
+are denied via `--disallowedTools`, so a free chat over untrusted project
+content can't mutate the repo.
+
 Once intel exists, an expandable **Competitors** entry appears inside the
 Discover section: clicking it lands on the latest report (with a History
 menu for past reports, newest first); expanding it lists each monitored

@@ -1,11 +1,11 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.12.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.13.0-blue.svg)](CHANGELOG.md)
 
-A PM skill pack for AI coding agents. Runs the planning cycle (challenge, strategy, roadmap, PRD) inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
+A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
-Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have.
+Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have. An optional macOS viewer browses the artifacts and re-runs skills on the Claude Code backend, for the moments you'd rather not be in a terminal.
 
 Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack). nanopm is the PM layer.
 
@@ -113,6 +113,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 **Daily ops:**
 ```
 /pm-challenge-me     → three adversarial challenges: strategy, users, focus — starting with the question you're avoiding
+/pm-brainstorm       → jam with Nano, your expert CPO — informal, context-loaded, resumable
 /pm-standup          → morning briefing — what shipped, today's meetings, top 1-3 priorities
 /pm-interview        → prepare a user interview guide, or debrief a transcript from Granola
 /pm-weekly-update    → draft stakeholder update email (CEO, investor, or team), adapted to audience
@@ -133,7 +134,7 @@ nanopm runs in four zones. Context first. Signal in. Planning cycle. Delivery ou
 | **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull the three external signals: user research, analytics, market |
 | **3. Pipeline** | `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Skills run in sequence; each reads typed state from the prior |
 | **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
-| **Daily Ops** | `/pm-challenge-me` · `/pm-standup` · `/pm-weekly-update` | Recurring day-to-day PM ops: the daily briefing, the weekly stakeholder update, and an adversarial challenge on demand |
+| **Daily Ops** | `/pm-challenge-me` · `/pm-brainstorm` · `/pm-standup` · `/pm-weekly-update` | Recurring day-to-day PM ops: an adversarial challenge, a jam with Nano, the daily briefing, the weekly stakeholder update |
 
 ---
 
@@ -190,6 +191,7 @@ Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl`.
 These skills run on a day-to-day cadence without going through the planning sequence:
 
 - **`/pm-challenge-me`** — brutal honest read → `CHALLENGES.md`. Reads `PRODUCT.md` + the company docs, surfaces the biggest gap, then delivers three direct challenges — strategy, users, focus — starting with the question you're avoiding. The adversarial gate writes a typed `question` decision.
+- **`/pm-brainstorm`** — an informal jam with **Nano**, the expert CPO at your service. A context-loaded thinking partner for product ideas, user problems, and what to build next — no gate, no PRD, no artifact. Sessions are named and **resumable** via your host's native session resume, so the thinking compounds; the viewer adds a graphical chat with the same conversations.
 - **`/pm-standup`** — morning briefing: commits, calendar, meeting notes.
 - **`/pm-weekly-update`** — stakeholder update email adapted to audience.
 - **`/pm-retro`** — compares roadmap commitments to actual commits, surfaces drift.

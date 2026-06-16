@@ -66,6 +66,7 @@ After each Define skill (vision-mission, business-model, org, product, personas)
 
 **Daily ops:**
 - `/pm-challenge-me` — three adversarial challenges (strategy, users, focus), starting with the question you're avoiding
+- `/pm-brainstorm` — jam with Nano, your expert CPO: an informal, context-loaded thinking partner for product ideas, user problems, and what to build next; sessions are named and resumable
 - `/pm-standup` — morning briefing: what shipped yesterday, today's meetings, top 1-3 priorities
 - `/pm-interview` — prepare a user interview guide, or debrief a Granola transcript into FEEDBACK.md
 - `/pm-weekly-update` — draft stakeholder update email (CEO, investor, or team), adapted to audience

@@ -73,7 +73,9 @@ struct ProjectView: View {
     /// placeholder rows in the phase they will land in.
     private func pendingRuns(for phase: Phase) -> [RunManager.SkillRun] {
         var latestByPath: [String: RunManager.SkillRun] = [:]
-        for run in runManager.runs(in: project.path) {
+        // Brainstorm runs produce no artifact — they never belong in a phase's
+        // pending-document rows (they live in the Brainstorm surface instead).
+        for run in runManager.runs(in: project.path) where run.kind == .skill {
             latestByPath[run.expectedRelPath] = run
         }
         return latestByPath.values
@@ -226,9 +228,18 @@ struct ProjectView: View {
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
-        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs {
+        // Brainstorm is an always-on interactive surface (not artifact-driven),
+        // pinned at the top of DAY TO DAY so it's always reachable.
+        let showBrainstorm = phase == .daily
+        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
+                if showBrainstorm {
+                    Label("Brainstorm", systemImage: "bubble.left.and.bubble.right")
+                        .tag(NavRoute.brainstormPage)
+                        .help("Jam with Nano, your expert CPO — informal, context-loaded, resumable")
+                        .listRowInsets(Self.childRowInsets)
+                }
                 ForEach(items) { artifact in
                     Label(artifact.displayName, systemImage: iconFor(artifact))
                         .tag(artifact.id)
@@ -335,6 +346,8 @@ struct ProjectView: View {
             CompetitorsPageView(store: store)
         } else if selection == NavRoute.memoryPage {
             MemoryView(store: store)
+        } else if selection == NavRoute.brainstormPage {
+            BrainstormView(projectPath: project.path)
         } else if selection == NavRoute.prdsPage {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID

@@ -17,6 +17,9 @@ enum SmokeTest {
         if args.contains("--parse-update-check") {
             parseUpdateCheck()
         }
+        if args.contains("--parse-brainstorm") {
+            parseBrainstorm()
+        }
         guard let flag = args.firstIndex(of: "--smoke") else { return }
         guard args.count > flag + 1 else {
             print("usage: NanoPMViewer --smoke /path/to/project")
@@ -72,6 +75,46 @@ enum SmokeTest {
             if !ok { failures += 1 }
         }
         print("PARSE-UPDATE-CHECK: \(cases.count - failures)/\(cases.count) passed")
+        exit(failures == 0 ? 0 : 1)
+    }
+
+    /// `NanoPMViewer --parse-brainstorm` exercises the brainstorm history's pure
+    /// logic headlessly: the host-session-dir path encoding and the `ai-title`
+    /// JSONL read (last-wins + absent→nil). Exits non-zero on any mismatch.
+    private static func parseBrainstorm() {
+        var failures = 0
+        func check(_ name: String, _ cond: Bool) {
+            print("\(cond ? "PASS" : "FAIL")\t\(name)")
+            if !cond { failures += 1 }
+        }
+
+        // Path encoding: every non-alphanumeric → '-', case preserved, 1:1.
+        check("encode-path",
+              BrainstormStore.claudeProjectDir(for: "/Users/me/proj")
+                  .hasSuffix("/.claude/projects/-Users-me-proj"))
+        check("encode-nonalnum",
+              BrainstormStore.claudeProjectDir(for: "/a.b_c/d")
+                  .hasSuffix("/-a-b-c-d"))
+
+        // ai-title: the last record wins.
+        let tmp = NSTemporaryDirectory() + "nanopm-bs-\(UUID().uuidString).jsonl"
+        let lines = [
+            #"{"type":"user","message":{}}"#,
+            #"{"type":"ai-title","aiTitle":"first title","sessionId":"x"}"#,
+            #"{"type":"assistant"}"#,
+            #"{"type":"ai-title","aiTitle":"final title","sessionId":"x"}"#,
+        ].joined(separator: "\n")
+        try? lines.write(toFile: tmp, atomically: true, encoding: .utf8)
+        check("title-last-wins", BrainstormStore.readTitle(URL(fileURLWithPath: tmp)) == "final title")
+
+        // No ai-title record → nil (caller falls back to a generic label).
+        let tmp2 = NSTemporaryDirectory() + "nanopm-bs-\(UUID().uuidString).jsonl"
+        try? #"{"type":"user","message":{}}"#.write(toFile: tmp2, atomically: true, encoding: .utf8)
+        check("title-absent-nil", BrainstormStore.readTitle(URL(fileURLWithPath: tmp2)) == nil)
+
+        try? FileManager.default.removeItem(atPath: tmp)
+        try? FileManager.default.removeItem(atPath: tmp2)
+        print("PARSE-BRAINSTORM: \(4 - failures)/4 passed")
         exit(failures == 0 ? 0 : 1)
     }
 
