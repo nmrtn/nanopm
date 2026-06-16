@@ -22,12 +22,13 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-retro | `/pm-retro` | Compare roadmap vs commits, surface drift |
 | pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
 | pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |
+| pm-brainstorm | `/pm-brainstorm` | Jam with a virtual CPO — informal, context-loaded, resumable sessions |
 | pm-weekly-update | `/pm-weekly-update` | Draft stakeholder update email, adapted to audience |
 | pm-data | `/pm-data` | Answer a product question with PostHog or Amplitude data |
 
 ## Architecture
 
-Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro), plus **Daily Ops** (challenge-me, standup, weekly-update) running on any day, outside the pipeline.
+Skills run across four phases: **Define** (vision-mission, business-model, org, product, personas) → **Discover** (competitors-intel, user-feedback, interview, data) → **Plan** (objectives, strategy, roadmap, prd) → **Build** (breakdown, retro), plus **Daily Ops** (challenge-me, standup, brainstorm, weekly-update) running on any day, outside the pipeline.
 
 All skills source `lib/nanopm.sh` for shared runtime functions.
 Each Define skill writes TWO files: the clean, share-ready doc (claims only) and a reasoning sidecar at `.nanopm/reasoning/<same filename>` carrying the Evidenced/Assumed calls, sources, and rationale. The path convention lives in `nanopm_reasoning_path` (lib) and `ReasoningFiles` (viewer/Models.swift) — change one, change both. The viewer opens the sidecar in a separate window from a "Reasoning" button on the clean doc's detail view, never as its own sidebar row.

@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 
-VALID_TYPES = {"timeline", "decision", "prd", "handoff"}
+VALID_TYPES = {"timeline", "decision", "prd", "handoff", "brainstorm"}
 
 
 def slug() -> str:

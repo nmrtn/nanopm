@@ -291,7 +291,7 @@ ok "Connectors installed"
 
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data"
+_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data pm-brainstorm"
 _SKILL_COUNT=$(set -- $_SKILL_LIST; echo $#)
 
 for skill in $_SKILL_LIST; do
@@ -495,6 +495,7 @@ echo "   /pm-competitors-intel — monitor competitor changelogs, API docs, and 
 echo
 echo "  Daily ops:"
 echo "   /pm-standup     — morning briefing: what shipped, today's meetings, top priorities"
+echo "   /pm-brainstorm  — jam with a virtual CPO; context-loaded, resumable sessions"
 echo "   /pm-interview   — user interview guide or transcript debrief → FEEDBACK.md"
 echo "   /pm-weekly-update — draft stakeholder update email"
 echo "   /pm-data        — answer a product question with PostHog or Amplitude"
