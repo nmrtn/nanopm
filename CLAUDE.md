@@ -13,6 +13,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-product | `/pm-product` | Deep product map — from code + site, or interview if greenfield → PRODUCT.md |
 | pm-personas | `/pm-personas` | Define WHO you're building for — JTBD personas + anti-persona |
 | pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery |
+| pm-opportunities | `/pm-opportunities` | Build & maintain a ranked user-opportunity database (Teresa Torres) → .nanopm/opportunities/ |
 | pm-challenge-me | `/pm-challenge-me` | Challenge Me — adversarial challenges based on product context |
 | pm-objectives | `/pm-objectives` | Define OKRs and anti-goals |
 | pm-strategy | `/pm-strategy` | Strategy with structured adversarial challenge |
