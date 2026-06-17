@@ -125,8 +125,10 @@ enum PhaseMapper {
 
         if lower.hasPrefix("prds/") { return .ship }
         // intel/ belongs to the Competitors section, which reads its reports
-        // and snapshots out of the artifact store.
-        if lower.hasPrefix("interviews/") || lower.hasPrefix("competitors/") || lower.hasPrefix("intel/") {
+        // and snapshots out of the artifact store. opportunities/ is the
+        // Discovery Opportunity DB (INDEX.md / SCHEMA.md / <slug>.md) — matched
+        // by folder, since those filenames don't match any discoverNames prefix.
+        if lower.hasPrefix("interviews/") || lower.hasPrefix("competitors/") || lower.hasPrefix("intel/") || lower.hasPrefix("opportunities/") {
             return .discover
         }
         if lower.hasPrefix("breakdowns/") || lower.hasPrefix("handoffs/") { return .ship }
