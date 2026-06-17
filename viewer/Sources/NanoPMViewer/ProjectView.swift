@@ -107,11 +107,6 @@ struct ProjectView: View {
         store.artifacts.contains { OpportunityFiles.isOpportunityFile($0.relativePath) }
     }
 
-    /// The ranked home page the "Opportunities" entry opens.
-    private var opportunityIndex: Artifact? {
-        store.artifacts.first { OpportunityFiles.isIndex($0.relativePath) }
-    }
-
     /// Children of the "Opportunities" entry: the individual opportunities only
     /// (alphabetical). INDEX is the entry's landing; LOG and SCHEMA are DB
     /// machinery and stay out of the nav entirely.
@@ -364,8 +359,8 @@ struct ProjectView: View {
             }
         } label: {
             Label("Opportunities", systemImage: SkillCatalog.opportunitiesIcon)
-                .tag(opportunityIndex?.id ?? NavRoute.overview(.discover))
-                .help("Ranked user-opportunity database (Teresa Torres) — INDEX is the home; expand for each opportunity")
+                .tag(NavRoute.opportunitiesPage)
+                .help("Ranked user-opportunity database (Teresa Torres) — opens the ranked table; expand for each opportunity")
         }
     }
 
@@ -396,6 +391,10 @@ struct ProjectView: View {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID
             }
+        } else if selection == NavRoute.opportunitiesPage {
+            OpportunitiesOverviewView(store: store) { artifactID in
+                selection = artifactID
+            }
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
@@ -410,6 +409,11 @@ struct ProjectView: View {
                   }) {
             CompetitorDetailView(store: store, competitor: competitor)
                 .id(competitor.slug)
+        } else if let selection,
+                  OpportunityFiles.isOpportunityFile(selection),
+                  !OpportunityFiles.isReserved(selection),
+                  let opp = store.artifacts.first(where: { $0.id == selection }) {
+            OpportunityDetailView(store: store, artifact: opp) { id in self.selection = id }
         } else {
             stateDetail
         }

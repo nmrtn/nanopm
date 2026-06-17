@@ -3,6 +3,7 @@ import Foundation
 /// Stable nav-route identifiers shared between the catalog and ProjectView.
 enum NavRoute {
     static let prdsPage = "page:prds"
+    static let opportunitiesPage = "page:opportunities"
     static let competitorsPage = "page:competitors"
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
