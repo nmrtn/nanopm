@@ -21,6 +21,7 @@ struct ProjectView: View {
     @State private var selection: String?
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
+    @State private var opportunitiesExpanded = false
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -98,6 +99,21 @@ struct ProjectView: View {
         store.artifacts
             .filter { PRDFiles.isPRD($0.relativePath) }
             .sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
+    /// True when the Discovery Opportunity DB has any files — it gets its own
+    /// expandable nav entry instead of a flat row per opportunity.
+    private var showOpportunitiesSection: Bool {
+        store.artifacts.contains { OpportunityFiles.isOpportunityFile($0.relativePath) }
+    }
+
+    /// Children of the "Opportunities" entry: the individual opportunities only
+    /// (alphabetical). INDEX is the entry's landing; LOG and SCHEMA are DB
+    /// machinery and stay out of the nav entirely.
+    private var opportunityChildren: [Artifact] {
+        store.artifacts
+            .filter { OpportunityFiles.isOpportunityFile($0.relativePath) && !OpportunityFiles.isReserved($0.relativePath) }
+            .sorted { $0.relativePath.lowercased() < $1.relativePath.lowercased() }
     }
 
     @ViewBuilder
@@ -226,6 +242,9 @@ struct ProjectView: View {
                 // Reasoning sidecars open from a "Reasoning" button on their
                 // clean doc's detail view, not as sidebar rows.
                 && !ReasoningFiles.isReasoning(artifact.relativePath)
+                // Opportunity DB files are grouped under one expandable
+                // "Opportunities" entry (INDEX is the landing), not flat rows.
+                && !(showOpportunitiesSection && OpportunityFiles.isOpportunityFile(artifact.relativePath))
         }
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
@@ -250,6 +269,9 @@ struct ProjectView: View {
                 }
                 if showPRDs {
                     prdsEntry.listRowInsets(Self.childRowInsets)
+                }
+                if phase == .discover && showOpportunitiesSection {
+                    opportunitiesEntry.listRowInsets(Self.childRowInsets)
                 }
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry.listRowInsets(Self.childRowInsets)
@@ -327,6 +349,21 @@ struct ProjectView: View {
         }
     }
 
+    @ViewBuilder
+    private var opportunitiesEntry: some View {
+        DisclosureGroup(isExpanded: $opportunitiesExpanded) {
+            ForEach(opportunityChildren) { opp in
+                Label(prettyDocName(opp.relativePath), systemImage: iconFor(opp))
+                    .tag(opp.id)
+                    .help(".nanopm/" + opp.relativePath)
+            }
+        } label: {
+            Label("Opportunities", systemImage: SkillCatalog.opportunitiesIcon)
+                .tag(NavRoute.opportunitiesPage)
+                .help("Ranked user-opportunity database (Teresa Torres) — opens the ranked table; expand for each opportunity")
+        }
+    }
+
     private func overviewPhase(_ id: String) -> Phase? {
         Phase.allCases.first { NavRoute.overview($0) == id }
     }
@@ -354,6 +391,10 @@ struct ProjectView: View {
             PRDsOverviewView(store: store) { artifactID in
                 selection = artifactID
             }
+        } else if selection == NavRoute.opportunitiesPage {
+            OpportunitiesOverviewView(store: store) { artifactID in
+                selection = artifactID
+            }
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
@@ -368,6 +409,11 @@ struct ProjectView: View {
                   }) {
             CompetitorDetailView(store: store, competitor: competitor)
                 .id(competitor.slug)
+        } else if let selection,
+                  OpportunityFiles.isOpportunityFile(selection),
+                  !OpportunityFiles.isReserved(selection),
+                  let opp = store.artifacts.first(where: { $0.id == selection }) {
+            OpportunityDetailView(store: store, artifact: opp) { id in self.selection = id }
         } else {
             stateDetail
         }
@@ -397,7 +443,8 @@ struct ProjectView: View {
         default:
             if let artifact = store.artifacts.first(where: { $0.id == selection }) {
                 ArtifactDetailView(store: store, artifact: artifact,
-                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath })
+                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath },
+                                   onOpenArtifact: { id in selection = id })
             } else {
                 ContentUnavailableView(
                     "Pick a phase or document",
@@ -414,6 +461,9 @@ struct ArtifactDetailView: View {
     let artifact: Artifact
     /// Navigate to the live run session when a launched skill needs input.
     var onAnswer: (String) -> Void = { _ in }
+    /// Navigate to another artifact when an in-repo markdown link is clicked
+    /// (e.g. an opportunity link in the opportunities INDEX).
+    var onOpenArtifact: (String) -> Void = { _ in }
 
     @Environment(\.openWindow) private var openWindow
     @State private var content: String?
@@ -486,6 +536,18 @@ struct ArtifactDetailView: View {
                     Markdown(artifact.isMarkdown ? content : "```json\n\(content)\n```")
                         .markdownTheme(.nanopm)
                         .textSelection(.enabled)
+                        .environment(\.openURL, OpenURLAction { url in
+                            // In-repo relative links (e.g. an opportunity link in the
+                            // opportunities INDEX) navigate in-app; http(s) open the browser.
+                            if url.scheme == nil || url.isFileURL {
+                                if let id = inRepoArtifactID(for: url) {
+                                    onOpenArtifact(id)
+                                    return .handled
+                                }
+                                return .discarded
+                            }
+                            return .systemAction
+                        })
                 } else {
                     SparkleView(size: 18)
                         .frame(maxWidth: .infinity)
@@ -511,5 +573,17 @@ struct ArtifactDetailView: View {
             content = nil
             loadError = "\(error)"
         }
+    }
+
+    /// Resolves a markdown link to a scanned artifact id, relative to this
+    /// document's directory. Nil for absolute or unknown links.
+    private func inRepoArtifactID(for url: URL) -> String? {
+        let raw = url.isFileURL ? url.path : url.absoluteString
+        let linkPath = raw.split(separator: "#", maxSplits: 1).first.map(String.init) ?? raw
+        guard !linkPath.isEmpty else { return nil }
+        let dir = (artifact.relativePath as NSString).deletingLastPathComponent
+        let combined = dir.isEmpty ? linkPath : "\(dir)/\(linkPath)"
+        let target = (combined as NSString).standardizingPath
+        return store.artifacts.first { $0.relativePath == target }?.id
     }
 }

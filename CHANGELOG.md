@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 — 2026-06-18
+
+### Viewer: the Opportunity DB gets a real home — ranked table + detail page
+
+The `/pm-opportunities` artifact landed last release, but the viewer just listed `.nanopm/opportunities/` as flat sidebar rows and rendered each opportunity as a raw markdown blob, frontmatter and all. This pass gives the Discovery Opportunity DB a proper surface in the macOS viewer. Viewer-only — the throwaway prototype; no skill or lib changes.
+
+- **One collapsible entry, not a row per file.** The opportunity files now fold under a single expandable **Opportunities** entry in Discover — `INDEX.md` is the landing, `LOG.md` and `SCHEMA.md` stay out of the nav as DB machinery, and the individual `<slug>.md` opportunities hang off the disclosure group. Mirrors how PRDs and Competitors already collapse. New `OpportunityFiles` helper in `Models.swift` owns the is-opportunity / is-index / is-reserved checks.
+- **A ranked, sortable table.** Clicking **Opportunities** opens a `Table` with columns Opportunity, Theme, Priority, Provenance, Status, and Updated — priority-ranked by default (high → medium → low), every column sortable. Priority, provenance, and status render as colored badges; clicking a row opens that opportunity.
+- **A real detail page.** Each opportunity now has its own view: title plus metadata chips (theme / priority / provenance / status), and the body with the raw YAML frontmatter stripped — it used to render as a text blob at the top of every doc.
+- **In-repo markdown links navigate in-app.** A relative `.md` link (e.g. an opportunity link in the INDEX) resolves against the document's directory to a scanned artifact and selects it in place; `http(s)` links still open the browser. Applied both in the opportunity views and in the generic `ArtifactDetailView`.
+- **`/pm-opportunities` is wired into the viewer.** A Run button on the Discover overview (via a new `SkillCatalog` entry, lightbulb icon) plus the skill-catalog blurb, so you can bootstrap the database from the viewer.
+- **Breakdown task files no longer leak into Discover.** `PhaseMapper` now maps `.nanopm/tasks/` to no phase (they're handoff outputs bound for external trackers), so a task filename like `discovery-*` can't fall through to a name-prefix match and surface under Discover.
+
 ## 0.15.0 — 2026-06-17
 
 ### Discovery Opportunity DB: a ranked, agent-maintained database of user opportunities

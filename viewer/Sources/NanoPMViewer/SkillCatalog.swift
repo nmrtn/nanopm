@@ -3,6 +3,7 @@ import Foundation
 /// Stable nav-route identifiers shared between the catalog and ProjectView.
 enum NavRoute {
     static let prdsPage = "page:prds"
+    static let opportunitiesPage = "page:opportunities"
     static let competitorsPage = "page:competitors"
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
@@ -68,6 +69,11 @@ enum SkillCatalog {
     /// The PRDs folder skill icon, so the nav folder matches its overview row.
     static var prdsIcon: String {
         all.first { $0.title == "PRDs" }?.icon ?? "folder"
+    }
+
+    /// The Opportunities folder skill icon, so the nav entry matches its overview row.
+    static var opportunitiesIcon: String {
+        all.first { $0.title == "Opportunities" }?.icon ?? "lightbulb"
     }
 
     /// One-line intro shown under each phase overview title.
@@ -147,6 +153,14 @@ enum SkillCatalog {
             skillCommand: "/pm-discovery",
             headlessArgs: nil,
             phase: .discover, output: .file("DISCOVERY.md")
+        ),
+        SkillDoc(
+            title: "Opportunities",
+            blurb: "A ranked, agent-maintained database of user opportunities (Teresa Torres) — the problems behind what you build, not the solutions. bootstrap drafts the set from feedback + your assumptions + Nano's hypotheses; add captures one at a time.",
+            icon: "lightbulb",
+            skillCommand: "/pm-opportunities",
+            headlessArgs: "If .nanopm/opportunities/SCHEMA.md does not exist, run `bootstrap`; otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
+            phase: .discover, output: .file("opportunities/INDEX.md")
         ),
         SkillDoc(
             title: "Competitor Intel",
