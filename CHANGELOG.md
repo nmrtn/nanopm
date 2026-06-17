@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.0 — 2026-06-17
+
+### Discovery Opportunity DB: a ranked, agent-maintained database of user opportunities
+
+New `/pm-opportunities` skill plus a `.nanopm/opportunities/` artifact — a persistent, ranked database of user opportunities (Teresa Torres sense: the user problems behind what you build, not the solutions), stored as an LLM-wiki the agent owns and keeps current. It bridges Discover and Plan, sitting between the raw FEEDBACK firehose and the roadmap. `bootstrap` drafts the initial set from feedback + your own assumptions + Nano's hypotheses (each tagged by provenance); `add` captures one problem at a time. Two levels only (Theme → Opportunity), and no numeric scoring at v1 — a coarse `priority` (high/medium/low) instead.
+
+- **The artifact.** `.nanopm/opportunities/` holds `SCHEMA.md` (the editable conventions — the single source of structural truth both modes read), `INDEX.md` (the ranked home, grouped by theme), `LOG.md` (append-only heartbeat), and one `<slug>.md` per opportunity. Every opportunity carries explicit provenance: `nano-hypothesis` (Nano inferred it), `user-stated` (you asserted it), or `evidence-backed` (from connected sources).
+- **lib helpers.** `nanopm_opportunities_schema` emits SCHEMA.md; `nanopm_opportunities_draft_prompt` is the per-theme bootstrap drafting-subagent prompt; `nanopm_opportunities_reindex` deterministically regenerates INDEX.md from frontmatter (escapes markdown-breaking values, surfaces parse failures to stderr); `nanopm_opportunity_slug` derives collision-safe, reserved-name-safe slugs (won't clobber SCHEMA/INDEX on a case-insensitive filesystem).
+- **Bootstrap flow.** Loads CONTEXT-SUMMARY + PLAN-SUMMARY, pulls FEEDBACK/DATA via a bounded retrieval subagent when present (degrades to user + Nano hypotheses when absent), fans out one drafting subagent per theme, dedups, gates on human review, then writes the files and regenerates INDEX/LOG.
+- **Viewer.** `PhaseMapper` routes `.nanopm/opportunities/` under the Discover phase.
+- **Registered** in `setup` and `test/skill-syntax.sh`; tier-1 static checks pass.
+
 ## 0.14.1 — 2026-06-16
 
 ### Viewer: match brief filenames case-insensitively

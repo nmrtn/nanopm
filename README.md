@@ -1,7 +1,7 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.13.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.15.0-blue.svg)](CHANGELOG.md)
 
 A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
@@ -103,6 +103,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
 /pm-competitors-intel → discover competitors, monitor + diff their pages, run SWOT + positioning analysis
+/pm-opportunities    → build + maintain a ranked DB of user problems (Teresa Torres), tagged by provenance
 /pm-strategy         → strategy + mandatory adversarial challenge (assumption, test, cost)
 /pm-roadmap          → outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
 /pm-prd              → full PRD or Shape Up pitch, adapts to your methodology
@@ -131,7 +132,7 @@ nanopm runs in four zones. Context first. Signal in. Planning cycle. Delivery ou
 | Zone | Skills | Purpose |
 |---|---|---|
 | **1. Define** | `/pm-vision-mission` · `/pm-business-model` · `/pm-org` · `/pm-product` · `/pm-personas` | Establish company + product context: the business, the org, who it's for, the product map |
-| **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` | Pull the three external signals: user research, analytics, market |
+| **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` · `/pm-opportunities` | Pull the three external signals (user research, analytics, market), then distill them into a ranked DB of user problems |
 | **3. Pipeline** | `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Skills run in sequence; each reads typed state from the prior |
 | **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
 | **Daily Ops** | `/pm-challenge-me` · `/pm-brainstorm` · `/pm-standup` · `/pm-weekly-update` | Recurring day-to-day PM ops: an adversarial challenge, a jam with Nano, the daily briefing, the weekly stakeholder update |
@@ -158,6 +159,7 @@ Each signal skill produces an artifact the pipeline reads. They're independent. 
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
 - **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by the challenge session and the PRD.
 - **`/pm-competitors-intel`** — discovers competitors from your product description, snapshots their pages and diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`. An opt-in `analyze` mode runs per-competitor SWOT (vs `PRODUCT.md`) plus a scored positioning matrix, with a reasoning sidecar.
+- **`/pm-opportunities`** — builds and maintains a ranked database of user problems (Teresa Torres sense — the unmet needs behind what you build, not the solutions) → `.nanopm/opportunities/`, an LLM-wiki the agent keeps current: one `<slug>.md` per opportunity plus a ranked `INDEX.md`, an append-only `LOG.md`, and an editable `SCHEMA.md`. Two levels only (Theme → Opportunity) and every opportunity carries explicit provenance (`evidence-backed` / `user-stated` / `nano-hypothesis`). `bootstrap` drafts the initial set from feedback + your assumptions + Nano's hypotheses; `add` captures one problem at a time. Sits between the raw `FEEDBACK.md` firehose and the roadmap — the bridge from Discover into Plan.
 
 ### 3. Pipeline — the planning cycle
 
