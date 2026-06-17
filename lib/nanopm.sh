@@ -1158,6 +1158,32 @@ Append-only heartbeat. One line per change: `<date> | <action> | <slug(s)> | <pr
 EOF
 }
 
+nanopm_opportunity_slug() {
+  # Usage: nanopm_opportunity_slug "<title>" [dir]
+  # Echoes a filesystem-safe, collision-free, reserved-name-safe slug for a NEW
+  # opportunity file. Transliterates accents, lowercases, hyphenates, caps at 50
+  # chars. Rejects the reserved INDEX/LOG/SCHEMA names (which would clobber those
+  # files on a case-insensitive filesystem) by suffixing "-opportunity". Appends
+  # -2/-3/... if "<slug>.md" already exists (case-insensitive, for macOS/APFS).
+  # Empty/punctuation-only titles fall back to "opportunity".
+  local title="$1" dir="${2:-.nanopm/opportunities}" base
+  base=$(printf '%s' "$title" | python3 -c 'import sys,unicodedata as u; t=sys.stdin.read(); sys.stdout.write("".join(c for c in u.normalize("NFKD",t) if not u.combining(c)))' 2>/dev/null)
+  [ -n "$base" ] || base="$title"
+  base=$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-50 | sed -E 's/-+$//')
+  [ -n "$base" ] || base="opportunity"
+  case "$base" in index|log|schema) base="${base}-opportunity" ;; esac
+  local slug="$base" n=2 lc
+  while :; do
+    lc=$(printf '%s' "$slug" | tr '[:upper:]' '[:lower:]')
+    if ls "$dir" 2>/dev/null | tr '[:upper:]' '[:lower:]' | grep -qx "${lc}.md"; then
+      slug="${base}-${n}"; n=$((n + 1))
+    else
+      break
+    fi
+  done
+  printf '%s\n' "$slug"
+}
+
 nanopm_opportunities_draft_prompt() {
   # Usage: nanopm_opportunities_draft_prompt <theme> <inputs-blob>
   # Canonical prompt for ONE bootstrap drafting subagent (one per proposed theme).

@@ -179,9 +179,12 @@ options: `["Write them", "Let me edit first", "Cancel"]`.
 ## Phase 4: Write opportunities + regenerate INDEX + append LOG
 
 For **each** confirmed opportunity:
-1. Derive a slug from the title: lowercase, hyphens, strip punctuation, max ~50 chars.
+1. Derive a collision-safe slug with the helper — never hand-roll it:
+   `_SLUG=$(nanopm_opportunity_slug "<title>")`. It transliterates accents, rejects the
+   reserved INDEX/LOG/SCHEMA names (which would clobber those files on a case-insensitive
+   disk), and appends `-2`/`-3` if `<slug>.md` already exists.
 2. Stamp `last_updated:` with today's date (`date +%Y-%m-%d`).
-3. Write the block to `.nanopm/opportunities/<slug>.md` (frontmatter + body, per `SCHEMA.md`).
+3. Write the block to `.nanopm/opportunities/$_SLUG.md` (frontmatter + body, per `SCHEMA.md`).
 
 Then regenerate the index and log the run:
 
@@ -215,7 +218,9 @@ Capture a single problem and slot it into the existing DB.
    (append evidence / sharpen) rather than creating a near-duplicate. Otherwise draft a new opportunity
    conforming to the template: pick an existing theme (or propose a new one), set `provenance`
    (`user-stated` if the user asserted it; `nano-hypothesis` if you inferred it; `evidence-backed` only
-   with an attributed quote/data point), set a coarse `priority`.
+   with an attributed quote/data point), set a coarse `priority`. For a NEW file, derive the slug with
+   `_SLUG=$(nanopm_opportunity_slug "<title>")` and write `.nanopm/opportunities/$_SLUG.md`; for an
+   update, reuse the existing file's slug.
 4. **Confirm** (Phase 3 gate, scaled to one): show title · theme · priority · provenance and ask
    `AskUserQuestion` (header `Confirm`, options `["Write it", "Edit", "Cancel"]`).
 5. **Write + reindex + log** (same as Phase 4, for the one file):
