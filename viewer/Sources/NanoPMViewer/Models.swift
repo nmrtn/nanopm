@@ -105,6 +105,34 @@ func prettyDocName(_ relativePath: String) -> String {
     return base
 }
 
+/// `.nanopm/opportunities/` is the Discovery Opportunity DB (an LLM-wiki):
+/// one `<slug>.md` per opportunity plus a ranked `INDEX.md`, an append-only
+/// `LOG.md`, and an editable `SCHEMA.md`. These are grouped under one
+/// expandable "Opportunities" entry in Discover (INDEX is the landing), not
+/// listed as flat sidebar rows — mirroring how PRDs and Competitors collapse.
+enum OpportunityFiles {
+    static let dirPrefix = "opportunities/"
+
+    static func isOpportunityFile(_ relativePath: String) -> Bool {
+        relativePath.lowercased().hasPrefix(dirPrefix)
+    }
+
+    private static func basename(_ relativePath: String) -> String {
+        (relativePath as NSString).lastPathComponent.lowercased()
+    }
+
+    /// The ranked home page; the "Opportunities" entry opens this.
+    static func isIndex(_ relativePath: String) -> Bool {
+        isOpportunityFile(relativePath) && basename(relativePath) == "index.md"
+    }
+
+    /// INDEX / LOG / SCHEMA are the DB's machinery, not individual opportunities.
+    static func isReserved(_ relativePath: String) -> Bool {
+        isOpportunityFile(relativePath)
+            && ["index.md", "log.md", "schema.md"].contains(basename(relativePath))
+    }
+}
+
 /// Fixed artifact → phase mapping. Files that match no rule are internal
 /// state (configs, logs, snapshots) and are not surfaced in the viewer.
 enum PhaseMapper {
@@ -132,6 +160,10 @@ enum PhaseMapper {
             return .discover
         }
         if lower.hasPrefix("breakdowns/") || lower.hasPrefix("handoffs/") { return .ship }
+        // Breakdown task files are handoff outputs (they go to external trackers);
+        // not surfaced in the browser. Explicit so a slug like "discovery-*" can't
+        // fall through to a filename-prefix phase match below and land in Discover.
+        if lower.hasPrefix("tasks/") { return nil }
 
         // reasoning/ sidecars mirror their clean doc's filename, so the
         // name-prefix matching below assigns them the same phase. They're

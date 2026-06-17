@@ -21,6 +21,7 @@ struct ProjectView: View {
     @State private var selection: String?
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
+    @State private var opportunitiesExpanded = false
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -98,6 +99,26 @@ struct ProjectView: View {
         store.artifacts
             .filter { PRDFiles.isPRD($0.relativePath) }
             .sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
+    /// True when the Discovery Opportunity DB has any files — it gets its own
+    /// expandable nav entry instead of a flat row per opportunity.
+    private var showOpportunitiesSection: Bool {
+        store.artifacts.contains { OpportunityFiles.isOpportunityFile($0.relativePath) }
+    }
+
+    /// The ranked home page the "Opportunities" entry opens.
+    private var opportunityIndex: Artifact? {
+        store.artifacts.first { OpportunityFiles.isIndex($0.relativePath) }
+    }
+
+    /// Children of the "Opportunities" entry: the individual opportunities only
+    /// (alphabetical). INDEX is the entry's landing; LOG and SCHEMA are DB
+    /// machinery and stay out of the nav entirely.
+    private var opportunityChildren: [Artifact] {
+        store.artifacts
+            .filter { OpportunityFiles.isOpportunityFile($0.relativePath) && !OpportunityFiles.isReserved($0.relativePath) }
+            .sorted { $0.relativePath.lowercased() < $1.relativePath.lowercased() }
     }
 
     @ViewBuilder
@@ -226,6 +247,9 @@ struct ProjectView: View {
                 // Reasoning sidecars open from a "Reasoning" button on their
                 // clean doc's detail view, not as sidebar rows.
                 && !ReasoningFiles.isReasoning(artifact.relativePath)
+                // Opportunity DB files are grouped under one expandable
+                // "Opportunities" entry (INDEX is the landing), not flat rows.
+                && !(showOpportunitiesSection && OpportunityFiles.isOpportunityFile(artifact.relativePath))
         }
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
@@ -250,6 +274,9 @@ struct ProjectView: View {
                 }
                 if showPRDs {
                     prdsEntry.listRowInsets(Self.childRowInsets)
+                }
+                if phase == .discover && showOpportunitiesSection {
+                    opportunitiesEntry.listRowInsets(Self.childRowInsets)
                 }
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry.listRowInsets(Self.childRowInsets)
@@ -324,6 +351,21 @@ struct ProjectView: View {
             Label("PRDs", systemImage: SkillCatalog.prdsIcon)
                 .tag(NavRoute.prdsPage)
                 .help("All product specs and their status — expand for each PRD")
+        }
+    }
+
+    @ViewBuilder
+    private var opportunitiesEntry: some View {
+        DisclosureGroup(isExpanded: $opportunitiesExpanded) {
+            ForEach(opportunityChildren) { opp in
+                Label(prettyDocName(opp.relativePath), systemImage: iconFor(opp))
+                    .tag(opp.id)
+                    .help(".nanopm/" + opp.relativePath)
+            }
+        } label: {
+            Label("Opportunities", systemImage: SkillCatalog.opportunitiesIcon)
+                .tag(opportunityIndex?.id ?? NavRoute.overview(.discover))
+                .help("Ranked user-opportunity database (Teresa Torres) — INDEX is the home; expand for each opportunity")
         }
     }
 
