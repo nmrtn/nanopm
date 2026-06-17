@@ -439,7 +439,8 @@ struct ProjectView: View {
         default:
             if let artifact = store.artifacts.first(where: { $0.id == selection }) {
                 ArtifactDetailView(store: store, artifact: artifact,
-                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath })
+                                   onAnswer: { relPath in selection = Self.runTagPrefix + relPath },
+                                   onOpenArtifact: { id in selection = id })
             } else {
                 ContentUnavailableView(
                     "Pick a phase or document",
@@ -456,6 +457,9 @@ struct ArtifactDetailView: View {
     let artifact: Artifact
     /// Navigate to the live run session when a launched skill needs input.
     var onAnswer: (String) -> Void = { _ in }
+    /// Navigate to another artifact when an in-repo markdown link is clicked
+    /// (e.g. an opportunity link in the opportunities INDEX).
+    var onOpenArtifact: (String) -> Void = { _ in }
 
     @Environment(\.openWindow) private var openWindow
     @State private var content: String?
@@ -528,6 +532,18 @@ struct ArtifactDetailView: View {
                     Markdown(artifact.isMarkdown ? content : "```json\n\(content)\n```")
                         .markdownTheme(.nanopm)
                         .textSelection(.enabled)
+                        .environment(\.openURL, OpenURLAction { url in
+                            // In-repo relative links (e.g. an opportunity link in the
+                            // opportunities INDEX) navigate in-app; http(s) open the browser.
+                            if url.scheme == nil || url.isFileURL {
+                                if let id = inRepoArtifactID(for: url) {
+                                    onOpenArtifact(id)
+                                    return .handled
+                                }
+                                return .discarded
+                            }
+                            return .systemAction
+                        })
                 } else {
                     SparkleView(size: 18)
                         .frame(maxWidth: .infinity)
@@ -553,5 +569,17 @@ struct ArtifactDetailView: View {
             content = nil
             loadError = "\(error)"
         }
+    }
+
+    /// Resolves a markdown link to a scanned artifact id, relative to this
+    /// document's directory. Nil for absolute or unknown links.
+    private func inRepoArtifactID(for url: URL) -> String? {
+        let raw = url.isFileURL ? url.path : url.absoluteString
+        let linkPath = raw.split(separator: "#", maxSplits: 1).first.map(String.init) ?? raw
+        guard !linkPath.isEmpty else { return nil }
+        let dir = (artifact.relativePath as NSString).deletingLastPathComponent
+        let combined = dir.isEmpty ? linkPath : "\(dir)/\(linkPath)"
+        let target = (combined as NSString).standardizingPath
+        return store.artifacts.first { $0.relativePath == target }?.id
     }
 }
