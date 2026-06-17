@@ -188,11 +188,13 @@ Then regenerate the index and log the run:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _OPP_DIR=".nanopm/opportunities"
-nanopm_opportunities_reindex
 _N=$(ls "$_OPP_DIR"/*.md 2>/dev/null | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' | wc -l | tr -d ' ')
-_PROV=$(grep -hm1 '^provenance:' "$_OPP_DIR"/*.md 2>/dev/null | sort | uniq -c | tr '\n' ' ')
-printf '%s | bootstrap: created %s opportunities (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "$_N" "$_PROV" >> "$_OPP_DIR/LOG.md"
-echo "WROTE $_N opportunities + INDEX.md + LOG.md"
+if nanopm_opportunities_reindex; then
+  printf '%s | bootstrap: created %s opportunities | /pm-opportunities\n' "$(date +%Y-%m-%d)" "$_N" >> "$_OPP_DIR/LOG.md"
+  echo "WROTE $_N opportunities + INDEX.md + LOG.md"
+else
+  echo "ERROR: INDEX.md regeneration failed (see stderr) — likely a python3 issue. The opportunity files were written; fix and re-run /pm-opportunities to rebuild the index."
+fi
 ```
 
 Go to Phase 5.
@@ -221,8 +223,13 @@ Capture a single problem and slot it into the existing DB.
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _OPP_DIR=".nanopm/opportunities"
-nanopm_opportunities_reindex
-printf '%s | add: %s (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "<slug>" "<provenance>" >> "$_OPP_DIR/LOG.md"
+# Set _SLUG and _PROV to the opportunity you just wrote/updated.
+if nanopm_opportunities_reindex; then
+  printf '%s | add: %s (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "${_SLUG:-?}" "${_PROV:-?}" >> "$_OPP_DIR/LOG.md"
+  echo "WROTE/UPDATED ${_SLUG:-opportunity} + INDEX.md + LOG.md"
+else
+  echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity file was written; fix python3 and re-run to rebuild the index."
+fi
 ```
 
 ---

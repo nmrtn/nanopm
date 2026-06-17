@@ -1214,11 +1214,20 @@ nanopm_opportunities_reindex() {
   # last_updated (newest first). Safe to run when the folder is empty.
   local dir=".nanopm/opportunities"
   [ -d "$dir" ] || return 0
-  NANOPM_OPP_DIR="$dir" PYTHONUTF8=1 python3 - <<'PY' 2>/dev/null
-import os, glob, re, datetime
+  NANOPM_OPP_DIR="$dir" PYTHONUTF8=1 python3 - <<'PY'
+import os, glob, re, datetime, sys
 d = os.environ["NANOPM_OPP_DIR"]
 skip = {"INDEX.md", "LOG.md", "SCHEMA.md"}
 rank = {"high": 0, "medium": 1, "low": 2}
+
+def _inline(s):   # neutralize chars that would break markdown link text / inline code
+    s = (s or "").replace("\n", " ").strip()
+    for ch in ("\\", "`", "[", "]"):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+def _heading(s):  # heading text: single line, no leading '#'
+    return ((s or "").replace("\n", " ").lstrip("#").strip()) or "(untriaged)"
 
 def parse(path):
     txt = open(path, encoding="utf-8", errors="replace").read()
@@ -1266,8 +1275,8 @@ for p in glob.glob(os.path.join(d, "*.md")):
         continue
     try:
         opps.append(parse(p))
-    except Exception:
-        pass
+    except Exception as e:
+        print("nanopm: skipped unparseable %s (%s)" % (os.path.basename(p), e), file=sys.stderr)
 
 out = []
 n = len(opps)
@@ -1286,16 +1295,16 @@ else:
         best = min(rank.get(o["priority"], 3) for o in themes[t])
         return (best, t.lower())
     for theme in sorted(themes, key=theme_key):
-        out.append("## %s" % theme)
+        out.append("## %s" % _heading(theme))
         # priority asc (high first); within same priority, newest last_updated first
         rows = sorted(themes[theme], key=lambda o: o["last_updated"], reverse=True)
         rows = sorted(rows, key=lambda o: rank.get(o["priority"], 3))
         for o in rows:
-            line = "- **[%s](%s)** · %s · %s" % (o["title"], o["file"], o["priority"], o["provenance"])
+            line = "- **[%s](%s)** · %s · %s" % (_inline(o["title"]), o["file"], o["priority"], o["provenance"])
             if o["last_updated"]:
                 line += " · %s" % o["last_updated"]
             if o["summary"]:
-                line += " — %s" % o["summary"]
+                line += " — %s" % _inline(o["summary"])
             out.append(line)
         out.append("")
 
