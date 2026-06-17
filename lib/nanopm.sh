@@ -1229,7 +1229,15 @@ def parse(path):
             for line in txt[3:end].splitlines():
                 m = re.match(r"\s*([A-Za-z_]+):\s*(.*)$", line)
                 if m:
-                    fm[m.group(1)] = m.group(2).strip().strip('"').strip("'")
+                    val = m.group(2).strip()
+                    if val[:1] in ('"', "'"):          # quoted: take the quoted span
+                        q = val[0]; e = val.find(q, 1)
+                        val = val[1:e] if e != -1 else val[1:]
+                    else:                               # unquoted scalar: drop an inline " # comment"
+                        h = val.find(" #")
+                        if h != -1:
+                            val = val[:h].rstrip()
+                    fm[m.group(1)] = val
     # one-line summary = first non-empty line after "## 1. Problem summary"
     summary = ""
     m = re.search(r"^##\s*(?:1\.\s*)?Problem summary\s*$", txt, re.M | re.I)
@@ -1279,11 +1287,8 @@ else:
         return (best, t.lower())
     for theme in sorted(themes, key=theme_key):
         out.append("## %s" % theme)
-        rows = sorted(themes[theme],
-                      key=lambda o: (rank.get(o["priority"], 3), o["last_updated"]),
-                      reverse=False)
         # priority asc (high first); within same priority, newest last_updated first
-        rows = sorted(rows, key=lambda o: o["last_updated"], reverse=True)
+        rows = sorted(themes[theme], key=lambda o: o["last_updated"], reverse=True)
         rows = sorted(rows, key=lambda o: rank.get(o["priority"], 3))
         for o in rows:
             line = "- **[%s](%s)** · %s · %s" % (o["title"], o["file"], o["priority"], o["provenance"])
