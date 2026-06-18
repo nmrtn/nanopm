@@ -43,6 +43,11 @@ final class UpdateChecker: ObservableObject {
     /// Async and called off the launch path, so it never delays the window.
     func check() async {
         guard phase == .idle else { return }
+        // Plugin installs are updated by Claude Code's own `/plugin` manager, not
+        // by re-running `setup`. Surfacing a banner here would offer an in-app
+        // update that re-runs `setup` and double-installs skills — so stay silent
+        // and let the plugin manager own updates.
+        if isPluginInstall() { return }
         let script = "source \"$HOME/.nanopm/lib/nanopm.sh\" 2>/dev/null && nanopm_update_check"
         guard let out = try? await ShellRunner.runAsync(script),
               let parsed = Self.parse(out) else { return }
@@ -53,6 +58,10 @@ final class UpdateChecker: ObservableObject {
 
     /// Apply the update: guard against dev installs first, then re-run setup.
     func update() async {
+        // Defense in depth: `check()` already suppresses the banner for plugin
+        // installs, so this path shouldn't be reachable — but never re-run setup
+        // over a plugin-managed install if it somehow is.
+        if isPluginInstall() { return }
         if let clonePath = devInstallPath() {
             phase = .blockedDevInstall(clonePath)
             return
@@ -90,6 +99,15 @@ final class UpdateChecker: ObservableObject {
 
     func dismiss() { dismissed = true }
 
+    /// True when nanopm's runtime was bootstrapped by the Claude Code plugin
+    /// (provenance marker == "plugin"). Updates are then owned by the `/plugin`
+    /// manager, so the viewer must not offer or apply its own `setup` re-run.
+    private func isPluginInstall() -> Bool {
+        let path = (NSHomeDirectory() as NSString).appendingPathComponent(".nanopm/install-source")
+        guard let raw = try? String(contentsOfFile: path, encoding: .utf8) else { return false }
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines) == "plugin"
+    }
+
     /// Provenance marker written by `setup`. Returns the clone path when this is
     /// a dev install (so the upgrade must be refused), or nil for `remote` /
     /// absent (a normal end-user install — absent defaults to remote so
@@ -98,7 +116,7 @@ final class UpdateChecker: ObservableObject {
         let path = (NSHomeDirectory() as NSString).appendingPathComponent(".nanopm/install-source")
         guard let raw = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
         let source = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !source.isEmpty, source != "remote" else { return nil }
+        guard !source.isEmpty, source != "remote", source != "plugin" else { return nil }
         // Only treat as a dev install if the clone still exists. A stale marker
         // pointing at a moved/deleted clone must not block updates forever — if
         // the working copy is gone, this machine is effectively an end user.

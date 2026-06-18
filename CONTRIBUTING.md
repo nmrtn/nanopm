@@ -2,6 +2,8 @@
 
 Thanks for wanting to make nanopm better. Whether you're fixing a typo in a skill prompt, adding a connector, or building an entirely new workflow, this guide will get you up and running fast.
 
+nanopm is created and maintained by **Nicolas Martin** ([@nmrtn](https://github.com/nmrtn)) and **Guillaume Simon**, co-authors.
+
 ---
 
 ## Quick start

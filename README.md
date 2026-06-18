@@ -87,6 +87,23 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 
 **Requirements:** One of: Claude Code, Mistral Vibe, or OpenAI Codex. `python3` (standard on macOS/Linux).
 
+### Claude Code plugin (optional, Claude Code only)
+
+Claude Code users can install nanopm as a native [plugin](https://code.claude.com/docs/en/plugins.md) instead of the `curl | bash` script:
+
+```
+/plugin marketplace add nmrtn/nanopm
+/plugin install nanopm
+```
+
+The plugin bundles all skills and bootstraps its shared runtime (`~/.nanopm/`)
+automatically on first session via a `SessionStart` hook. Plugin-installed
+commands are namespaced as `/nanopm:pm-run`, and updates flow through Claude
+Code's own `/plugin` manager. **This path is Claude-Code-specific** — Mistral
+Vibe and OpenAI Codex don't read the plugin manifest, so for those agents use
+the `curl | bash` installer above (it remains the cross-agent path and is
+unaffected by the plugin).
+
 ---
 
 ## All skills
@@ -347,6 +364,12 @@ bash test/context-threading.e2e.sh  # legacy context append plumbing
 bash test/website-bootstrap.e2e.sh  # browse + connector tier detection
 bash test/adversarial.e2e.sh        # adversarial subagent gate (needs claude CLI)
 ```
+
+---
+
+## Authors
+
+Created and maintained by **Nicolas Martin** ([@nmrtn](https://github.com/nmrtn)) and **Guillaume Simon**, co-authors.
 
 ---
 
