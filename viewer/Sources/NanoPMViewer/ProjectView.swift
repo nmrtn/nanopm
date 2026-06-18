@@ -392,9 +392,11 @@ struct ProjectView: View {
                 selection = artifactID
             }
         } else if selection == NavRoute.opportunitiesPage {
-            OpportunitiesOverviewView(store: store) { artifactID in
-                selection = artifactID
-            }
+            OpportunitiesOverviewView(
+                store: store,
+                onOpen: { artifactID in selection = artifactID },
+                onAnswer: { relPath in selection = Self.runTagPrefix + relPath }
+            )
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),

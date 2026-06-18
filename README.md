@@ -103,7 +103,7 @@ curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash -s -
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
 /pm-competitors-intel → discover competitors, monitor + diff their pages, run SWOT + positioning analysis
-/pm-opportunities    → build + maintain a ranked DB of user problems (Teresa Torres), tagged by provenance
+/pm-opportunities    → ranked DB of user problems (Teresa Torres) — add or generate, deduped, provenance-tagged
 /pm-strategy         → strategy + mandatory adversarial challenge (assumption, test, cost)
 /pm-roadmap          → outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
 /pm-prd              → full PRD or Shape Up pitch, adapts to your methodology
@@ -159,7 +159,7 @@ Each signal skill produces an artifact the pipeline reads. They're independent. 
 - **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `FEEDBACK.md`.
 - **`/pm-data`** — answers a product question via PostHog or Amplitude → `DATA.md` with confidence-tagged metrics. Consumed by the challenge session and the PRD.
 - **`/pm-competitors-intel`** — discovers competitors from your product description, snapshots their pages and diffs against prior runs → `INTEL-{date}.md` and persistent `COMPETITORS.md`. An opt-in `analyze` mode runs per-competitor SWOT (vs `PRODUCT.md`) plus a scored positioning matrix, with a reasoning sidecar.
-- **`/pm-opportunities`** — builds and maintains a ranked database of user problems (Teresa Torres sense — the unmet needs behind what you build, not the solutions) → `.nanopm/opportunities/`, an LLM-wiki the agent keeps current: one `<slug>.md` per opportunity plus a ranked `INDEX.md`, an append-only `LOG.md`, and an editable `SCHEMA.md`. Two levels only (Theme → Opportunity) and every opportunity carries explicit provenance (`evidence-backed` / `user-stated` / `nano-hypothesis`). `bootstrap` drafts the initial set from feedback + your assumptions + Nano's hypotheses; `add` captures one problem at a time. Sits between the raw `FEEDBACK.md` firehose and the roadmap — the bridge from Discover into Plan.
+- **`/pm-opportunities`** — builds and maintains a ranked database of user problems (Teresa Torres sense — the unmet needs behind what you build, not the solutions) → `.nanopm/opportunities/`, an LLM-wiki the agent keeps current: one `<slug>.md` per opportunity plus a ranked `INDEX.md`, an append-only `LOG.md`, and an editable `SCHEMA.md`. Two levels only (Theme → Opportunity) and every opportunity carries explicit provenance (`evidence-backed` / `user-stated` / `nano-hypothesis`). `bootstrap` drafts the initial set from feedback + your assumptions + Nano's hypotheses; `add` captures one problem at a time; `generate` drafts N more (globally or per theme). Every write — manual or generated — passes through a reusable, strict-by-default **dedup agent** so the DB doesn't fill with near-duplicates, and the macOS viewer can launch any of it from the Opportunities page without a terminal. Sits between the raw `FEEDBACK.md` firehose and the roadmap — the bridge from Discover into Plan.
 
 ### 3. Pipeline — the planning cycle
 

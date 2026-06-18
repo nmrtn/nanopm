@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0 — 2026-06-18
+
+### Opportunities: launch /pm-opportunities from the viewer + a reusable dedup agent
+
+The Discovery Opportunity DB could be browsed in the viewer but only *grown* from a terminal — a dead end for the non-terminal PM the viewer exists to serve. This pass adds an **Add** menu to the viewer's Opportunities page and the skill machinery behind it: a reusable opportunity-dedup subagent and an additive `generate` mode. `pm-opportunities` → v0.2.0; plus viewer and lib.
+
+- **Add to the DB from the viewer, no terminal.** The Opportunities page gets an **Add ▾** menu: *Describe one myself…* (a sheet — you type one user problem) or *Let Nano suggest more* (across all themes, or in one theme). On an empty DB it collapses to Bootstrap. Reuses the existing `RunManager` launch + completion-refresh; no new run primitives in the viewer.
+- **A reusable dedup agent gates every write.** New `nanopm_opportunity_dedup_prompt` (lib) is a standalone subagent with a stable contract — for each candidate it returns `new` / `duplicate-of` / `merge-into` plus a confidence. Strict by default: callers treat **confidence ≥ 8** as a high-confidence match. Built so a future transcript→opportunity extractor reuses it unchanged. Adds the optional `related_to` frontmatter field for sub-threshold links.
+- **An additive `generate` mode.** `/pm-opportunities` learns `add:` / `generate:` launch hints and a new `generate` mode: it drafts N candidates (reusing the bootstrap per-theme drafter), runs each through the dedup agent, and writes the survivors as `nano-hypothesis` — never overwriting, tagging `related_to` on a loose match, and guarding against a hallucinated merge target. The `add` path is now deduped too, with an interactive merge / keep / cancel prompt.
+
 ## 0.17.0 — 2026-06-18
 
 ### pm-breakdown: parallel-by-default plans, GUI test criteria, and PRD write-back

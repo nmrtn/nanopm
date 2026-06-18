@@ -159,7 +159,7 @@ enum SkillCatalog {
             blurb: "A ranked, agent-maintained database of user opportunities (Teresa Torres) — the problems behind what you build, not the solutions. bootstrap drafts the set from feedback + your assumptions + Nano's hypotheses; add captures one at a time.",
             icon: "lightbulb",
             skillCommand: "/pm-opportunities",
-            headlessArgs: "If .nanopm/opportunities/SCHEMA.md does not exist, run `bootstrap`; otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
+            headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
             phase: .discover, output: .file("opportunities/INDEX.md")
         ),
         SkillDoc(

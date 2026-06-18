@@ -1,6 +1,6 @@
 ---
 name: pm-opportunities
-version: 0.1.0
+version: 0.2.0
 description: "Build and maintain a ranked database of user opportunities (Teresa Torres-style — the user problems behind what you build, not the solutions). Stored as an LLM-wiki under .nanopm/opportunities/: one file per opportunity + a ranked INDEX, a LOG, and an editable SCHEMA. bootstrap drafts the initial set from feedback + your assumptions + Nano's hypotheses, each marked by provenance; add captures one problem at a time. Two levels only (Theme → Opportunity); no scoring at v1 — a coarse priority instead."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
@@ -33,12 +33,14 @@ problems and unmet needs that sits between raw discovery (`FEEDBACK.md`, intervi
 planning (`OBJECTIVES`, `ROADMAP`, `PRD`). It is an *LLM-wiki*: a folder of markdown the agent owns
 and keeps current, not a thing you hand-maintain.
 
-It runs in one of two modes:
+It runs in one of three modes:
 - **`bootstrap`** — no DB yet: writes the `SCHEMA.md` conventions, gathers signal (feedback if
   present + your own assumptions + Nano's hypotheses), and fans out subagents to draft the initial
   ranked set, marking each opportunity's **provenance** before you confirm it.
 - **`add`** — DB exists: capture one new problem (yours or a Nano pre-fill) as a new/updated
-  opportunity.
+  opportunity, deduped against what's already there.
+- **`generate`** — DB exists: draft up to N new candidate problems (global or for one theme), run them
+  through the dedup agent, and write the survivors as `nano-hypothesis`. Additive — never overwrites.
 
 Two rules hold everywhere: **two levels only** (Theme → Opportunity, never deeper) and **provenance
 is never silent** (every opportunity is tagged `nano-hypothesis` / `user-stated` / `evidence-backed`).
@@ -66,7 +68,24 @@ _OPP_DIR=".nanopm/opportunities"
 ls "$_OPP_DIR"/*.md 2>/dev/null | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' | wc -l | xargs echo "OPP_COUNT:"
 ```
 
-**Decision:**
+**Decision.** First scan your launch context / arguments for a **structured hint** — the viewer's
+Opportunities Run menu sends one, and a CLI user may type one. The hint takes priority over
+auto-detection:
+
+- **`add: <text>`** (a line or argument starting with `add:`) → route to **`add`** (Phase A) and use
+  everything after the first `add:` as the user problem verbatim (colons inside the text are fine) —
+  skip Phase A's "what's the problem?" question. If `<text>` is empty, fall through to Phase A's
+  question instead.
+- **`generate:`** — optionally `generate: <N>` or `generate: <N> for theme <theme>` → route to the
+  additive **`generate`** mode (Phase G). `<N>` is the count (default 3 if absent, cap at 5);
+  `<theme>` scopes drafting to that one L1 theme (else global).
+- **Empty DB overrides the hint.** If `.nanopm/opportunities/SCHEMA.md` does not exist, run
+  **`bootstrap`** (Phase 2) regardless of any hint — you can't add to or generate into a DB that
+  isn't there. If the hint carried `add:` text (only a CLI user can — the viewer's empty-DB menu
+  offers Bootstrap alone, no text field), fold it into the bootstrap's user-assumptions input
+  (Phase 2.2 source (b)).
+
+With **no hint**, fall back to auto-detect:
 - **DB none** → **`bootstrap`** (Phase 2). State: "No opportunity DB yet — I'll bootstrap one."
 - **DB exists**:
   - argument contains "add", or the user named a specific problem → **`add`** (Phase A).
@@ -214,28 +233,154 @@ Capture a single problem and slot it into the existing DB.
    from CONTEXT-SUMMARY (provenance `nano-hypothesis`).
 2. **Read SCHEMA + INDEX** to see the existing themes and avoid duplicating an opportunity. Read
    `.nanopm/opportunities/SCHEMA.md` and `.nanopm/opportunities/INDEX.md`.
-3. **Match or create.** If the problem matches an existing opportunity, propose **updating** that file
-   (append evidence / sharpen) rather than creating a near-duplicate. Otherwise draft a new opportunity
-   conforming to the template: pick an existing theme (or propose a new one), set `provenance`
-   (`user-stated` if the user asserted it; `nano-hypothesis` if you inferred it; `evidence-backed` only
-   with an attributed quote/data point), set a coarse `priority`. For a NEW file, derive the slug with
-   `_SLUG=$(nanopm_opportunity_slug "<title>")` and write `.nanopm/opportunities/$_SLUG.md`; for an
-   update, reuse the existing file's slug.
-4. **Confirm** (Phase 3 gate, scaled to one): show title · theme · priority · provenance and ask
-   `AskUserQuestion` (header `Confirm`, options `["Write it", "Edit", "Cancel"]`).
+3. **Dedup gate (the reusable agent).** Before writing, run the candidate through the dedup agent so
+   you don't create a near-duplicate of something already in the DB. Print its prompt with the one
+   candidate and dispatch it via the **Agent tool**:
+
+   ```bash
+   source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+   nanopm_opportunity_dedup_prompt "===CANDIDATE===
+   title: <the problem, as a short title>
+   problem: <the 1–2 sentence problem>"
+   ```
+
+   Read the single `===VERDICT===`. **Validate `target` first** (`[ -f ".nanopm/opportunities/$target.md" ]`);
+   an unresolved target is treated as `new`. Then apply the **interactive** policy — this is Mode A, the
+   user is present, so ASK rather than auto-deciding (nanopm's high-confidence bar is **confidence ≥ 8**):
+   - `duplicate-of` / `merge-into` at confidence **≥ 8** (target resolves) → ask via `AskUserQuestion`
+     (header `Confirm`): "This looks like the existing **{target title}**. Merge into it, keep as a new
+     opportunity, or cancel?" options `["Merge into it", "Keep as new", "Cancel"]`.
+       - **Merge into it** → append the new phrasing / quote / evidence to
+         `.nanopm/opportunities/<target>.md` (under "## 2. Value to the user → Where we fall short"),
+         bump its `last_updated`, and set `_SLUG=<target>`, `_ACTION=merge`, `_PROV=<target's existing
+         provenance>` for the step-5 log. Go straight to step 5 (no step-4 confirm — the merge was just
+         confirmed).
+       - **Keep as new** → create (below), adding `related_to: [<target>]` to its frontmatter.
+       - **Cancel** → stop without writing.
+   - `new`, or any match **below 8** → **create**: draft a new opportunity conforming to the template —
+     pick an existing theme (or propose a new one), set `provenance` (`user-stated` if the user
+     asserted it; `nano-hypothesis` if you inferred it; `evidence-backed` only with an attributed
+     quote/data point), set a coarse `priority`; add `related_to: [<target>]` for a sub-threshold match.
+     Derive the slug with `_SLUG=$(nanopm_opportunity_slug "<title>")` and write
+     `.nanopm/opportunities/$_SLUG.md`.
+4. **Confirm the create** (skip if the user already chose **Merge** in step 3 — that's confirmed). For a
+   new opportunity, show title · theme · priority · provenance and ask `AskUserQuestion`
+   (header `Confirm`, options `["Write it", "Edit", "Cancel"]`).
 5. **Write + reindex + log** (same as Phase 4, for the one file):
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _OPP_DIR=".nanopm/opportunities"
-# Set _SLUG and _PROV to the opportunity you just wrote/updated.
+# Set _SLUG and _PROV to the opportunity you wrote/updated; _ACTION to "add" (new) or "merge" (merged in).
 if nanopm_opportunities_reindex; then
-  printf '%s | add: %s (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "${_SLUG:-?}" "${_PROV:-?}" >> "$_OPP_DIR/LOG.md"
+  printf '%s | %s: %s (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "${_ACTION:-add}" "${_SLUG:-?}" "${_PROV:-?}" >> "$_OPP_DIR/LOG.md"
   echo "WROTE/UPDATED ${_SLUG:-opportunity} + INDEX.md + LOG.md"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity file was written; fix python3 and re-run to rebuild the index."
 fi
 ```
+
+---
+
+## Phase G: generate (additive)
+
+Reached when the launch hint was **`generate:`** and a DB already exists. You DRAFT up to N new
+candidate opportunities, run them through the **dedup agent**, and write only the survivors — never
+overwriting what's there. Generated opportunities are Nano's inference: their provenance is always
+**`nano-hypothesis`** (never inflate to evidence-backed — there is no new evidence, only inference).
+
+### G.1 Resolve N and scope, read the existing DB
+
+- **N** = the hinted count, default **3**, **cap at 5**.
+- **Scope** = the hinted theme if one was given (draft within that single L1 theme), else **global**
+  (spread across the themes already in `INDEX.md`).
+
+Read what already exists so you draft genuinely NEW problems and give the dedup agent its bearings:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_OPP_DIR=".nanopm/opportunities"
+grep -hE '^(title|theme):' "$_OPP_DIR"/*.md 2>/dev/null   # existing titles + themes (avoid repeats)
+```
+
+### G.2 Draft candidates (reuse the bootstrap drafter)
+
+Build a provenance-annotated input blob = the existing titles (labelled "already covered — do NOT
+repeat") + the CONTEXT-SUMMARY / PLAN-SUMMARY already in your preamble (Nano-hypothesis source
+material). Draft with the canonical per-theme drafter:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_opportunities_draft_prompt "ONE L1 THEME" "INPUTS (existing titles to avoid + context), ask for up to N NEW problems"
+```
+
+- **Theme-scoped** (`generate: N for theme X`): one drafter for theme X, asked for up to N NEW candidates.
+- **Global** (`generate: N`): dispatch one drafter **per existing theme** concurrently (one Agent call
+  each, same turn — the Phase 2.3 bootstrap pattern), each asked for **0–1** NEW candidate (0–2 only
+  when N exceeds the number of themes) so you don't draft far more than N just to discard them; collect
+  the union. Serial fallback if you can't fan out.
+
+Hold the drafted `===OPPORTUNITY===` candidate blocks; **do not write yet.**
+
+### G.3 Dedup gate (the reusable agent, strict batch policy)
+
+Format every drafted candidate into the dedup agent's input and run ONE dedup pass:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_opportunity_dedup_prompt "===CANDIDATE===
+title: <candidate 1 title>
+problem: <candidate 1 problem summary>
+===CANDIDATE===
+title: <candidate 2 title>
+problem: <candidate 2 problem summary>"
+```
+
+Dispatch it via the **Agent tool**. Apply the **strict batch policy** to each returned `===VERDICT===`
+block — nanopm's high-confidence bar is **confidence ≥ 8** (the project default is strict; only
+near-identical problems auto-merge).
+
+**First, validate `target`.** For any `duplicate-of` / `merge-into` verdict, confirm the target is a
+real file on disk before trusting it (`[ -f ".nanopm/opportunities/$target.md" ]`). If it does NOT
+resolve (the agent mis-stemmed the slug), treat that verdict as **`new`** — never skip or merge
+against a target you can't find, or the candidate is silently lost.
+
+- `duplicate-of` at confidence **≥ 8** (target resolves) → **skip** (already covered; don't write).
+- `merge-into` at confidence **≥ 8** (target resolves) → **append** the candidate's new phrasing /
+  quote / evidence to `.nanopm/opportunities/<target>.md` (under "## 2. Value to the user → Where we
+  fall short", or the problem summary) and bump its `last_updated`. Do NOT create a new file.
+- everything else — `new`, an **unresolved target**, or any match **below 8** — → **write as new**
+  (`nano-hypothesis`). If there was a sub-threshold match (including a low-confidence `duplicate-of`),
+  add `related_to: [<target-slug>]` to the new file's frontmatter so the loose link stays visible
+  without forcing a merge. (Sub-8 never merges — that's the strict default, deliberate.)
+
+If the surviving NEW set exceeds **N**, trim to N: rank `high > medium > low`, break ties by drafting
+order (theme order for global), keep the first N — and report how many you trimmed in the G.4 summary,
+so the cull is never silent.
+
+### G.4 Write + reindex + log
+
+For each NEW survivor: `_SLUG=$(nanopm_opportunity_slug "<title>")`, stamp `provenance: nano-hypothesis`
+and `last_updated` (`date +%Y-%m-%d`), write `.nanopm/opportunities/$_SLUG.md` per `SCHEMA.md`. Each
+MERGE was edited in place. Then regenerate the index and log one line per write AND per merge:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_OPP_DIR=".nanopm/opportunities"
+if nanopm_opportunities_reindex; then
+  # append to LOG.md — one line per new write and per merge:
+  #   <date> | generate: new <slug> (nano-hypothesis) | /pm-opportunities
+  #   <date> | generate: merged candidate into <slug> | /pm-opportunities
+  echo "INDEX regenerated — append the LOG lines above for each write/merge"
+else
+  echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity files were written; fix python3 and re-run /pm-opportunities to rebuild the index."
+fi
+```
+
+Print a one-line summary so a headless/viewer run reports what happened:
+`generate: wrote {W} new, merged {M}, skipped {S} duplicate(s), trimmed {T} over cap — N={N}, scope={theme name|global}`.
+
+Then go to Phase 5.
 
 ---
 
