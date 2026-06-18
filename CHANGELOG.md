@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.17.0 — 2026-06-18
+
+### pm-breakdown: parallel-by-default plans, GUI test criteria, and PRD write-back
+
+`/pm-breakdown` turned a PRD into a flat task list and handed it off. This pass makes the breakdown built for many builders working at once, records the result back in the PRD, and adds runnable acceptance for UI work. Skill-only — `pm-breakdown/SKILL.md`, bumped to v0.4.0.
+
+- **Optimize for parallelism (foundation first, then waves).** Decomposition now identifies the shared foundation (schema, types, API contracts, shared components) as **Wave 0** — built and merged first by one builder — then splits the rest into parallel **Waves 1+**. Every task carries `Wave:` and `Depends on:`, and the skill emits a **Build Plan** (waves, max parallel width, critical path) rendered in the confirmation, the tasks markdown, and every handoff target. Within-wave tasks are guaranteed collision-free (no shared file both edit). Execution stays the handoff target's job — the skill produces the plan, it doesn't build.
+- **Automated GUI test criteria.** Tasks touching a GUI surface get a `GUI test:` field with tool-agnostic `navigate → act → assert` steps a capable build agent runs with whatever harness it has (Playwright, browser MCP, computer-use), or that double as a manual QA checklist otherwise. Non-GUI tasks omit it.
+- **Write the breakdown back into the PRD.** New Phase 8b rewrites a `## Task Breakdown` section into the source PRD — delimited by `<!-- nanopm:breakdown:start/end -->` markers so re-runs replace rather than duplicate — holding the Build Plan plus a task → wave → effort → ticket table. The PRD becomes the single place to see what was decided and where the work went.
+- **Two gated subagents.** A brownfield-only grounding subagent (`Explore`) maps the real code surface (`SHARED` / `LANDS` / `COLLISIONS` / `GAPS`) so waves are based on actual files, not guesses; an adversarial collision-check subagent verifies within-wave independence, Wave 0 minimality, and DAG validity — advisory in `solo-fast`, blocking in `team-traditional`. Both follow the established gating convention: presence-gating for the grounding pass, `build_mode`-gating for the reviewer, and control always stays with the main agent.
+
 ## 0.16.0 — 2026-06-18
 
 ### Viewer: the Opportunity DB gets a real home — ranked table + detail page
