@@ -25,11 +25,18 @@ fail() { printf '  %s %s\n' "$(_red '✗')" "$*"; echo; exit 1; }
 
 # ── parse arguments ───────────────────────────────────────────────────────────
 _HOST="auto"
+_DEPS_ONLY=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --host=*) _HOST="${1#--host=}"; shift ;;
-    --host)   shift; _HOST="${1:-auto}"; shift ;;
-    *)        shift ;;
+    --host=*)    _HOST="${1#--host=}"; shift ;;
+    --host)      shift; _HOST="${1:-auto}"; shift ;;
+    # --deps-only: install ONLY the shared runtime (~/.nanopm: lib, bin,
+    # connectors, ETHOS, config, VERSION) and skip all host skill targets.
+    # Used by the Claude Code plugin's SessionStart hook — the plugin already
+    # ships the skills, so installing them again into ~/.claude/skills would
+    # double-load every command. Has no effect on vibe/codex installs.
+    --deps-only) _DEPS_ONLY=1; shift ;;
+    *)           shift ;;
   esac
 done
 
@@ -62,6 +69,10 @@ echo "  $NANOPM_REPO"
 echo
 
 # ── resolve --host ─────────────────────────────────────────────────────────────
+# deps-only (plugin bootstrap) needs no host skill targets — skip the entire
+# host resolution / preflight block. The plugin supplies the skills directly.
+if [ "$_DEPS_ONLY" != "1" ]; then
+
 # auto: detect which agents are installed and install to all of them
 if [ "$_HOST" = "auto" ]; then
   _HOST="claude"
@@ -132,6 +143,8 @@ if [ "${#_VALID_TARGETS[@]}" -eq 0 ]; then
 fi
 _TARGETS=("${_VALID_TARGETS[@]}")
 
+fi  # end "$_DEPS_ONLY" != "1" — host resolution / preflight
+
 # curl (needed for remote installs)
 if [ "$_SOURCE" = "remote" ] && ! command -v curl >/dev/null 2>&1; then
   fail "curl not found. Install curl and retry."
@@ -148,8 +161,11 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 # ── create directories ────────────────────────────────────────────────────────
+# In deps-only (plugin) mode there are no host targets — _TARGETS is unset. Guard
+# the expansion so it stays safe under `set -u` (notably macOS bash 3.2, where
+# expanding an empty array errors).
 step "Creating directories"
-for _te in "${_TARGETS[@]}"; do
+for _te in ${_TARGETS[@]+"${_TARGETS[@]}"}; do
   mkdir -p "${_te##*:}"
 done
 mkdir -p "$GLOBAL_CONFIG_DIR/lib"
@@ -294,6 +310,10 @@ step "Installing skills"
 _SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data pm-brainstorm pm-opportunities"
 _SKILL_COUNT=$(set -- $_SKILL_LIST; echo $#)
 
+# deps-only (plugin bootstrap): skip the skill copy entirely — the Claude Code
+# plugin already provides these skills as /nanopm:<name>. _SKILL_LIST stays
+# defined above so the parity test (test/plugin-manifest.sh) can read it.
+if [ "$_DEPS_ONLY" != "1" ]; then
 for skill in $_SKILL_LIST; do
   # Download/copy source SKILL.md to a temp file once
   _SKILL_TMP=$(mktemp)
@@ -334,6 +354,7 @@ for _te in "${_TARGETS[@]}"; do
     [ -d "$_tdir/$_retired" ] && rm -rf "$_tdir/$_retired" && ok "  removed retired $_retired"
   done
 done
+fi  # end "$_DEPS_ONLY" != "1" — skill install
 
 # ── global config init ────────────────────────────────────────────────────────
 step "Initializing global config"
@@ -391,13 +412,26 @@ echo "$NANOPM_VERSION" > "$GLOBAL_CONFIG_DIR/VERSION"
 rm -f "$GLOBAL_CONFIG_DIR/last-update-check"
 # Record install provenance so the viewer's one-click update can refuse to
 # overwrite a maintainer's working copy: the repo path for a local clone
-# install, or "remote" for a curl/piped install.
-if [ "$_SOURCE" = "local" ] && [ -n "$_REPO_ROOT" ]; then
+# install, "remote" for a curl/piped install, or "plugin" when bootstrapped by
+# the Claude Code plugin (the plugin manager owns updates in that case).
+if [ "$_DEPS_ONLY" = "1" ]; then
+  echo "plugin" > "$GLOBAL_CONFIG_DIR/install-source"
+elif [ "$_SOURCE" = "local" ] && [ -n "$_REPO_ROOT" ]; then
   echo "$_REPO_ROOT" > "$GLOBAL_CONFIG_DIR/install-source"
 else
   echo "remote" > "$GLOBAL_CONFIG_DIR/install-source"
 fi
 ok "Version $NANOPM_VERSION written to ~/.nanopm/VERSION (update cache cleared)"
+
+# deps-only stops here: the shared runtime is in place and the plugin provides
+# the skills. Skip host-skill verification and the long skill listing.
+if [ "$_DEPS_ONLY" = "1" ]; then
+  echo
+  echo "  $(_bold "$(_green "nanopm runtime ready (plugin mode) — v${NANOPM_VERSION}")")"
+  echo "  Skills are provided by the Claude Code plugin as /nanopm:<skill>."
+  echo
+  exit 0
+fi
 
 # ── project-level .gitignore ──────────────────────────────────────────────────
 # Only if we're inside a git repo right now (running from a project directory)

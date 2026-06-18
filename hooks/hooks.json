@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 120,
+            "command": "bash -c 'v=$(cat \"${CLAUDE_PLUGIN_ROOT}/VERSION\" 2>/dev/null || echo unknown); stamp=\"$HOME/.nanopm/.plugin-deps\"; [ \"$(cat \"$stamp\" 2>/dev/null)\" = \"$v\" ] && exit 0; bash \"${CLAUDE_PLUGIN_ROOT}/setup\" --deps-only >/dev/null 2>&1 && mkdir -p \"$HOME/.nanopm\" && printf %s \"$v\" > \"$stamp\"; exit 0'"
+          }
+        ]
+      }
+    ]
+  }
+}
