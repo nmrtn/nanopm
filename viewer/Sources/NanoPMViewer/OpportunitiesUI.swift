@@ -125,14 +125,38 @@ func resolveInRepoArtifactID(_ url: URL, from currentRelPath: String, in artifac
 struct OpportunitiesOverviewView: View {
     @ObservedObject var store: ArtifactStore
     let onOpen: (String) -> Void
+    /// Navigate to the live run session when a launched run needs input.
+    var onAnswer: (String) -> Void = { _ in }
 
+    @EnvironmentObject private var runManager: RunManager
     @State private var opportunities: [Opportunity] = []
     @State private var loaded = false
     @State private var selection: Opportunity.ID?
+    @State private var claudeAvailable: Bool?
+    @State private var showAddSheet = false
     @State private var sortOrder = [
         KeyPathComparator(\Opportunity.priorityOrder, order: .forward),
         KeyPathComparator(\Opportunity.theme, order: .forward),
     ]
+
+    /// The catalog skill that owns this page, so the Run menu reuses the same
+    /// launch machinery (RunManager + headless `claude`) as every other skill.
+    private var oppDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-opportunities" } }
+
+    /// No `SCHEMA.md` means the DB isn't bootstrapped yet — the menu collapses to
+    /// a single Bootstrap action (you can't add to / generate into a DB that
+    /// doesn't exist; the skill enforces the same override).
+    private var hasSchema: Bool { store.artifacts.contains { $0.relativePath == "opportunities/SCHEMA.md" } }
+
+    /// Live L1 themes, derived from the loaded opportunities, for the
+    /// "Generate → By theme" submenu. Empty until the table has loaded.
+    private var themes: [String] {
+        var seen = Set<String>(); var out: [String] = []
+        for o in opportunities where !o.theme.isEmpty && o.theme != "Untriaged" && o.theme != "…" {
+            if seen.insert(o.theme).inserted { out.append(o.theme) }
+        }
+        return out.sorted()
+    }
 
     private var oppArtifacts: [Artifact] {
         store.artifacts.filter {
@@ -148,19 +172,81 @@ struct OpportunitiesOverviewView: View {
         return base.sorted(using: sortOrder)
     }
 
+    /// The Run control: an Answer… button when a launched run is waiting on the
+    /// human, otherwise a "Run" menu. Empty DB → just Bootstrap; populated DB →
+    /// Add one from text… + Generate (global / by theme). Disabled while a run for
+    /// this page is in flight or `claude` is unavailable.
+    @ViewBuilder
+    private var launchControl: some View {
+        let run = oppDoc.flatMap { runManager.latestRun(for: $0.trackingPath, in: store.project.path) }
+        let isWaiting = run?.pendingQuestions.isEmpty == false
+        let isRunning = run?.status == .running
+        if isWaiting, let doc = oppDoc {
+            ActionButton(title: "Answer…", systemImage: "questionmark.bubble.fill", tone: .waiting,
+                         help: "/pm-opportunities needs your input — answer to continue") {
+                onAnswer(doc.trackingPath)
+            }
+        } else {
+            Menu {
+                if hasSchema {
+                    Button { showAddSheet = true } label: {
+                        Label("Describe one myself…", systemImage: "square.and.pencil")
+                    }
+                    Divider()
+                    Menu {
+                        Button("Across all themes") { launch("generate:") }
+                        if !themes.isEmpty {
+                            Menu("In one theme") {
+                                ForEach(themes, id: \.self) { theme in
+                                    Button(theme) { launch("generate: for theme \(theme)") }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Let Nano suggest more", systemImage: "sparkles")
+                    }
+                } else {
+                    Button { launch(nil) } label: {
+                        Label("Bootstrap the database", systemImage: "sparkles")
+                    }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "plus")
+                    Text(isRunning ? "Running…" : "Add")
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(ActionButtonStyle(tone: .accent, prominent: !isRunning))
+            .fixedSize()
+            .disabled(isRunning || claudeAvailable == false || oppDoc == nil)
+            .help("Add to the opportunity database in \(store.project.name) — describe one yourself, or let Nano suggest more")
+        }
+    }
+
+    private func launch(_ context: String?) {
+        guard let doc = oppDoc else { return }
+        runManager.launch(doc, in: store.project.path, userContext: context)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                Label {
-                    Text("Opportunities").foregroundStyle(Color.npInk)
-                } icon: {
-                    Image(systemName: "lightbulb").foregroundStyle(Color.npCoral)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label {
+                        Text("Opportunities").foregroundStyle(Color.npInk)
+                    } icon: {
+                        Image(systemName: "lightbulb").foregroundStyle(Color.npCoral)
+                    }
+                    .font(.npDisplay(30))
+                    Text(oppArtifacts.count == 1 ? "1 user problem, ranked. Click a row to open it."
+                                                 : "\(oppArtifacts.count) user problems, ranked. Click a row to open one.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.npDisplay(30))
-                Text(oppArtifacts.count == 1 ? "1 user problem, ranked. Click a row to open it."
-                                             : "\(oppArtifacts.count) user problems, ranked. Click a row to open one.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                launchControl
             }
             .padding(.horizontal, 28)
             .padding(.top, 28)
@@ -208,6 +294,12 @@ struct OpportunitiesOverviewView: View {
         .background(Color.npPaper)
         .task(id: "\(oppArtifacts.map(\.id).joined())#\(store.generation)") {
             await load()
+        }
+        .task { claudeAvailable = await ShellRunner.claudeAvailable() }
+        .sheet(isPresented: $showAddSheet) {
+            OpportunityAddSheet(projectName: store.project.name) { text in
+                launch("add: \(text)")
+            }
         }
     }
 
@@ -314,5 +406,50 @@ struct OpportunityDetailView: View {
             bodyText = nil
             loadError = "\(error)"
         }
+    }
+}
+
+// MARK: - Add sheet (Mode A)
+
+/// Mode A — the PM types one user problem; on Run it launches `/pm-opportunities`
+/// with an `add:` hint (the skill dedups it against the existing DB before
+/// writing). A sheet sibling of `SkillRunButton`'s pre-launch popover.
+struct OpportunityAddSheet: View {
+    let projectName: String
+    /// Called with the trimmed problem text when the PM hits Run.
+    let onRun: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Add an opportunity").font(.headline)
+            Text("Describe the user problem in a sentence or two — the pain, not the solution. The agent files it in \(projectName), deduped against what's already there.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextField("e.g. Users abandon onboarding at the import step because it's unclear what format to upload",
+                      text: $text, axis: .vertical)
+                .lineLimit(3...8)
+                .textFieldStyle(.roundedBorder)
+                .focused($focused)
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Run") {
+                    onRun(trimmed)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(trimmed.isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 420)
+        .onAppear { focused = true }
     }
 }
