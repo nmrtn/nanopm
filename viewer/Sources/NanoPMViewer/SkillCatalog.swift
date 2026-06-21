@@ -84,6 +84,7 @@ enum SkillCatalog {
         case .plan: return "Objectives, strategy, and roadmap — decide what to build and why."
         case .ship: return "Specs and handoff — turn the plan into PRDs and engineering tickets."
         case .daily: return "Recurring PM ops — the daily briefing, the weekly stakeholder update, and an adversarial challenge whenever you need one."
+        case .other: return "Markdown under .nanopm/ that doesn't belong to a phase — notes and anything the skills don't own."
         }
     }
 

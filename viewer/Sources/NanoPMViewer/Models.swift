@@ -6,6 +6,10 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
     case plan = "Plan"
     case ship = "Build"
     case daily = "Day to Day"
+    // Catch-all for markdown under .nanopm/ that maps to no other phase
+    // (e.g. a hand-written note, or a doc from a future layout). Ordered last
+    // so it sits at the bottom of the sidebar. Has no skills/overview.
+    case other = "Others"
 
     var id: String { rawValue }
 
@@ -16,6 +20,7 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
         case .plan: return "map"
         case .ship: return "hammer"
         case .daily: return "sun.max"
+        case .other: return "tray.full"
         }
     }
 
@@ -174,6 +179,12 @@ enum PhaseMapper {
         if planNames.contains(where: { file.hasPrefix($0) }) { return .plan }
         if shipNames.contains(where: { file.hasPrefix($0) }) { return .ship }
         if dailyNames.contains(where: { file.hasPrefix($0) }) { return .daily }
+        // Any remaining markdown is surfaced under "Others" rather than dropped
+        // silently — so a hand-written note or a doc from a future layout stays
+        // visible. Stray json/jsonl (e.g. competitors.json, decision.jsonl) keep
+        // returning nil: they're data, not reading material. tasks/ already
+        // returned nil above and stays hidden.
+        if lower.hasSuffix(".md") { return .other }
         return nil
     }
 }
