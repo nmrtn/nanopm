@@ -1466,6 +1466,26 @@ loaders, ingest agent, and lint agent all depend on them.
 EOF
 }
 
+# Idempotent wiki scaffold: create the .nanopm/wiki + raw dir tree and write
+# NANOPM-WIKI.md (the schema/contract) if it's absent. Lets any skill ensure the
+# wiki exists before dispatching an ingest subagent, WITHOUT invoking the heavier
+# one-time bin/nanopm-migrate-to-wiki (which also repairs the legacy log and seeds
+# overviews). Safe to call on every run: creates nothing that already exists and
+# never overwrites the schema or a page. The entity/raw lists mirror ENTITY_TYPES /
+# RAW_SUBDIRS in bin/nanopm-migrate-to-wiki — change one, change both.
+nanopm_wiki_ensure() {
+  local nano=".nanopm" wiki=".nanopm/wiki" raw=".nanopm/raw" t
+  mkdir -p "$wiki/overview" "$wiki/docs" 2>/dev/null || return 1
+  for t in personas competitors opportunities objectives features people; do
+    mkdir -p "$wiki/entities/$t" 2>/dev/null
+  done
+  for t in feedback intel data interviews git-activity; do
+    mkdir -p "$raw/$t" 2>/dev/null
+  done
+  [ -f "$nano/NANOPM-WIKI.md" ] || nanopm_wiki_schema > "$nano/NANOPM-WIKI.md" 2>/dev/null || true
+  return 0
+}
+
 # Emits the ingest/bookkeeper subagent prompt the main agent dispatches (gated) to
 # integrate a source into the wiki. The subagent does the reasoning (what to keep,
 # which page, how to phrase); the deterministic mechanics are bin/nanopm-ingest-agent

@@ -405,6 +405,44 @@ prompt:
 This brief is loaded into every skill's preamble (`nanopm_load_context`), so keeping it
 current is what prevents downstream drift.
 
+## Phase: Ingest personas into the memory wiki
+
+This is the first skill wired to feed the **memory wiki** (the compounding-knowledge layer,
+schema in `.nanopm/NANOPM-WIKI.md`). The personas you just wrote become entity pages under
+`wiki/entities/personas/` that later discovery (interviews, feedback, data) refines over
+time — one page per persona, with citations, instead of each skill re-deriving who the user
+is. **Advisory and non-blocking:** if anything here fails or the host can't dispatch a
+subagent, note it and finish the skill normally — the clean `PERSONAS.md` is already written.
+
+First scaffold the wiki (idempotent — creates only what's missing, never overwrites):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_ensure && echo "WIKI_READY" || echo "WIKI_SCAFFOLD_FAILED (skip ingest, finish normally)"
+```
+
+If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Agent tool**
+(one subagent). The source is the personas doc; the target section is the personas entities:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_ingest_prompt ".nanopm/PERSONAS.md" "entities/personas"
+```
+
+The subagent reads `NANOPM-WIKI.md`, writes one `wiki/entities/personas/<slug>.md` per persona
+(primary, secondary, anti-persona) **through `nanopm-confidence-gate`** (high-confidence claims
+auto-apply; shaky matches and reversals are held for review — that's intended), dedups each
+citation with `nanopm-ingest-agent citation-check` before writing, then runs
+`nanopm-ingest-agent reindex` + `log`. It returns a one-line status.
+
+**Host without an Agent tool (graceful fallback):** the main agent follows the same steps
+inline — for each persona, scaffold the page from the §4.2 entity template, route the write
+through `nanopm-confidence-gate apply`, then `reindex` + `log`. If even that isn't possible,
+skip and tell the user the personas weren't ingested into the wiki yet.
+
+Surface the result: which persona pages were created/updated, and anything routed to review
+(`nanopm-confidence-gate list`).
+
 ## Completion
 
 Tell the user:
@@ -416,6 +454,8 @@ Tell the user:
 - Which mode ran, and how many personas (plus the anti-persona)
 - The one bet — the riskiest belief about who the user is
 - Any reality-vs-aspiration gap you found
+- **Memory wiki:** which persona entity pages were created/updated under
+  `wiki/entities/personas/`, and anything held for review — or, if ingest was skipped, say so
 - Recommended next skill: `/pm-challenge-me`
 
 **STATUS: DONE**
