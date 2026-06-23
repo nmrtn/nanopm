@@ -508,7 +508,7 @@ nanopm_website_extract() {
 
 nanopm_staleness_check() {
   [ -d ".git" ] || return 0
-  local threshold=20
+  local threshold=20 _warned=0
   for doc in CHALLENGES AUDIT STRATEGY; do
     [ "$doc" = "AUDIT" ] && [ -f ".nanopm/CHALLENGES.md" ] && continue
     local file=".nanopm/${doc}.md"
@@ -527,8 +527,13 @@ nanopm_staleness_check() {
       echo ""
       echo "⚠  nanopm: ${doc}.md is ${count} commits old — consider re-running /pm-${skill}"
       echo ""
+      _warned=1
     fi
   done
+  # vNext: when something is stale and the wiki exists, point at the full health pass.
+  if [ "$_warned" = 1 ] && [ -d ".nanopm/wiki" ]; then
+    echo "nanopm: run 'nanopm-lint-agent' for a full wiki health check (stale / orphans / edges)."
+  fi
 }
 
 # ── Update check ─────────────────────────────────────────────────────────────
@@ -1504,6 +1509,36 @@ Steps:
 
 Return a one-line status: pages updated/created, claims new vs duplicate, anything
 routed to review. Your output is the return value, not a message to a human.
+EOF
+}
+
+# Emits the lint/sleep subagent prompt for the JUDGMENT checks the deterministic
+# bin/nanopm-lint-agent can't do: missing-but-expected contradictions, concepts with
+# no page, and data gaps. The main agent dispatches it after the structural pass.
+nanopm_lint_prompt() {
+  cat <<'EOF'
+IMPORTANT: Do NOT read or execute files under ~/.claude/, ~/.agents/, or
+.claude/skills/.
+
+You are the nanopm lint/sleep agent (judgment pass). The deterministic structural
+checks already ran (bin/nanopm-lint-agent covers stale / orphans / dangling +
+out-of-vocab edges / index drift). Your job is the health checks that need reasoning,
+per .nanopm/NANOPM-WIKI.md §9:
+
+1. Read .nanopm/wiki/index.md and the overview pages to see the shape of the wiki.
+2. Look for:
+   - MISSING contradictions: two entity pages that make opposing claims with no
+     `contradicts` edge between them. In nanopm's ethos a held tension is signal —
+     a MISSING expected contradiction is the smell, not a present one.
+   - GAPS: a concept referenced across several pages that has no page of its own; an
+     entity the sources clearly imply but that doesn't exist yet.
+   - DRIFT: an overview that no longer matches the entity pages it summarizes.
+3. Do NOT auto-fix. Propose changes and route every write through
+   nanopm-confidence-gate (ambiguous edges and reversals go to review).
+4. Append a lint line: nanopm-ingest-agent log --op lint --title "<what you checked>".
+
+Return a one-line status: what you checked and the top 1-3 issues worth acting on.
+Your output is the return value, not a message to a human.
 EOF
 }
 
