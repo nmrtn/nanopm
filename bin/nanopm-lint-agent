@@ -156,15 +156,22 @@ def main() -> int:
         if str(fm.get("stale", "")).lower() == "true":
             warnings.append(f"[stale] {ov.relative_to(wiki).as_posix()} marked stale:true — reconsolidate")
 
-    # orphans (INFO): entity page with no inbound and no outbound edges
-    for key in sorted(page_keys):
-        if inbound.get(key, 0) == 0 and outbound.get(key, 0) == 0:
-            info.append(f"[orphan] entities/{key}.md (no inbound/outbound edges)")
+    # index links (shared by the orphan + drift checks)
+    idx = wiki / "index.md"
+    linked = set(_LINK_RE.findall(idx.read_text(encoding="utf-8", errors="replace"))) if idx.is_file() else set()
+
+    # orphans (INFO): a page that is genuinely UNREACHABLE — not listed in the index
+    # AND with no inbound edge. A fresh page with no edges is fine as long as the
+    # index lists it (reindex makes every page reachable); only truly unreferenced
+    # pages are orphans.
+    for p in ents:
+        key = f"{p.parent.name}/{p.stem}"
+        rel = p.relative_to(wiki).as_posix()
+        if rel not in linked and inbound.get(key, 0) == 0:
+            info.append(f"[orphan] {rel} (not in index.md and no inbound edges — run reindex or link it)")
 
     # index drift (WARN): disk pages vs index.md links
-    idx = wiki / "index.md"
     if idx.is_file():
-        linked = set(_LINK_RE.findall(idx.read_text(encoding="utf-8", errors="replace")))
         on_disk = {p.relative_to(wiki).as_posix() for p in ents}
         on_disk |= {p.relative_to(wiki).as_posix() for p in (wiki / "overview").glob("*.md")}
         for d in sorted(on_disk - linked):
