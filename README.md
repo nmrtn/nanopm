@@ -228,7 +228,7 @@ nanopm remembers across sessions, so each run builds on the last instead of star
 - **Health & integrity tooling.** `nanopm-lint-agent` flags stale pages, orphans, broken links, and contradictions; `nanopm-ingest-agent` deduplicates by citation; `nanopm-confidence-gate` holds ambiguous writes and reversals for your confirmation.
 - **Just files + git.** No database, no server — `.nanopm/wiki/` is plain markdown you can read, diff, and edit. The conventions live in `.nanopm/NANOPM-WIKI.md`, and the raw episodic log sits under `.nanopm/raw/`.
 
-> **Status (v0.19.0):** the always-loaded briefs and the one-time migration (`nanopm-migrate-to-wiki`) are live. The maintenance loop — ingest → dedup → supersede → lint — ships as the CLIs above but is **not yet auto-dispatched by the skills**, so entity pages don't populate or self-heal on their own yet. Wiring that in (so the wiki fills and stays healthy automatically) is the next phase.
+> **Status:** the always-loaded briefs, the one-time migration (`nanopm-migrate-to-wiki`), and the maintenance loop are wired. The five signal skills — `/pm-personas`, `/pm-interview`, `/pm-user-feedback`, `/pm-data`, `/pm-competitors-intel` — dispatch the ingest bookkeeper after each run to fill the relevant entity pages through the confidence gate; held writes are surfaced for review at the top of every run, and the lint health pass runs daily. Still maturing: ingest quality depends on real source volume (it compounds as you feed it interviews/feedback/data), and not every skill writes entity pages yet.
 
 Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — one file per record type:
 
