@@ -294,9 +294,11 @@ done
 _install_file "bin/nanopm-state-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 _install_file "bin/nanopm-state-read" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
 _install_file "bin/nanopm-symphony-validate" "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
+_install_file "bin/nanopm-migrate-to-wiki" "$GLOBAL_CONFIG_DIR/bin/nanopm-migrate-to-wiki"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
+chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-migrate-to-wiki"
 ok "State binaries installed (typed JSONL under ~/.nanopm/projects/)"
 
 step "Installing connectors"
