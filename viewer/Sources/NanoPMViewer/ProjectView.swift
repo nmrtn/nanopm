@@ -22,6 +22,9 @@ struct ProjectView: View {
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
     @State private var opportunitiesExpanded = false
+    // Which phases have their "Entities" group expanded (entities appear in several
+    // phases, so a single bool would toggle them all together).
+    @State private var expandedEntityPhases: Set<Phase> = []
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -245,14 +248,18 @@ struct ProjectView: View {
                 // Opportunity DB files are grouped under one expandable
                 // "Opportunities" entry (INDEX is the landing), not flat rows.
                 && !(showOpportunitiesSection && OpportunityFiles.isOpportunityFile(artifact.relativePath))
+                // Wiki entity pages collapse under a per-phase "Entities" group, not
+                // ~18 flat rows. They're the substrate behind the briefs.
+                && !artifact.relativePath.lowercased().hasPrefix("wiki/entities/")
         }
+        let entities = entityArtifacts(for: phase)
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         // Brainstorm is an always-on interactive surface (not artifact-driven),
         // pinned at the top of DAY TO DAY so it's always reachable.
         let showBrainstorm = phase == .daily
-        if hasOverview || !items.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
+        if hasOverview || !items.isEmpty || !entities.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
                 if showBrainstorm {
@@ -266,6 +273,9 @@ struct ProjectView: View {
                         .tag(artifact.id)
                         .help(".nanopm/" + artifact.relativePath)
                         .listRowInsets(Self.childRowInsets)
+                }
+                if !entities.isEmpty {
+                    entitiesEntry(phase: phase, entities: entities).listRowInsets(Self.childRowInsets)
                 }
                 if showPRDs {
                     prdsEntry.listRowInsets(Self.childRowInsets)
@@ -317,6 +327,35 @@ struct ProjectView: View {
         }
         .tag(Self.runTagPrefix + run.expectedRelPath)
         .help(sidebarHelp(for: run))
+    }
+
+    private func entityArtifacts(for phase: Phase) -> [Artifact] {
+        store.artifacts.filter {
+            $0.phase == phase && $0.relativePath.lowercased().hasPrefix("wiki/entities/")
+        }
+    }
+
+    /// Wiki entity pages collapse under one "Entities" group per phase, so the nav
+    /// shows the canonical docs + curated sections instead of a flat row per entity.
+    @ViewBuilder
+    private func entitiesEntry(phase: Phase, entities: [Artifact]) -> some View {
+        DisclosureGroup(isExpanded: Binding(
+            get: { expandedEntityPhases.contains(phase) },
+            set: { expanded in
+                if expanded { expandedEntityPhases.insert(phase) }
+                else { expandedEntityPhases.remove(phase) }
+            }
+        )) {
+            ForEach(entities) { entity in
+                Label(entity.displayName, systemImage: iconFor(entity))
+                    .tag(entity.id)
+                    .help(".nanopm/" + entity.relativePath)
+                    .listRowInsets(Self.childRowInsets)
+            }
+        } label: {
+            Label("Entities (\(entities.count))", systemImage: "square.grid.2x2")
+                .help("Wiki entity pages — the substrate behind the briefs (personas, competitors, features, …)")
+        }
     }
 
     @ViewBuilder
