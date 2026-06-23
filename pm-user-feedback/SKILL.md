@@ -326,6 +326,31 @@ If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy s
 *Sources detail: {per-source breakdown — e.g., "Dovetail: 12 insights, 34 highlights | Productboard: 8 features, 15 notes | GitHub: 6 issues"}*
 ```
 
+## Phase: Ingest into the memory wiki
+
+Feed the synthesized feedback into the **memory wiki** (the compounding-knowledge layer; schema in
+`.nanopm/NANOPM-WIKI.md`) so themes refine the opportunity and persona pages over time instead of
+being re-derived each run. **Advisory and non-blocking** — if anything fails or the host can't
+dispatch a subagent, note it and finish normally; FEEDBACK.md is already written.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_ensure && echo "WIKI_READY" || echo "WIKI_SCAFFOLD_FAILED (skip ingest, finish normally)"
+```
+
+If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Agent tool** (one subagent):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_ingest_prompt ".nanopm/FEEDBACK.md" "entities/opportunities and entities/personas"
+```
+
+The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
+`nanopm-confidence-gate` (high-confidence auto-applies; shaky matches and reversals are held for
+review — intended), then runs `nanopm-ingest-agent reindex` + `log`. On a host without an Agent
+tool it follows the same steps inline. Surface which entity pages changed and anything routed to
+review (`nanopm-confidence-gate list`).
+
 ## Phase 6: Save context
 
 ```bash

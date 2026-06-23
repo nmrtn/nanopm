@@ -329,6 +329,31 @@ Append to `.nanopm/FEEDBACK.md` (create if missing):
 
 Write session summary to `.nanopm/INTERVIEW.md` (overwrite — latest session only).
 
+## Phase: Ingest into the memory wiki
+
+Feed this interview's signal into the **memory wiki** (the compounding-knowledge layer; schema in
+`.nanopm/NANOPM-WIKI.md`) so it refines the persona and opportunity pages over time instead of
+being re-derived each run. **Advisory and non-blocking** — if anything fails or the host can't
+dispatch a subagent, note it and finish normally; the findings are already in FEEDBACK.md.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_ensure && echo "WIKI_READY" || echo "WIKI_SCAFFOLD_FAILED (skip ingest, finish normally)"
+```
+
+If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Agent tool** (one subagent):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_ingest_prompt ".nanopm/INTERVIEW.md" "entities/personas and entities/opportunities"
+```
+
+The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
+`nanopm-confidence-gate` (high-confidence auto-applies; shaky matches and reversals are held for
+review — intended), then runs `nanopm-ingest-agent reindex` + `log`. On a host without an Agent
+tool it follows the same steps inline. Surface which entity pages changed and anything routed to
+review (`nanopm-confidence-gate list`).
+
 ## Phase 7: Save context
 
 ```bash
