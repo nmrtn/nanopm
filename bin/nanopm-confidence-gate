@@ -101,7 +101,7 @@ def cmd_apply(args) -> int:
         "threshold": args.threshold,
         "reversal": bool(args.reversal),
         "reason": args.reason or "",
-        "ts": _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "content": content,
     }
     (rdir / f"{rid}.json").write_text(

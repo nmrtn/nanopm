@@ -156,7 +156,7 @@ def cmd_reindex(args) -> int:
 
     # Cross-link the opportunities DB if it lives at the legacy path (pre-backfill).
     opp_index = Path(args.project) / ".nanopm" / "opportunities" / "INDEX.md"
-    if opp_index.is_file() and not (wiki / "entities" / "opportunities").glob("*.md"):
+    if opp_index.is_file() and not any((wiki / "entities" / "opportunities").glob("*.md")):
         out.append("## Opportunities")
         out.append("- See [`.nanopm/opportunities/INDEX.md`](../opportunities/INDEX.md) "
                    "(legacy location — not yet backfilled into entities/).")
@@ -185,10 +185,24 @@ def cmd_log(args) -> int:
     return 0
 
 
+def _norm_citation(s: str) -> str:
+    """Normalize a citation for identity comparison: strip a leading markdown
+    bullet ("- ") and collapse internal whitespace, so formatting differences
+    don't defeat the match (and so trailing spaces don't create false 'NEW's)."""
+    s = s.strip()
+    if s.startswith("- "):
+        s = s[2:]
+    return " ".join(s.split())
+
+
 def cmd_citation_check(args) -> int:
     """Dedup gate: is this citation already on the page? The citation IS the
-    identity (NANOPM-WIKI.md §5), so a substring match means update-in-place, not
-    append. Returns 0=DUPLICATE, 1=NEW so a caller can branch on the exit code."""
+    identity (NANOPM-WIKI.md §5). We match it against each existing citation LINE
+    (normalized, anchored to a whole line) — NOT as a raw substring of the page.
+    A substring test false-matches short citations (e.g. "terminal" inside "I live
+    in the terminal" — interview, 2026-06-23) and drops distinct records, which is
+    the exact dedup bug the wiki is meant to fix. Returns 0=DUPLICATE, 1=NEW so a
+    caller can branch on the exit code."""
     cit = args.citation.strip()
     if not cit:
         print("ERROR: empty citation", file=sys.stderr)
@@ -199,9 +213,11 @@ def cmd_citation_check(args) -> int:
         print("NEW")          # page doesn't exist yet -> definitely new
         return 1
     body = target.read_text(encoding="utf-8", errors="replace")
-    if cit in body:
-        print("DUPLICATE")
-        return 0
+    needle = _norm_citation(cit)
+    for line in body.splitlines():
+        if _norm_citation(line) == needle:
+            print("DUPLICATE")
+            return 0
     print("NEW")
     return 1
 
