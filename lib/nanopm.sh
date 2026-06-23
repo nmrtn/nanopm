@@ -744,6 +744,57 @@ PY
   echo "--- END WIKI INDEX ---"
 }
 
+# Surface confidence-gate writes that are held for review, so the queue has a
+# drainer. bin/nanopm-confidence-gate parks low-confidence and reversal writes under
+# .nanopm/wiki/_review/<id>.json; without this they strand silently (the gap the
+# Phase 2 review flagged). Called from nanopm_preamble right after the index loads,
+# so every run reminds the user what's waiting. No-op when nothing is pending.
+nanopm_load_reviews() {
+  local rdir=".nanopm/wiki/_review" n
+  [ -d "$rdir" ] || return 0
+  n=$(ls "$rdir"/*.json 2>/dev/null | wc -l | tr -d ' ')
+  [ "${n:-0}" -gt 0 ] 2>/dev/null || return 0
+  echo "WIKI_REVIEWS: $n memory write(s) held for your confirmation."
+  echo "  See them: nanopm-confidence-gate list  ·  drain: approve <id> | reject <id>"
+}
+
+# The lint "sleep pass": run the deterministic wiki health check (bin/nanopm-lint-agent)
+# at most once per day and surface the error/warning count. Best-effort and silent on
+# any failure — never blocks a run. No-op for projects without a wiki (the common case:
+# a single dir test). Throttled via .nanopm/wiki/.last-lint so it doesn't run python on
+# every preamble. The deeper judgment pass (nanopm_lint_prompt) stays agent-dispatched.
+nanopm_wiki_lint_check() {
+  [ -d ".nanopm/wiki" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  local marker=".nanopm/wiki/.last-lint" now last age
+  now=$(date +%s 2>/dev/null || echo 0)
+  if [ -f "$marker" ]; then
+    last=$(cat "$marker" 2>/dev/null || echo 0)
+    age=$(( now - ${last:-0} ))
+    [ "$age" -lt 86400 ] && return 0   # once per day
+  fi
+  local lint="$HOME/.nanopm/bin/nanopm-lint-agent"
+  [ -x "$lint" ] || lint="$(dirname "${BASH_SOURCE[0]:-}")/../bin/nanopm-lint-agent"
+  [ -x "$lint" ] || return 0
+  local out
+  # exit 1 just means structural errors were found — still valid JSON to surface.
+  out=$("$lint" --json 2>/dev/null) || true
+  [ -n "$out" ] || return 0
+  echo "$now" > "$marker" 2>/dev/null || true
+  printf '%s' "$out" | python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+e, w = len(d.get("errors", [])), len(d.get("warnings", []))
+if e:
+    print(f"⚠  WIKI_HEALTH: {e} error(s), {w} warning(s) — run nanopm-lint-agent to see them.")
+elif w:
+    print(f"WIKI_HEALTH: {w} warning(s) — run nanopm-lint-agent to review.")
+' 2>/dev/null || true
+}
+
 # Canonical subagent prompt that regenerates .nanopm/PLAN-SUMMARY.md. Identical
 # across the three Plan skills (pm-objectives, pm-strategy, pm-roadmap) so the brief
 # reads the same no matter which skill triggered the refresh — the plan counterpart
@@ -1875,6 +1926,11 @@ nanopm_preamble() {
   # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
   # loading the whole raw event log into every run.
   nanopm_load_index
+  # Drainer for the confidence-gate review queue — surface writes held for
+  # confirmation so reversals/low-confidence updates don't strand silently.
+  nanopm_load_reviews
+  # Lint "sleep pass" — throttled once/day wiki health check (no-op without a wiki).
+  nanopm_wiki_lint_check
   # Consolidated company + product context — keeps every skill on the same
   # baseline so downstream work doesn't drift from the Define artifacts.
   nanopm_load_context

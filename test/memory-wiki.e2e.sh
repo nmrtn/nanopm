@@ -68,10 +68,13 @@ ok "citation-check: NEW when the page doesn't exist yet"
 # ── 3. confidence-gate apply (high confidence) -> auto-applies ────────────────
 cat > /tmp/nanopm-wiki-page.$$ <<MD
 ---
+id: theo
+type: persona
 title: "Theo — solo founder in the terminal"
 status: active
 provenance: evidence-backed
 sources: []
+relates_to: []
 last_updated: 2026-06-23
 ---
 
@@ -123,6 +126,25 @@ _review_count=$(ls .nanopm/wiki/_review/*.json 2>/dev/null | wc -l | tr -d ' ')
 [ "$_review_count" = "1" ] || fail "gate: expected 1 held review, found $_review_count"
 "$_GATE" list | grep -q "$_newpage" || fail "gate list: held write not surfaced"
 ok "confidence-gate: low-confidence write held in _review/ (not applied), surfaced by list"
+
+# ── 8. queue drainer surfaces the held write (the preamble's job) ─────────────
+_out=$(nanopm_load_reviews)
+echo "$_out" | grep -q "WIKI_REVIEWS: 1" || fail "nanopm_load_reviews: expected 'WIKI_REVIEWS: 1', got '$_out'"
+echo "$_out" | grep -q "nanopm-confidence-gate list" || fail "nanopm_load_reviews: missing drain hint"
+ok "drainer: nanopm_load_reviews surfaces the held write + how to drain it"
+
+# draining clears it: reject the held write, drainer goes quiet
+_rid=$(ls .nanopm/wiki/_review/*.json | head -1 | xargs basename | sed 's/\.json$//')
+"$_GATE" reject "$_rid" >/dev/null || fail "gate reject failed"
+[ -z "$(nanopm_load_reviews)" ] || fail "nanopm_load_reviews: should be silent after the queue is drained"
+ok "drainer: silent once the queue is empty"
+
+# ── 9. lint sleep pass: runs once, then throttles ────────────────────────────
+nanopm_wiki_lint_check >/dev/null 2>&1 || fail "nanopm_wiki_lint_check returned non-zero"
+[ -f ".nanopm/wiki/.last-lint" ] || fail "lint sleep pass: throttle marker not written"
+_out2=$(nanopm_wiki_lint_check)   # second call same day -> throttled, no output
+[ -z "$_out2" ] || fail "lint sleep pass: second call should be throttled (silent), got '$_out2'"
+ok "lint sleep pass: runs once, writes throttle marker, then stays quiet for the day"
 
 echo
 echo "  ─────────────────────────────"
