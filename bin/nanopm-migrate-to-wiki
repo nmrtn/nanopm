@@ -266,18 +266,21 @@ def main() -> int:
     # 6. Events: repair + migrate the raw log --------------------------------
     sl = slug_for(project, args.slug)
     src_log = Path.home() / ".nanopm" / "memory" / f"{sl}.jsonl"
-    clean, stats = repair_jsonl(src_log)
-    if stats["raw_lines"]:
-        dest_log = raw / "events.jsonl"
-        new_content = "\n".join(clean) + ("\n" if clean else "")
-        existing = dest_log.read_text(encoding="utf-8", errors="replace") if dest_log.exists() else None
-        if existing != new_content:
-            write(dest_log, new_content, "events")
-        log(f"events: {stats['raw_lines']} raw lines -> {stats['records']} records "
-            f"({stats['recovered']} recovered from splits, {stats['dupes']} exact-dupes "
-            f"dropped, {stats['dropped']} junk fragments dropped). source: {src_log}")
+    dest_log = raw / "events.jsonl"
+    if dest_log.exists():
+        # One-time seed only. Once the project log is canonical, never overwrite it
+        # from the legacy global log — that would clobber appends made after cutover.
+        log(f"events: {dest_log.relative_to(project)} already present — left as-is "
+            f"(canonical project log; not re-seeded).")
     else:
-        log(f"events: no raw log at {src_log} (nothing to migrate).")
+        clean, stats = repair_jsonl(src_log)
+        if stats["raw_lines"]:
+            write(dest_log, "\n".join(clean) + ("\n" if clean else ""), "events")
+            log(f"events: seeded {stats['records']} records from {src_log} "
+                f"({stats['recovered']} recovered from splits, {stats['dupes']} exact-dupes "
+                f"dropped, {stats['dropped']} junk fragments dropped).")
+        else:
+            log(f"events: no raw log at {src_log} (nothing to seed).")
 
     # 7. Opportunities note --------------------------------------------------
     if (nano / "opportunities").is_dir():

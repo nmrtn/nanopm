@@ -101,7 +101,16 @@ nanopm_slug() {
 # Per-project outputs live in .nanopm/ (gitignored)
 
 _nanopm_memory_file() {
-  echo "$HOME/.nanopm/memory/$(nanopm_slug).jsonl"
+  # Canonical episodic log. Once nanopm-migrate-to-wiki has seeded the project-local
+  # wiki raw layer, that file is authoritative; until then (or when running outside
+  # a project, e.g. pm-standup standalone) fall back to the legacy global log. No
+  # side effects: migrate owns the one-time seed, so the cutover is clean and
+  # re-running migrate never clobbers appends made after it.
+  if [ -f ".nanopm/raw/events.jsonl" ]; then
+    echo ".nanopm/raw/events.jsonl"
+  else
+    echo "$HOME/.nanopm/memory/$(nanopm_slug).jsonl"
+  fi
 }
 
 nanopm_context_append() {
