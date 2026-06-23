@@ -286,13 +286,20 @@ def main() -> int:
 
     # Finalize ---------------------------------------------------------------
     if args.finalize:
-        for legacy in OVERVIEWS:
+        for legacy, (dest_rel, _section) in OVERVIEWS.items():
             src = nano / legacy
-            if src.is_file():
+            if not src.is_file():
+                continue
+            dest = wiki / dest_rel
+            # Only delete a legacy original once its wiki replacement exists and is
+            # non-empty — never leave the project with neither copy.
+            if dest.is_file() and dest.stat().st_size > 0:
                 did.append(f"rm     {src.relative_to(project)} (finalize)")
                 if not dry:
                     src.unlink()
-        log("finalize: removed legacy summary originals (loaders must read wiki/overview/* now).")
+            else:
+                log(f"finalize: keeping {legacy} — {dest_rel} is missing/empty, not safe to delete")
+        log("finalize: legacy summary originals removed where a wiki overview exists.")
     else:
         log("note: legacy CONTEXT-SUMMARY/PLAN-SUMMARY kept (copy mode). "
             "Re-run with --finalize after the loader cutover (#104).")

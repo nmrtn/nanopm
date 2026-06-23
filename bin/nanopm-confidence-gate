@@ -33,10 +33,15 @@ import argparse
 import datetime as _dt
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
 DEFAULT_THRESHOLD = 7
+# Review ids are basename + sha1 hex (see review_id); a well-formed id never
+# contains a path separator. Validate before using an id in a filesystem path
+# so a crafted id (e.g. "../../etc/x") can't escape the review dir.
+_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def err(msg: str) -> int:
@@ -107,10 +112,15 @@ def cmd_apply(args) -> int:
 
 
 def _load_review(project: str, rid: str) -> tuple[Path, dict] | None:
+    if not _ID_RE.match(rid or ""):  # reject path-separator / traversal ids
+        return None
     rf = review_dir(project) / f"{rid}.json"
     if not rf.is_file():
         return None
-    return rf, json.loads(rf.read_text(encoding="utf-8"))
+    try:
+        return rf, json.loads(rf.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def cmd_list(args) -> int:
@@ -146,9 +156,12 @@ def cmd_approve(args) -> int:
     if not found:
         return err(f"no pending review {args.id!r}")
     rf, r = found
-    dest = resolve_target(args.project, r["target"])
+    target = r.get("target")
+    if not target:
+        return err(f"review {args.id!r} is missing its target field")
+    dest = resolve_target(args.project, target)
     if dest is None:
-        return err(f"target {r['target']!r} escapes .nanopm/ — refused")
+        return err(f"target {target!r} escapes .nanopm/ — refused")
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(r.get("content", ""), encoding="utf-8")
     rf.unlink()
