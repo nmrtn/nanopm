@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.19.0 — 2026-06-23
+
+### Memory: a compounding wiki, not an ever-growing logbook
+
+Every skill run used to reload nanopm's *entire* history — an append-only log that grew forever, was never deduplicated, and quietly drifted from reality. Handy at run five, noise by run fifty. This release rebuilds memory as a **maintained wiki** (the pattern from Karpathy's "LLM wiki"): each run starts from a small, always-current set of pages instead of replaying the whole transcript, and a background bookkeeper keeps the wiki tidy. The result is sharper, cheaper runs that actually compound — and a viewer that shows who you are and what you're working on at a glance.
+
+**What's different for you**
+
+- **Runs start from a clean baseline.** A skill now loads a one-line index plus two consolidated briefs — *who the company is* and *what you're working on right now* — instead of the full event log. Context stays small and on-point no matter how long you've used nanopm.
+- **Knowledge compounds on pages, not log lines.** Personas, competitors, opportunities, objectives, features, and people each get their own wiki page that many sources update over time, with citations. The same fact stops piling up — it gets refined in place.
+- **The wiki keeps itself honest.** A lint pass flags stale pages, broken links, and contradictions; the bookkeeper deduplicates by citation and *supersedes* old claims instead of deleting them, so you keep the history of what you believed and when.
+- **No silent overwrites.** Confident updates apply automatically; anything ambiguous — a strategy reversal, a shaky match — waits for your yes/no.
+- **The viewer speaks the new layout.** The Context and Plan briefs render atop Define and Plan; entity pages tuck under one collapsible **Entities** group per phase instead of dozens of flat rows; the Memory tab reads the new log location.
+
+**Under the hood**
+
+- New `NANOPM-WIKI.md` schema (the contract every skill reads) and a three-layer layout — immutable `raw/` sources → an LLM-maintained `wiki/` → the schema. A one-time `nanopm-migrate-to-wiki` repairs the old corrupted log and seeds the wiki with zero content loss; `--finalize` removes the legacy summaries once the loaders cut over.
+- The preamble drops `nanopm_context_all` across all 15 pipeline skills (pm-retro keeps full history); loaders read `wiki/index.md` + the two overviews. The episodic log is now canonical at the project-local `.nanopm/raw/events.jsonl`, with a safe fallback to the legacy global log.
+- Three new CLIs wired into `setup`, all pure markdown + git (no database, no server, host-agnostic across Claude / Vibe / Codex): `nanopm-ingest-agent` (citation dedup / reindex / log), `nanopm-confidence-gate` (gated writes), `nanopm-lint-agent` (health pass). The reasoning halves ship as gated subagent prompts in `lib`.
+- Two follow-ups are scoped but deferred, each with its own spec: a search engine over the wiki, and multi-writer git machinery.
+
 ## 0.18.0 — 2026-06-18
 
 ### Opportunities: launch /pm-opportunities from the viewer + a reusable dedup agent
