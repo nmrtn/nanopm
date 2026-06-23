@@ -36,14 +36,8 @@ nanopm_context_read pm-objectives
 
 If a prior entry exists, show: "Prior objectives found from {ts}. Reviewing current context."
 
-Read all prior context to inform this run:
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_read pm-objectives
-```
-
 Key things to extract:
-- Challenge session findings (gap, recommended next skill, what you're building)
+- Challenge session findings (gap, recommended next skill, what you're building) — from the loaded overviews + CHALLENGES.md
 - Prior objectives (if any) — flag which ones were hit or missed
 
 ## Phase 1: Context check

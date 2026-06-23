@@ -36,12 +36,6 @@ nanopm_context_read pm-strategy
 
 If found: "Prior strategy found from {ts}. This run will produce a revised strategy."
 
-Read all prior context:
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_read pm-strategy
-```
-
 ## Phase 1: Context assembly
 
 Read upstream artifacts if they exist:

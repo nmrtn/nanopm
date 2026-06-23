@@ -37,12 +37,6 @@ nanopm_context_read pm-prd
 
 If found: "Prior PRD found from {ts}. Starting a new PRD."
 
-Read all prior context:
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_read pm-prd
-```
-
 ## Phase 1: Identify the feature
 
 Check if there's a specific feature to write about:
