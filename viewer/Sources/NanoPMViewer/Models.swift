@@ -106,6 +106,24 @@ struct Artifact: Identifiable, Hashable, Sendable {
     }
 }
 
+/// Strip a leading YAML frontmatter block (--- … ---) so a doc renders as prose,
+/// not a "key: value …" metadata paragraph. The vNext wiki pages (overviews,
+/// entities) carry frontmatter; this keeps the reading views clean. No-op when
+/// there's no frontmatter or no closing fence.
+func stripFrontmatter(_ raw: String) -> String {
+    guard raw.hasPrefix("---") else { return raw }
+    let lines = raw.components(separatedBy: "\n")
+    var i = 1
+    while i < lines.count {
+        if lines[i].trimmingCharacters(in: .whitespaces) == "---" {
+            return lines[(i + 1)...].joined(separator: "\n")
+                .trimmingCharacters(in: .newlines)
+        }
+        i += 1
+    }
+    return raw
+}
+
 /// "STRATEGY.md" → "Strategy", "prds/foo-bar.md" → "foo-bar"
 func prettyDocName(_ relativePath: String) -> String {
     let file = (relativePath as NSString).lastPathComponent

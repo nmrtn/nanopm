@@ -569,7 +569,9 @@ struct ArtifactDetailView: View {
 
     private func load() async {
         do {
-            content = try await store.content(of: artifact)
+            // Strip leading YAML frontmatter so wiki entity/overview pages render as
+            // prose, not a "key: value …" metadata block.
+            content = stripFrontmatter(try await store.content(of: artifact))
             loadError = nil
         } catch {
             content = nil

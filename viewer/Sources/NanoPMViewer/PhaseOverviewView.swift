@@ -159,7 +159,7 @@ struct PhaseOverviewView: View {
     /// line: the card header already carries the title and the update time, so the
     /// rendered body starts straight at the first section.
     private static func stripBriefHeader(_ raw: String) -> String {
-        var lines = raw.components(separatedBy: "\n")
+        var lines = stripFrontmatter(raw).components(separatedBy: "\n")
         func dropLeadingBlanks() {
             while let first = lines.first,
                   first.trimmingCharacters(in: .whitespaces).isEmpty {
