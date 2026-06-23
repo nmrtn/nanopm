@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""nanopm-migrate-to-wiki — scaffold the memory wiki and migrate existing state.
+
+Part of the memory-wiki redesign (issue #102). Generalizes .nanopm/ from a flat
+folder of docs + an always-loaded raw log into the three-layer LLM-wiki defined by
+.nanopm/NANOPM-WIKI.md (raw/ + wiki/ + schema).
+
+What it does (idempotent — safe to re-run):
+  1. Scaffold  .nanopm/wiki/{overview,entities/*,docs} and .nanopm/raw/* dirs.
+  2. Schema    write .nanopm/NANOPM-WIKI.md from nanopm_wiki_schema (if absent).
+  3. Seed      .nanopm/wiki/{index.md,log.md} with headers (if absent).
+  4. Overviews CONTEXT-SUMMARY.md -> wiki/overview/company.md,
+               PLAN-SUMMARY.md   -> wiki/overview/current-work.md (with frontmatter).
+  5. Docs      copy known Define/Plan docs -> wiki/docs/.
+  6. Events    repair + migrate ~/.nanopm/memory/{slug}.jsonl -> .nanopm/raw/events.jsonl
+               (join newline-split records, drop exact-duplicate lines).
+  7. Opps      leave .nanopm/opportunities/ in place (already a conformant section).
+
+By default it COPIES (non-destructive): the legacy files stay so the current
+preamble keeps working until the loader cutover (#104) lands. Pass --finalize to
+remove the legacy originals once loaders read the new paths.
+
+Usage:
+  nanopm-migrate-to-wiki [--dry-run] [--finalize] [--project DIR] [--slug NAME]
+
+Exit codes: 0 ok, 1 error, 2 bad usage.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+# Top-level .nanopm docs that are point-in-time skill outputs (views), not the
+# always-loaded overviews. Copied into wiki/docs/. Lowercased on the way in.
+DOC_NAMES = [
+    "VISION-MISSION.md", "BUSINESS-MODEL.md", "ORG.md", "PRODUCT.md", "PERSONAS.md",
+    "OBJECTIVES.md", "STRATEGY.md", "ROADMAP.md", "CHALLENGES.md", "AUDIT.md",
+    "COMPETITORS.md", "FEEDBACK.md", "DATA.md", "DISCOVERY.md", "WEEKLY_UPDATE.md",
+]
+# CONTEXT-SUMMARY / PLAN-SUMMARY are the overviews; handled separately, not as docs.
+OVERVIEWS = {
+    "CONTEXT-SUMMARY.md": ("overview/company.md", "define"),
+    "PLAN-SUMMARY.md": ("overview/current-work.md", "plan"),
+}
+ENTITY_TYPES = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
+RAW_SUBDIRS = ["feedback", "intel", "data", "interviews", "git-activity"]
+
+
+def log(msg: str) -> None:
+    print(msg)
+
+
+def slug_for(project: Path, override: str | None) -> str:
+    if override:
+        return override
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(project), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if top:
+            return os.path.basename(top)
+    except Exception:
+        pass
+    return project.resolve().name
+
+
+def find_lib() -> Path | None:
+    for cand in (Path.home() / ".nanopm/lib/nanopm.sh", Path("lib/nanopm.sh")):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def emit_schema() -> str | None:
+    """Run nanopm_wiki_schema from the installed/dev lib to get the canonical schema."""
+    lib = find_lib()
+    if not lib:
+        return None
+    try:
+        out = subprocess.run(
+            ["bash", "-c", f"source {lib!s} && nanopm_wiki_schema"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        return out if out.strip() else None
+    except Exception:
+        return None
+
+
+def repair_jsonl(src: Path) -> tuple[list[str], dict]:
+    """Read a possibly-corrupted JSONL file and return (clean_lines, stats).
+
+    The observed corruption is a truncated *fragment* line immediately followed by
+    the complete record on the next line. So: try each physical line as a standalone
+    object first (the common, correct case); only if it fails, try joining it with
+    pending fragments (the rarer genuine newline-in-value split). Fragments never
+    recovered are dropped — their content is a truncated prefix of the complete
+    record that supersedes them, so no real record is lost. Exact-duplicate records
+    are collapsed; historical events with the same content but different `ts` are
+    kept (raw/ is the episodic record — semantic consolidation happens at the wiki
+    layer later).
+    """
+    stats = {"raw_lines": 0, "records": 0, "dupes": 0, "recovered": 0, "dropped": 0}
+    if not src.is_file():
+        return [], stats
+    raw = [ln for ln in src.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+    stats["raw_lines"] = len(raw)
+    clean: list[str] = []
+    seen: set[str] = set()
+    frag: list[str] = []
+
+    def emit(obj: dict, recovered: bool) -> None:
+        canon = json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        if canon in seen:
+            stats["dupes"] += 1
+            return
+        seen.add(canon)
+        clean.append(canon)
+        stats["records"] += 1
+        if recovered:
+            stats["recovered"] += 1
+
+    for line in raw:
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            obj = None
+        if isinstance(obj, dict):
+            if frag:                       # pending fragments were unrecoverable junk
+                stats["dropped"] += len(frag)
+                frag = []
+            emit(obj, recovered=False)
+            continue
+        # Line isn't a standalone record — try joining it with pending fragments.
+        frag.append(line)
+        try:
+            joined = json.loads("\n".join(frag))
+        except json.JSONDecodeError:
+            joined = None
+        if isinstance(joined, dict):
+            emit(joined, recovered=True)
+            frag = []
+    if frag:
+        stats["dropped"] += len(frag)
+    return clean, stats
+
+
+def has_frontmatter(text: str) -> bool:
+    return text.lstrip().startswith("---")
+
+
+def with_overview_frontmatter(text: str, section: str, generated: str) -> str:
+    if has_frontmatter(text):
+        return text
+    fm = (
+        "---\n"
+        "type: overview\n"
+        f"section: {section}\n"
+        f"generated: {generated}\n"
+        "sources: []\n"
+        "---\n\n"
+    )
+    return fm + text
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--dry-run", action="store_true", help="report only, write nothing")
+    ap.add_argument("--finalize", action="store_true",
+                    help="remove legacy CONTEXT-SUMMARY/PLAN-SUMMARY after loader cutover")
+    ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
+    ap.add_argument("--slug", default=None, help="override the project slug for the event log")
+    args = ap.parse_args()
+
+    project = Path(args.project)
+    nano = project / ".nanopm"
+    if not nano.is_dir():
+        log(f"ERROR: {nano} not found — run from a project that has a .nanopm/ folder.")
+        return 1
+
+    wiki = nano / "wiki"
+    raw = nano / "raw"
+    dry = args.dry_run
+    today = _dt.date.today().isoformat()
+    did: list[str] = []
+
+    def mkdir(p: Path):
+        if not p.is_dir():
+            did.append(f"mkdir  {p.relative_to(project)}")
+            if not dry:
+                p.mkdir(parents=True, exist_ok=True)
+
+    def write(p: Path, content: str, label: str):
+        did.append(f"{label:6} {p.relative_to(project)}")
+        if not dry:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+
+    # 1. Scaffold ------------------------------------------------------------
+    mkdir(wiki / "overview")
+    for t in ENTITY_TYPES:
+        mkdir(wiki / "entities" / t)
+    mkdir(wiki / "docs")
+    for d in RAW_SUBDIRS:
+        mkdir(raw / d)
+
+    # 2. Schema --------------------------------------------------------------
+    schema_path = nano / "NANOPM-WIKI.md"
+    if not schema_path.is_file():
+        schema = emit_schema()
+        if schema:
+            write(schema_path, schema, "schema")
+        else:
+            log("WARN: could not emit NANOPM-WIKI.md (nanopm_wiki_schema unavailable); "
+                "run setup or create it manually.")
+
+    # 3. Seed index.md / log.md ---------------------------------------------
+    idx = wiki / "index.md"
+    if not idx.is_file():
+        write(idx, "# Wiki Index\n\n_Generated catalog — one line per page. "
+                   "Regenerated by the ingest/lint agents; do not hand-edit._\n", "seed")
+    lg = wiki / "log.md"
+    if not lg.is_file():
+        write(lg, "# Wiki Log\n\n_Append-only heartbeat. "
+                  "`## [YYYY-MM-DD] <op> | <title>` per operation._\n\n"
+                  f"## [{today}] migrate | initial wiki scaffold\n", "seed")
+
+    # Migration copies into the living wiki only when the destination is ABSENT.
+    # Once migrated, wiki/ is the maintained copy; re-running must not clobber edits.
+    # (To re-pull a file from legacy, delete the wiki copy first.)
+
+    # 4. Overviews -----------------------------------------------------------
+    for legacy, (dest_rel, section) in OVERVIEWS.items():
+        src = nano / legacy
+        dest = wiki / dest_rel
+        if src.is_file() and not dest.exists():
+            body = src.read_text(encoding="utf-8", errors="replace")
+            write(dest, with_overview_frontmatter(body, section, today), "overvw")
+
+    # 5. Docs ----------------------------------------------------------------
+    for name in DOC_NAMES:
+        src = nano / name
+        dest = wiki / "docs" / name.lower()
+        if src.is_file() and not dest.exists():
+            did.append(f"doc    {dest.relative_to(project)}")
+            if not dry:
+                shutil.copy2(src, dest)
+    # prds/ subtree -> wiki/docs/prds/ (per-file, skip existing)
+    prds = nano / "prds"
+    if prds.is_dir():
+        dest_dir = wiki / "docs" / "prds"
+        for f in prds.glob("*.md"):
+            dest = dest_dir / f.name
+            if not dest.exists():
+                did.append(f"doc    {dest.relative_to(project)}")
+                if not dry:
+                    dest_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dest)
+
+    # 6. Events: repair + migrate the raw log --------------------------------
+    sl = slug_for(project, args.slug)
+    src_log = Path.home() / ".nanopm" / "memory" / f"{sl}.jsonl"
+    dest_log = raw / "events.jsonl"
+    if dest_log.exists():
+        # One-time seed only. Once the project log is canonical, never overwrite it
+        # from the legacy global log — that would clobber appends made after cutover.
+        log(f"events: {dest_log.relative_to(project)} already present — left as-is "
+            f"(canonical project log; not re-seeded).")
+    else:
+        clean, stats = repair_jsonl(src_log)
+        if stats["raw_lines"]:
+            write(dest_log, "\n".join(clean) + ("\n" if clean else ""), "events")
+            log(f"events: seeded {stats['records']} records from {src_log} "
+                f"({stats['recovered']} recovered from splits, {stats['dupes']} exact-dupes "
+                f"dropped, {stats['dropped']} junk fragments dropped).")
+        else:
+            log(f"events: no raw log at {src_log} (nothing to seed).")
+
+    # 7. Opportunities note --------------------------------------------------
+    if (nano / "opportunities").is_dir():
+        log("opportunities: left in place at .nanopm/opportunities/ "
+            "(already a conformant section; the entity-backfill task handles linking).")
+
+    # Finalize ---------------------------------------------------------------
+    if args.finalize:
+        for legacy, (dest_rel, _section) in OVERVIEWS.items():
+            src = nano / legacy
+            if not src.is_file():
+                continue
+            dest = wiki / dest_rel
+            # Only delete a legacy original once its wiki replacement exists and is
+            # non-empty — never leave the project with neither copy.
+            if dest.is_file() and dest.stat().st_size > 0:
+                did.append(f"rm     {src.relative_to(project)} (finalize)")
+                if not dry:
+                    src.unlink()
+            else:
+                log(f"finalize: keeping {legacy} — {dest_rel} is missing/empty, not safe to delete")
+        log("finalize: legacy summary originals removed where a wiki overview exists.")
+    else:
+        log("note: legacy CONTEXT-SUMMARY/PLAN-SUMMARY kept (copy mode). "
+            "Re-run with --finalize after the loader cutover (#104).")
+
+    # Report -----------------------------------------------------------------
+    log("")
+    log(f"{'DRY-RUN — would do:' if dry else 'done:'} {len(did)} change(s)")
+    for d in did:
+        log(f"  {d}")
+    if dry:
+        log("\n(no files written — drop --dry-run to apply)")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

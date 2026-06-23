@@ -12,6 +12,11 @@ enum MemoryLog {
     /// Memory journal path for a project, mirroring `nanopm_slug()` in
     /// lib/nanopm.sh: git repo name when inside a repo, else folder name.
     static func file(forProjectAt path: String) -> String {
+        // vNext: the canonical episodic log moved to the project-local wiki raw
+        // layer (mirrors _nanopm_memory_file in lib/nanopm.sh). Prefer it; fall back
+        // to the legacy global ~/.nanopm/memory/<slug>.jsonl for un-migrated projects.
+        let local = path + "/.nanopm/raw/events.jsonl"
+        if FileManager.default.fileExists(atPath: local) { return local }
         let quoted = ShellRunner.quote(path)
         let slug = ((try? ShellRunner.run(
             "basename \"$(git -C \(quoted) rev-parse --show-toplevel 2>/dev/null || echo \(quoted))\""

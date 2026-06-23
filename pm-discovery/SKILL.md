@@ -40,7 +40,7 @@ Run `/pm-challenge-me` when you already know what you're building and want to as
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-discovery
-nanopm_context_all
+nanopm_context_read pm-discovery
 ```
 
 If prior discovery entry found: "Prior discovery from {ts}. This run will build on it."

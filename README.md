@@ -221,7 +221,14 @@ These skills run on a day-to-day cadence without going through the planning sequ
 
 ## Memory
 
-State lives in `~/.nanopm/projects/{slug}/` as append-only, schema-validated JSONL — one file per record type:
+nanopm remembers across sessions, so each run builds on the last instead of starting cold. Memory is a **maintained wiki**, not a chat log — a small set of always-current pages the agent reads at the start of every run, kept tidy by a background bookkeeper. (The pattern is Karpathy's [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).)
+
+- **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated whenever their phase changes and reloaded into every skill — so all work shares one baseline instead of drifting.
+- **Entity pages that compound.** Personas, competitors, opportunities, objectives, features, and people each get a page that many sources update over time, with citations. New evidence refines the page (and supersedes old claims, keeping the history) instead of stacking duplicate notes.
+- **It keeps itself healthy.** `nanopm-lint-agent` flags stale pages, orphans, broken links, and contradictions; the ingest bookkeeper deduplicates by citation; ambiguous writes wait for your confirmation (`nanopm-confidence-gate`).
+- **Just files + git.** No database, no server — `.nanopm/wiki/` is plain markdown you can read, diff, and edit. The conventions live in `.nanopm/NANOPM-WIKI.md`, and the raw episodic log sits under `.nanopm/raw/`.
+
+Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — one file per record type:
 
 | File | What it holds |
 |---|---|

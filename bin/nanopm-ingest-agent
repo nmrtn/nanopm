@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""nanopm-ingest-agent — deterministic bookkeeping mechanics for the memory wiki.
+
+Part of the memory-wiki redesign (issue #105). The "ingest/bookkeeper" is two
+halves:
+
+  1. The REASONING half (what to integrate from a source, which entity pages to
+     touch, how to phrase a claim) is done by an LLM subagent the main agent
+     dispatches — see `nanopm_ingest_prompt` in lib/nanopm.sh.
+  2. The DETERMINISTIC half (this script) is the bookkeeping that needs no LLM:
+     dedup a claim by its citation before writing, regenerate the index, and
+     append to the log. Page writes themselves go THROUGH nanopm-confidence-gate
+     so the confidence policy (NANOPM-WIKI.md §11) applies uniformly.
+
+Keeping the mechanics here (not in the subagent) is what makes ingest idempotent
+and host-agnostic: the same commands run on Claude / Vibe / Codex, and on a host
+without an Agent tool the main agent calls them inline (the graceful fallback).
+
+Subcommands:
+  reindex          regenerate .nanopm/wiki/index.md from page frontmatter
+  log              append a heartbeat line to .nanopm/wiki/log.md
+  citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
+
+Usage:
+  nanopm-ingest-agent reindex [--project DIR]
+  nanopm-ingest-agent log --op ingest --title "Theo interview 2026-06-23" [--project DIR]
+  nanopm-ingest-agent citation-check --target wiki/entities/personas/theo.md \\
+      --citation '"I live in the terminal" — interview, 2026-06-23' [--project DIR]
+
+Exit codes: reindex/log -> 0 ok, 1 error. citation-check -> 0 DUPLICATE, 1 NEW, 2 error.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import sys
+from pathlib import Path
+
+# Section grouping for the index, in display order. entities/<type> groups use the
+# dir name; overview and docs are their own groups.
+ENTITY_ORDER = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
+
+
+def err(msg: str) -> int:
+    print(f"ERROR: {msg}", file=sys.stderr)
+    return 1
+
+
+def wiki_dir(project: str) -> Path:
+    return Path(project) / ".nanopm" / "wiki"
+
+
+def parse_frontmatter(text: str) -> tuple[dict, str]:
+    """Minimal YAML-frontmatter parser (key: value lines only). Returns (fm, body)."""
+    if not text.startswith("---"):
+        return {}, text
+    lines = text.split("\n")
+    end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            end = i
+            break
+    if end is None:
+        return {}, text
+    fm: dict[str, str] = {}
+    for ln in lines[1:end]:
+        if ":" in ln and not ln.lstrip().startswith("#"):
+            k, _, v = ln.partition(":")
+            fm[k.strip()] = v.strip().strip('"').strip("'")
+    return fm, "\n".join(lines[end + 1:])
+
+
+def summary_line(body: str) -> str:
+    """First line under '## Summary', else the first non-heading prose line."""
+    lines = body.split("\n")
+    for i, ln in enumerate(lines):
+        if ln.strip().lower() == "## summary":
+            for ln2 in lines[i + 1:]:
+                if ln2.strip() and not ln2.startswith("#"):
+                    return ln2.strip()
+    for ln in lines:
+        s = ln.strip()
+        if s and not s.startswith("#") and s != "---":
+            return s
+    return ""
+
+
+def _truncate(s: str, n: int = 100) -> str:
+    s = s.replace("\n", " ").strip()
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def collect_pages(wiki: Path) -> dict[str, list[dict]]:
+    """Walk the wiki and return {group: [page-meta, ...]}."""
+    groups: dict[str, list[dict]] = {}
+
+    def add(group: str, path: Path):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return
+        fm, body = parse_frontmatter(text)
+        rel = path.relative_to(wiki).as_posix()
+        title = fm.get("title") or path.stem.replace("-", " ")
+        groups.setdefault(group, []).append({
+            "path": rel,
+            "title": title,
+            "type": fm.get("type", group),
+            "provenance": fm.get("provenance", ""),
+            "last_updated": fm.get("last_updated") or fm.get("generated", ""),
+            "summary": _truncate(summary_line(body)),
+        })
+
+    for f in sorted((wiki / "overview").glob("*.md")):
+        add("overview", f)
+    ent = wiki / "entities"
+    if ent.is_dir():
+        for sub in sorted(p for p in ent.iterdir() if p.is_dir()):
+            for f in sorted(sub.glob("*.md")):
+                add(sub.name, f)
+    for f in sorted((wiki / "docs").glob("*.md")):
+        add("docs", f)
+    return groups
+
+
+def cmd_reindex(args) -> int:
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    groups = collect_pages(wiki)
+    order = ["overview"] + ENTITY_ORDER + ["docs"]
+    seen = set(order)
+    order += [g for g in sorted(groups) if g not in seen]  # any unexpected groups last
+
+    out = ["# Wiki Index", "",
+           "_Generated by nanopm-ingest-agent — one line per page. Do not hand-edit._", ""]
+    total = 0
+    for group in order:
+        pages = groups.get(group)
+        if not pages:
+            continue
+        pages.sort(key=lambda p: p["last_updated"], reverse=True)
+        out.append(f"## {group.capitalize()}")
+        for p in pages:
+            bits = [f"**[{p['title']}]({p['path']})**"]
+            if p["provenance"]:
+                bits.append(p["provenance"])
+            if p["last_updated"]:
+                bits.append(p["last_updated"])
+            line = " · ".join(bits)
+            if p["summary"]:
+                line += f" — {p['summary']}"
+            out.append(f"- {line}")
+            total += 1
+        out.append("")
+
+    # Cross-link the opportunities DB if it lives at the legacy path (pre-backfill).
+    opp_index = Path(args.project) / ".nanopm" / "opportunities" / "INDEX.md"
+    if opp_index.is_file() and not (wiki / "entities" / "opportunities").glob("*.md"):
+        out.append("## Opportunities")
+        out.append("- See [`.nanopm/opportunities/INDEX.md`](../opportunities/INDEX.md) "
+                   "(legacy location — not yet backfilled into entities/).")
+        out.append("")
+
+    if not args.dry_run:
+        (wiki / "index.md").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+    print(f"reindex: {total} page(s) across {sum(1 for g in order if groups.get(g))} group(s)"
+          + (" (dry-run)" if args.dry_run else " -> wiki/index.md"))
+    return 0
+
+
+def cmd_log(args) -> int:
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    day = _dt.date.today().isoformat()
+    line = f"## [{day}] {args.op} | {args.title}"
+    lg = wiki / "log.md"
+    if not args.dry_run:
+        existing = lg.read_text(encoding="utf-8") if lg.is_file() else "# Wiki Log\n"
+        if not existing.endswith("\n"):
+            existing += "\n"
+        lg.write_text(existing + line + "\n", encoding="utf-8")
+    print(f"log: {line}" + (" (dry-run)" if args.dry_run else ""))
+    return 0
+
+
+def cmd_citation_check(args) -> int:
+    """Dedup gate: is this citation already on the page? The citation IS the
+    identity (NANOPM-WIKI.md §5), so a substring match means update-in-place, not
+    append. Returns 0=DUPLICATE, 1=NEW so a caller can branch on the exit code."""
+    cit = args.citation.strip()
+    if not cit:
+        print("ERROR: empty citation", file=sys.stderr)
+        return 2
+    target = Path(args.project) / ".nanopm" / (
+        args.target[len(".nanopm/"):] if args.target.startswith(".nanopm/") else args.target)
+    if not target.is_file():
+        print("NEW")          # page doesn't exist yet -> definitely new
+        return 1
+    body = target.read_text(encoding="utf-8", errors="replace")
+    if cit in body:
+        print("DUPLICATE")
+        return 0
+    print("NEW")
+    return 1
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    r = sub.add_parser("reindex", help="regenerate wiki/index.md")
+    r.add_argument("--dry-run", action="store_true")
+    r.set_defaults(func=cmd_reindex)
+
+    l = sub.add_parser("log", help="append a heartbeat line to wiki/log.md")
+    l.add_argument("--op", required=True, help="ingest | query | lint | migrate")
+    l.add_argument("--title", required=True)
+    l.add_argument("--dry-run", action="store_true")
+    l.set_defaults(func=cmd_log)
+
+    c = sub.add_parser("citation-check", help="is a citation already on a page?")
+    c.add_argument("--target", required=True, help="wiki page path (under .nanopm/)")
+    c.add_argument("--citation", required=True, help="the verbatim citation string")
+    c.set_defaults(func=cmd_citation_check)
+
+    args = ap.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

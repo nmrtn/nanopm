@@ -43,7 +43,7 @@ If a legacy `.nanopm/AUDIT.md` exists and `.nanopm/CHALLENGES.md` does not, read
 Read all prior context to inform the session:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_all
+nanopm_context_read pm-challenge-me
 ```
 
 ## Phase 1: Website bootstrap (optional)
@@ -155,7 +155,7 @@ Check if CONTEXT.md already exists:
 **If CONTEXT.md exists:** Read it. Skip questions that are already answered (non-empty, no `[auto]` placeholder). Only ask for missing answers.
 
 **If CONTEXT.md missing or incomplete:** Write the template. Before asking any question:
-1. Check `nanopm_context_all` for prior answers — pre-fill if derivable, mark `[auto from prior context]`
+1. Check your prior run via `nanopm_context_read pm-challenge-me` (and the overviews loaded at startup) for prior answers — pre-fill if derivable, mark `[auto from prior context]`
 2. **If FEEDBACK.md exists:** pre-fill Q6 from the top unaddressed signal: mark `[auto from FEEDBACK.md]`
 
 Ask only genuinely unanswered questions ONE BY ONE via AskUserQuestion. Do NOT ask all at once.
@@ -255,7 +255,7 @@ echo "BUILD_MODE: $_BUILD_MODE"
 
 ## Phase 4: First-pass synthesis
 
-Read all collected data: CONTEXT.md answers + connector data + website snapshot + prior context from `nanopm_context_all`.
+Read all collected data: CONTEXT.md answers + connector data + website snapshot + prior context from the loaded wiki overviews (and `nanopm_context_read pm-challenge-me`).
 
 Synthesize a first-pass understanding of:
 1. What this product actually does (from behavior/code/data, not just the pitch)

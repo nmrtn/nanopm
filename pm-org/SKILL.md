@@ -46,7 +46,7 @@ new PM whose buy-in they need. Run it early.
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-org
-nanopm_context_all
+nanopm_context_read pm-org
 ```
 
 If a prior pm-org entry exists: "Prior org map from {ts}. This run will refine it, not start over."

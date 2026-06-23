@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""nanopm-lint-agent — health check for the memory wiki (the "sleep" pass).
+
+Part of the memory-wiki redesign (issue #107). Like ingest, lint is two halves:
+
+  1. The DETERMINISTIC structural checks (this script) need no LLM — they read the
+     wiki and report defects: dangling/out-of-vocab edges, missing frontmatter,
+     stale pages, index drift, orphan pages, and the count of preserved
+     contradiction edges.
+  2. The JUDGMENT checks (missing-but-expected contradictions, important-but-absent
+     pages, data gaps) need an LLM — see `nanopm_lint_prompt` in lib/nanopm.sh,
+     which the main agent dispatches as a subagent.
+
+Conforms to .nanopm/NANOPM-WIKI.md (§6 edge vocabulary, §9 lint).
+
+Usage:
+  nanopm-lint-agent [--project DIR] [--stale-days N] [--json]
+
+Exit codes: 0 = no errors, 1 = structural errors found, 2 = wiki missing.
+(Warnings and info never affect the exit code — only ERROR-level defects do.)
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import json
+import re
+import sys
+from pathlib import Path
+
+ALLOWED_RELS = {"contradicts", "supports", "extends", "supersedes", "responds-to"}
+REQUIRED_ENTITY_FM = ["id", "type", "title"]
+DEFAULT_STALE_DAYS = 120
+_LINK_RE = re.compile(r"\]\(([^)]+\.md)\)")
+
+
+def wiki_dir(project: str) -> Path:
+    return Path(project) / ".nanopm" / "wiki"
+
+
+def parse_frontmatter(text: str) -> tuple[dict, list[tuple[str, str]]]:
+    """Return (scalars, relates_to). relates_to is a list of (page, rel) pairs.
+
+    Minimal parser: scalar `key: value` lines, plus the `relates_to:` block of
+    `- page: X` / `rel: Y` pairs. No external YAML dependency (host-agnostic)."""
+    scalars: dict[str, str] = {}
+    edges: list[tuple[str, str]] = []
+    if not text.startswith("---"):
+        return scalars, edges
+    lines = text.split("\n")
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if end is None:
+        return scalars, edges
+    in_rel = False
+    cur_page = None
+    for ln in lines[1:end]:
+        stripped = ln.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if re.match(r"^relates_to\s*:", stripped):
+            in_rel = True
+            # inline empty form: relates_to: []
+            rest = stripped.split(":", 1)[1].strip()
+            if rest and rest != "[]":
+                in_rel = False  # inline non-empty list not supported by this minimal parser
+            continue
+        if in_rel and ln.startswith((" ", "\t")):
+            m_page = re.match(r"^-\s*page\s*:\s*(.+)$", stripped) or re.match(r"^page\s*:\s*(.+)$", stripped)
+            m_rel = re.match(r"^rel\s*:\s*(.+)$", stripped)
+            if m_page:
+                cur_page = m_page.group(1).strip().strip('"').strip("'")
+            elif m_rel and cur_page is not None:
+                edges.append((cur_page, m_rel.group(1).strip().strip('"').strip("'")))
+                cur_page = None
+            continue
+        in_rel = False
+        if ":" in stripped:
+            k, _, v = stripped.partition(":")
+            scalars[k.strip()] = v.strip().strip('"').strip("'")
+    return scalars, edges
+
+
+def entity_pages(wiki: Path) -> list[Path]:
+    ent = wiki / "entities"
+    if not ent.is_dir():
+        return []
+    return sorted(p for sub in ent.iterdir() if sub.is_dir() for p in sub.glob("*.md"))
+
+
+def edge_target_exists(wiki: Path, target: str) -> bool:
+    t = target if target.endswith(".md") else target + ".md"
+    for base in (wiki / "entities", wiki, wiki / "docs"):
+        if (base / t).is_file():
+            return True
+    return False
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--project", default=".")
+    ap.add_argument("--stale-days", type=int, default=DEFAULT_STALE_DAYS)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        print("ERROR: no wiki found — run nanopm-migrate-to-wiki first", file=sys.stderr)
+        return 2
+
+    today = _dt.date.today()
+    errors: list[str] = []
+    warnings: list[str] = []
+    info: list[str] = []
+    contradictions = 0
+
+    ents = entity_pages(wiki)
+    # id/slug index for edge + orphan analysis (entity pages keyed "type/slug").
+    page_keys = {f"{p.parent.name}/{p.stem}" for p in ents}
+    inbound: dict[str, int] = {k: 0 for k in page_keys}
+    outbound: dict[str, int] = {k: 0 for k in page_keys}
+
+    for p in ents:
+        rel_disp = p.relative_to(wiki).as_posix()
+        key = f"{p.parent.name}/{p.stem}"
+        fm, edges = parse_frontmatter(p.read_text(encoding="utf-8", errors="replace"))
+        # missing required frontmatter (ERROR)
+        missing = [f for f in REQUIRED_ENTITY_FM if not fm.get(f)]
+        if missing:
+            errors.append(f"[missing-frontmatter] {rel_disp} (missing: {', '.join(missing)})")
+        # edges
+        for target, rel in edges:
+            outbound[key] = outbound.get(key, 0) + 1
+            tkey = target[:-3] if target.endswith(".md") else target
+            if tkey in inbound:
+                inbound[tkey] += 1
+            if rel == "contradicts":
+                contradictions += 1
+            if rel not in ALLOWED_RELS:
+                errors.append(f"[bad-edge-vocab] {rel_disp} rel=\"{rel}\" "
+                              f"(allowed: {'|'.join(sorted(ALLOWED_RELS))})")
+            if not edge_target_exists(wiki, target):
+                errors.append(f"[dangling-edge] {rel_disp} -> {target} (no such page)")
+        # stale (WARN)
+        lu = fm.get("last_updated") or fm.get("generated")
+        if lu:
+            try:
+                age = (today - _dt.date.fromisoformat(lu)).days
+                if age > args.stale_days:
+                    warnings.append(f"[stale] {rel_disp} last_updated {lu} (>{args.stale_days}d)")
+            except ValueError:
+                warnings.append(f"[stale] {rel_disp} unparseable last_updated {lu!r}")
+
+    # overviews marked stale (WARN)
+    for ov in sorted((wiki / "overview").glob("*.md")):
+        fm, _ = parse_frontmatter(ov.read_text(encoding="utf-8", errors="replace"))
+        if str(fm.get("stale", "")).lower() == "true":
+            warnings.append(f"[stale] {ov.relative_to(wiki).as_posix()} marked stale:true — reconsolidate")
+
+    # index links (shared by the orphan + drift checks)
+    idx = wiki / "index.md"
+    linked = set(_LINK_RE.findall(idx.read_text(encoding="utf-8", errors="replace"))) if idx.is_file() else set()
+
+    # orphans (INFO): a page that is genuinely UNREACHABLE — not listed in the index
+    # AND with no inbound edge. A fresh page with no edges is fine as long as the
+    # index lists it (reindex makes every page reachable); only truly unreferenced
+    # pages are orphans.
+    for p in ents:
+        key = f"{p.parent.name}/{p.stem}"
+        rel = p.relative_to(wiki).as_posix()
+        if rel not in linked and inbound.get(key, 0) == 0:
+            info.append(f"[orphan] {rel} (not in index.md and no inbound edges — run reindex or link it)")
+
+    # index drift (WARN): disk pages vs index.md links
+    if idx.is_file():
+        on_disk = {p.relative_to(wiki).as_posix() for p in ents}
+        on_disk |= {p.relative_to(wiki).as_posix() for p in (wiki / "overview").glob("*.md")}
+        for d in sorted(on_disk - linked):
+            warnings.append(f"[index-drift] {d} on disk but not in index.md (run: nanopm-ingest-agent reindex)")
+    else:
+        warnings.append("[index-drift] wiki/index.md missing (run: nanopm-ingest-agent reindex)")
+
+    if contradictions:
+        info.append(f"contradictions tracked: {contradictions} (preserved as signal, not defects)")
+
+    if args.json:
+        print(json.dumps({"errors": errors, "warnings": warnings, "info": info,
+                          "contradictions": contradictions}, ensure_ascii=False, indent=2))
+    else:
+        print(f"WIKI LINT — {Path(args.project).resolve().name}")
+        print(f"  errors: {len(errors)} | warnings: {len(warnings)} | info: {len(info)}")
+        for group, items in (("ERRORS", errors), ("WARNINGS", warnings), ("INFO", info)):
+            if items:
+                print(f"\n{group}:")
+                for it in items:
+                    print(f"  {it}")
+        if not (errors or warnings):
+            print("\n  wiki is healthy ✓")
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

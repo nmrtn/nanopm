@@ -91,15 +91,37 @@ struct Artifact: Identifiable, Hashable, Sendable {
 
     var displayName: String { prettyDocName(relativePath) }
 
-    /// The consolidated briefs (CONTEXT-SUMMARY / PLAN-SUMMARY) render as cards
-    /// atop their phase overview, never as sidebar rows. Matched case-insensitively
-    /// on the filename: a subagent may write the file in any case, and on a
-    /// case-sensitive filesystem an exact-string match would silently miss it —
-    /// leaving the brief both listed in the sidebar AND absent from its card.
+    /// The consolidated briefs render as cards atop their phase overview, never as
+    /// sidebar rows. vNext lives at wiki/overview/{company,current-work}.md (matched
+    /// by full path — the filenames are too generic to match alone); the legacy flat
+    /// CONTEXT-SUMMARY / PLAN-SUMMARY are matched case-insensitively by filename (a
+    /// subagent may write any case, and on a case-sensitive filesystem an exact-string
+    /// match would silently miss it — leaving the brief both in the sidebar AND absent
+    /// from its card).
     var isPhaseBrief: Bool {
+        let p = relativePath.lowercased()
+        if p == "wiki/overview/company.md" || p == "wiki/overview/current-work.md" { return true }
         let f = fileName.lowercased()
         return f == "context-summary.md" || f == "plan-summary.md"
     }
+}
+
+/// Strip a leading YAML frontmatter block (--- … ---) so a doc renders as prose,
+/// not a "key: value …" metadata paragraph. The vNext wiki pages (overviews,
+/// entities) carry frontmatter; this keeps the reading views clean. No-op when
+/// there's no frontmatter or no closing fence.
+func stripFrontmatter(_ raw: String) -> String {
+    guard raw.hasPrefix("---") else { return raw }
+    let lines = raw.components(separatedBy: "\n")
+    var i = 1
+    while i < lines.count {
+        if lines[i].trimmingCharacters(in: .whitespaces) == "---" {
+            return lines[(i + 1)...].joined(separator: "\n")
+                .trimmingCharacters(in: .newlines)
+        }
+        i += 1
+    }
+    return raw
 }
 
 /// "STRATEGY.md" → "Strategy", "prds/foo-bar.md" → "foo-bar"
@@ -155,6 +177,28 @@ enum PhaseMapper {
     static func phase(for relativePath: String) -> Phase? {
         let lower = relativePath.lowercased()
         let file = (lower as NSString).lastPathComponent
+
+        // vNext wiki layout (.nanopm/wiki/ + raw/). Overviews and entity pages are
+        // canonical here and map to their phase; index/log/_review and the raw/
+        // source layer are machinery (hidden); NANOPM-WIKI.md is the schema (hidden).
+        // wiki/docs/ holds not-yet-canonical copies of the root skill docs — skills
+        // still read/write the root files, so it stays hidden to avoid double-listing
+        // until skills migrate to write there.
+        if lower == "nanopm-wiki.md" { return nil }
+        if lower.hasPrefix("raw/") { return nil }
+        if lower.hasPrefix("wiki/") {
+            if file == "index.md" || file == "log.md" { return nil }
+            if lower.hasPrefix("wiki/_review/") || lower.hasPrefix("wiki/docs/") { return nil }
+            if lower == "wiki/overview/company.md" { return .define }
+            if lower == "wiki/overview/current-work.md" { return .plan }
+            if lower.hasPrefix("wiki/entities/personas/")
+                || lower.hasPrefix("wiki/entities/features/")
+                || lower.hasPrefix("wiki/entities/people/") { return .define }
+            if lower.hasPrefix("wiki/entities/competitors/")
+                || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
+            if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
+            return lower.hasSuffix(".md") ? .other : nil
+        }
 
         if lower.hasPrefix("prds/") { return .ship }
         // intel/ belongs to the Competitors section, which reads its reports

@@ -38,7 +38,7 @@ Run `/pm-weekly-update` at the end of your work week to:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-weekly-update
-nanopm_context_all
+nanopm_context_read pm-weekly-update
 ```
 
 Check for previous weekly updates to maintain continuity of tone and ongoing commitments:

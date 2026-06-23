@@ -48,7 +48,7 @@ not just functionally. Run it early.
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-business-model
-nanopm_context_all
+nanopm_context_read pm-business-model
 ```
 
 If a prior pm-business-model entry exists: "Prior business model from {ts}. This run will refine it, not start over."

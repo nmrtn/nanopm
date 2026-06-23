@@ -33,7 +33,7 @@ echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-breakdown
-nanopm_context_all
+nanopm_context_read pm-breakdown
 ```
 
 ## Phase 1: Identify the PRD

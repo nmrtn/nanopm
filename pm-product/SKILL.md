@@ -50,7 +50,7 @@ depth is `/pm-personas`'s job; "is this the right thing" is `/pm-challenge-me`'s
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-product
-nanopm_context_all
+nanopm_context_read pm-product
 # Migration: a legacy SCAN.md from the retired pm-scan is valid raw input.
 [ -f ".nanopm/SCAN.md" ] && echo "LEGACY_SCAN_EXISTS" || echo "LEGACY_SCAN_MISSING"
 ```

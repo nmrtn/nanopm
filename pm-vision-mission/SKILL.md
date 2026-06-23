@@ -47,7 +47,7 @@ objectives must ladder up to it. Run it first.
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-vision-mission
-nanopm_context_all
+nanopm_context_read pm-vision-mission
 ```
 
 If a prior pm-vision-mission entry exists: "Prior vision/mission from {ts}. This run will refine it, not start over."
