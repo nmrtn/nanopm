@@ -50,7 +50,7 @@ This skill draws from four recognized approaches:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-interview
-nanopm_context_all
+nanopm_context_read pm-interview
 ```
 
 If prior interview entries found: "Found {N} past sessions. This session builds on them — prior verdicts will inform the guide."

@@ -46,7 +46,7 @@ Personas are an **input** to the pipeline. `PERSONAS.md` sharpens `/pm-challenge
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-personas
-nanopm_context_all
+nanopm_context_read pm-personas
 ```
 
 If a prior pm-personas entry exists: "Prior personas from {ts}. This run will refine them, not start over."

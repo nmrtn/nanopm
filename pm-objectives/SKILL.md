@@ -39,7 +39,7 @@ If a prior entry exists, show: "Prior objectives found from {ts}. Reviewing curr
 Read all prior context to inform this run:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_all
+nanopm_context_read pm-objectives
 ```
 
 Key things to extract:
@@ -74,7 +74,7 @@ _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nano
 Ask these questions as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next.
 
 **Before asking any question**, check these sources in order:
-1. Prior context from `nanopm_context_all` — look for a prior pm-objectives entry with a period
+1. Your prior run via `nanopm_context_read pm-objectives` (plus the plan overview loaded at startup) — look for a prior pm-objectives entry with a period
 2. The /pm-challenge-me Q5 answer in CONTEXT.md — often names the quarter or goals directly
 3. CHALLENGES.md Section 3 (biggest gap) — often implies the top goal
 

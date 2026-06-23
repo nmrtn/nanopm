@@ -39,7 +39,7 @@ If found: "Prior roadmap found from {ts}. This run will produce an updated roadm
 Read all prior context:
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_all
+nanopm_context_read pm-roadmap
 ```
 
 ## Phase 1: Context assembly
