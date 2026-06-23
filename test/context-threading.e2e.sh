@@ -209,6 +209,43 @@ else
   printf '  \033[0;33m⚠\033[0m python3 not found — skipping JSON validation\n'
 fi
 
+# ── test 12: wiki loaders (vNext) — index + overview path resolution ──────────
+# Before the wiki is scaffolded, load_index reports "none yet".
+_idx=$(nanopm_load_index 2>&1 || true)
+if echo "$_idx" | grep -q "WIKI_INDEX: none yet"; then
+  ok "nanopm_load_index: reports 'none yet' before the wiki is scaffolded"
+else
+  fail "nanopm_load_index: expected 'none yet' on un-scaffolded project. Got: $_idx"
+fi
+
+# load_context falls back to the legacy flat summary when no wiki overview exists.
+echo "# legacy context" > .nanopm/CONTEXT-SUMMARY.md
+_ctx=$(nanopm_load_context 2>&1 || true)
+if echo "$_ctx" | grep -q "CONTEXT_SUMMARY_LOADED: .nanopm/CONTEXT-SUMMARY.md"; then
+  ok "nanopm_load_context: falls back to legacy CONTEXT-SUMMARY.md"
+else
+  fail "nanopm_load_context: expected legacy fallback. Got: $_ctx"
+fi
+
+# Once the wiki overview exists, load_context prefers it over the legacy file.
+mkdir -p .nanopm/wiki/overview
+printf -- '---\ntype: overview\n---\n# Company\nbody\n' > .nanopm/wiki/overview/company.md
+_ctx=$(nanopm_load_context 2>&1 || true)
+if echo "$_ctx" | grep -q "CONTEXT_SUMMARY_LOADED: .nanopm/wiki/overview/company.md"; then
+  ok "nanopm_load_context: prefers wiki/overview/company.md when present"
+else
+  fail "nanopm_load_context: expected wiki overview preference. Got: $_ctx"
+fi
+
+# load_index loads the catalog once present.
+echo "# Wiki Index" > .nanopm/wiki/index.md
+_idx=$(nanopm_load_index 2>&1 || true)
+if echo "$_idx" | grep -q "WIKI_INDEX_LOADED: .nanopm/wiki/index.md"; then
+  ok "nanopm_load_index: loads the catalog when present"
+else
+  fail "nanopm_load_index: expected WIKI_INDEX_LOADED. Got: $_idx"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "  ─────────────────────────────"

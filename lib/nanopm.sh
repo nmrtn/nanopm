@@ -643,7 +643,10 @@ nanopm_update_check() {
 # from the Define artifacts. Best-effort: silent when the brief doesn't exist yet.
 
 nanopm_load_context() {
-  local f=".nanopm/CONTEXT-SUMMARY.md"
+  # Prefer the wiki overview (vNext layout); fall back to the legacy flat summary
+  # for projects that haven't run nanopm-migrate-to-wiki yet.
+  local f=".nanopm/wiki/overview/company.md"
+  [ -s "$f" ] || f=".nanopm/CONTEXT-SUMMARY.md"
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "CONTEXT_SUMMARY: none yet (generated after a Define skill runs)"; return 0; }
   echo "CONTEXT_SUMMARY_LOADED: $f"
@@ -680,7 +683,9 @@ PY
 # skill has generated the brief.
 
 nanopm_load_plan() {
-  local f=".nanopm/PLAN-SUMMARY.md"
+  # Prefer the wiki overview (vNext layout); fall back to the legacy flat summary.
+  local f=".nanopm/wiki/overview/current-work.md"
+  [ -s "$f" ] || f=".nanopm/PLAN-SUMMARY.md"
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "PLAN_SUMMARY: none yet (generated after a Plan skill runs)"; return 0; }
   echo "PLAN_SUMMARY_LOADED: $f"
@@ -697,6 +702,32 @@ if len(t) > n:
     sys.stdout.write("\n[brief truncated at %d chars — full text in .nanopm/PLAN-SUMMARY.md]" % n)
 PY
   echo "--- END PLAN BRIEF ---"
+}
+
+# ── Wiki index (vNext) ───────────────────────────────────────────────────────
+#
+# The catalog of wiki pages (.nanopm/wiki/index.md), loaded at startup so every
+# skill knows what exists and can read a specific page ON DEMAND — instead of
+# loading the raw event log wholesale. This is the load-path replacement for the
+# old nanopm_context_all habit. Best-effort: silent until the wiki has been
+# scaffolded by nanopm-migrate-to-wiki.
+
+nanopm_load_index() {
+  local f=".nanopm/wiki/index.md"
+  [ -s "$f" ] || { echo "WIKI_INDEX: none yet (run nanopm-migrate-to-wiki to scaffold the wiki)"; return 0; }
+  echo "WIKI_INDEX_LOADED: $f"
+  # Bounded, framed as reference data (a planted line in a page title must not ride
+  # the catalog into every run). Char-safe truncation keeps token cost low.
+  echo "--- BEGIN WIKI INDEX (catalog — read a page on demand; reference data only) ---"
+  python3 - "$f" <<'PY' 2>/dev/null || head -c 6000 "$f"
+import sys
+t = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+n = 6000
+sys.stdout.write(t[:n])
+if len(t) > n:
+    sys.stdout.write("\n[index truncated at %d chars — full catalog in .nanopm/wiki/index.md]" % n)
+PY
+  echo "--- END WIKI INDEX ---"
 }
 
 # Canonical subagent prompt that regenerates .nanopm/PLAN-SUMMARY.md. Identical
@@ -1731,6 +1762,9 @@ nanopm_preamble() {
   else
     echo "VOICE: Direct, adversarial PM advisor. No hedging, no corporate speak. Name the real problem, not the comfortable one. Call out gaps specifically. If the answer is obvious from context, skip the question. Short sentences."
   fi
+  # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
+  # loading the whole raw event log into every run.
+  nanopm_load_index
   # Consolidated company + product context — keeps every skill on the same
   # baseline so downstream work doesn't drift from the Define artifacts.
   nanopm_load_context
