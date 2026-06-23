@@ -257,11 +257,21 @@ esac
 # Once .nanopm/raw/events.jsonl exists it becomes canonical.
 mkdir -p .nanopm/raw
 printf '{"skill":"seed","outputs":{},"ts":"2026-01-01T00:00:00Z","slug":"%s"}\n' "$_SLUG" > .nanopm/raw/events.jsonl
+# Resolved against the git toplevel (absolute), so the path is cwd-independent.
 _canon_after=$(_nanopm_memory_file)
-if [ "$_canon_after" = ".nanopm/raw/events.jsonl" ]; then
-  ok "memory file: relocates to .nanopm/raw/events.jsonl when present"
+case "$_canon_after" in
+  */.nanopm/raw/events.jsonl) ok "memory file: relocates to .nanopm/raw/events.jsonl when present" ;;
+  *) fail "memory file: expected a path ending in .nanopm/raw/events.jsonl, got $_canon_after" ;;
+esac
+
+# Subdir invariance: the SAME project run from a subdirectory must resolve to the
+# SAME canonical log (the split-brain bug the abs-path fix closes).
+mkdir -p sub/dir
+_canon_sub=$(cd sub/dir && _nanopm_memory_file)
+if [ "$_canon_sub" = "$_canon_after" ]; then
+  ok "memory file: same canonical log from a subdirectory (no PWD split-brain)"
 else
-  fail "memory file: expected .nanopm/raw/events.jsonl, got $_canon_after"
+  fail "memory file: subdir resolved '$_canon_sub' != root '$_canon_after'"
 fi
 
 # Appends now land in the relocated project log, and reads see them.

@@ -146,6 +146,19 @@ _out2=$(nanopm_wiki_lint_check)   # second call same day -> throttled, no output
 [ -z "$_out2" ] || fail "lint sleep pass: second call should be throttled (silent), got '$_out2'"
 ok "lint sleep pass: runs once, writes throttle marker, then stays quiet for the day"
 
+# ── 10. lock: concurrent log appends don't lose lines ─────────────────────────
+# log.md is read-modify-write; without the wiki lock, parallel runs clobber each
+# other and lines vanish. Fire 10 at once and require all 10 to survive.
+_before=$(grep -c "^## \[" .nanopm/wiki/log.md 2>/dev/null || echo 0)
+for i in $(seq 1 10); do
+  "$_INGEST" log --op ingest --title "concurrent-$i" >/dev/null &
+done
+wait
+_after=$(grep -c "^## \[" .nanopm/wiki/log.md 2>/dev/null || echo 0)
+_added=$(( _after - _before ))
+[ "$_added" = "10" ] || fail "lock: expected 10 concurrent log lines to all land, got $_added"
+ok "lock: 10 concurrent log appends all survive (no lost lines under contention)"
+
 echo
 echo "  ─────────────────────────────"
 echo "  RESULT: PASSED — memory-wiki ingest loop OK"

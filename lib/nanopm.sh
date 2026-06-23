@@ -106,8 +106,20 @@ _nanopm_memory_file() {
   # a project, e.g. pm-standup standalone) fall back to the legacy global log. No
   # side effects: migrate owns the one-time seed, so the cutover is clean and
   # re-running migrate never clobbers appends made after it.
-  if [ -f ".nanopm/raw/events.jsonl" ]; then
-    echo ".nanopm/raw/events.jsonl"
+  #
+  # Resolve the project ROOT (git toplevel) and test the ABSOLUTE path, so the same
+  # project maps to the same log no matter the current working directory. Testing a
+  # PWD-relative path would split-brain a project run from a subdirectory (where
+  # .nanopm/ isn't visible) versus its root — sending some events to the global log.
+  local root events
+  root=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  if [ -n "$root" ]; then
+    events="$root/.nanopm/raw/events.jsonl"
+  else
+    events=".nanopm/raw/events.jsonl"   # not a git repo: best-effort, PWD-relative
+  fi
+  if [ -f "$events" ]; then
+    echo "$events"
   else
     echo "$HOME/.nanopm/memory/$(nanopm_slug).jsonl"
   fi
