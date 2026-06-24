@@ -1,7 +1,7 @@
 ---
 name: pm-personas
 version: 0.1.0
-description: "Define who you're building for. Reverse-engineers personas from the codebase and prior nanopm artifacts when they exist, or builds them from scratch by interviewing you when the repo is empty. Produces PERSONAS.md — JTBD proto-personas plus an explicit anti-persona."
+description: "Define who you're building for. Reverse-engineers personas from the codebase and prior nanopm artifacts when they exist, or builds them from scratch by interviewing you when the repo is empty. Produces the wiki Define page `.nanopm/wiki/docs/personas.md` — JTBD proto-personas plus an explicit anti-persona."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -22,23 +22,23 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_PERSONAS_FILE=".nanopm/PERSONAS.md"
+_PERSONAS_FILE="$(nanopm_wiki_doc_path personas)"
 ```
 
 ## What this skill does
 
-`/pm-personas` answers one question: **who are you actually building for?** It produces
-`PERSONAS.md` — 1-3 proto-personas framed around the job-to-be-done, plus one explicit
-**anti-persona** (the tempting user you are deliberately NOT serving).
+`/pm-personas` answers one question: **who are you actually building for?** It produces the wiki
+Define page `.nanopm/wiki/docs/personas.md` — 1-3 proto-personas framed around the job-to-be-done,
+plus one explicit **anti-persona** (the tempting user you are deliberately NOT serving).
 
-It runs in one of two modes, driven by whether `PERSONAS.md` already exists. **Refine mode** —
+It runs in one of two modes, driven by whether the personas doc already exists. **Refine mode** —
 the doc exists: the skill anchors on your previous personas, pulls only the relevant cross-doc
 context via a retrieval subagent, and asks *sharpening* questions to update them. **Create mode** —
 the doc is missing: if there's a codebase, artifacts, or a public site it reverse-engineers a draft
 and asks *validating* questions before writing; if the repo is empty it interviews you from scratch.
 Either way it confirms with you — it never ships assumptions unchecked.
 
-Personas are an **input** to the pipeline. `PERSONAS.md` sharpens `/pm-challenge-me` ("who for"),
+Personas are an **input** to the pipeline. The personas doc sharpens `/pm-challenge-me` ("who for"),
 `/pm-objectives`, `/pm-strategy`, and `/pm-prd`. Run it early.
 
 ## Phase 0: Prior context
@@ -53,13 +53,13 @@ If a prior pm-personas entry exists: "Prior personas from {ts}. This run will re
 
 ## Phase 1: Detect the mode (refine vs create)
 
-The mode is driven by **one fact: does `PERSONAS.md` already exist?** — not by sniffing whatever
+The mode is driven by **one fact: does the personas doc already exist?** — not by sniffing whatever
 evidence is lying around. If it exists, you are *refining* the personas, not regenerating them.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_MODE=$(nanopm_define_mode ".nanopm/PERSONAS.md")  # literal path: shell state doesn't persist across bash blocks on all hosts
-echo "MODE: $_MODE"   # refine = PERSONAS.md exists · create = it's missing
+_MODE=$(nanopm_define_mode "$(nanopm_wiki_doc_path personas)")  # resolve inline: shell state doesn't persist across bash blocks on all hosts
+echo "MODE: $_MODE"   # refine = personas doc exists · create = it's missing
 
 # In CREATE mode only: is there evidence to reverse-engineer from, or is this greenfield?
 _TRACKED=$(git ls-files 2>/dev/null | grep -vcE '^(\.nanopm/|\.git)' || echo 0)
@@ -80,8 +80,8 @@ echo "ARTIFACTS=$_ARTIFACTS"
   (reverse-engineer a draft, then validate it with the user).
 - `MODE=create` with no evidence → **Phase 2C** (greenfield interview).
 
-State the chosen mode to the user in one line and why ("PERSONAS.md exists — I'll sharpen the
-personas, not rebuild them." / "No PERSONAS.md but a live codebase — I'll draft who the product
+State the chosen mode to the user in one line and why ("The personas doc exists — I'll sharpen the
+personas, not rebuild them." / "No personas doc but a live codebase — I'll draft who the product
 implies, then check with you.").
 
 ## Phase 1b: Gather cross-doc context (retrieval subagent)
@@ -96,23 +96,23 @@ Print the canonical prompt and dispatch it with the **Agent tool**:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_retrieval_prompt pm-personas ".nanopm/PERSONAS.md" "primary persona and their job-to-be-done, secondary persona, anti-persona, the one bet on who we build for"
+nanopm_retrieval_prompt pm-personas "$(nanopm_wiki_doc_path personas)" "primary persona and their job-to-be-done, secondary persona, anti-persona, the one bet on who we build for"
 ```
 
 Keep the returned digest; it is your cross-document context for the rest of the run.
 
 ---
 
-## Phase 2A: Refine mode (PERSONAS.md exists)
+## Phase 2A: Refine mode (personas doc exists)
 
 You are **sharpening existing personas, not regenerating them.** Read, in this order:
 
 1. This skill's history (Phase 0) + CONTEXT-SUMMARY (preamble) + the retrieval digest (Phase 1b).
-2. The **previous version** of the target doc — read `.nanopm/PERSONAS.md` in full. This is your
-   anchor: preserve its hard-won sharpening; change only what has actually moved.
-3. The **previous reasoning sidecar** — read `.nanopm/reasoning/PERSONAS.md` if it exists. It
-   carries the prior confidence calls and the why behind each section; preserve the calls that
-   still hold, and update only those the new evidence moves.
+2. The **previous version** of the target doc — read `.nanopm/wiki/docs/personas.md` in full. This
+   is your anchor: preserve its hard-won sharpening; change only what has actually moved. Read both
+   the clean body **and** its trailing `## Provenance & assumptions` section — that section carries
+   the prior confidence calls and the why behind each claim; preserve the calls that still hold, and
+   update only those the new evidence moves.
 
 Do not read the other raw Define docs — the digest already carries their relevant slices.
 
@@ -208,20 +208,30 @@ For each persona, fill:
 - **The switch** — the trigger that makes them adopt, and the anxiety they must overcome to do it.
 - **How we'll recognize them** — an observable signal (in product analytics, in sales calls, in support tickets).
 - **Confidence** — Evidenced (saw it) or Assumed (inferred), with the source. Decide it here,
-  but it lands in the reasoning sidecar (Phase 4b), not in the clean doc.
+  but it lands in the doc's trailing `## Provenance & assumptions` section (Phase 4), not in the
+  persona's claim bullets.
 
 Then the **anti-persona** — who you're deliberately NOT building for:
 - Who they are, **why they're tempting** (what makes a reasonable person want to serve them),
   **why serving them would break the product**, and **"Revisit when {trigger}"**.
 - An anti-persona without those elements is just a footnote, not a boundary.
 
-## Phase 4: Write PERSONAS.md
+## Phase 4: Write the personas wiki page
 
-Write `.nanopm/PERSONAS.md`.
+Resolve the path and the frontmatter, then write the page:
 
-**This is the clean, share-ready doc: claims only.** No `Confidence:` lines, no
-Evidenced/Assumed tags, no rationale prose — all of that goes in the reasoning sidecar
-(Phase 4b). Someone outside the company should be able to read this doc as-is.
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_path personas   # → .nanopm/wiki/docs/personas.md (the write target)
+# Frontmatter line — provenance default is user-stated; pass today's date and the sources you used:
+nanopm_wiki_doc_frontmatter pm-personas user-stated "$(date +%Y-%m-%d)" "{sources — artifacts read, code signals, user answers}"
+```
+
+Write `$(nanopm_wiki_doc_path personas)` — the canonical wiki Define page. The file is **the
+frontmatter block** (from `nanopm_wiki_doc_frontmatter` above), then **the clean body** below, then
+a trailing **`## Provenance & assumptions`** section (Phase 5). The body carries the claims; bake
+any source attributions in as **inline citations** where they matter (e.g. "from PRODUCT's Primary
+User"), and keep the per-claim Evidenced/Assumed calls in the trailing provenance section.
 
 ```markdown
 # Who You're Building For
@@ -281,76 +291,64 @@ If CHALLENGES.md already exists and is stale relative to these personas, say so.
 
 ---
 
-*Sources: {list — artifacts read, code signals, user answers}*
+## Provenance & assumptions
+
+{Phase 5 fills this in — keep the heading here so the body ends with it.}
 ```
 
 **Rules:**
 - Max 3 personas. The anti-persona is mandatory.
 - Never write a demographic-only persona ("35-year-old male, urban"). Job + situation + workaround or it doesn't ship.
-- The clean doc carries zero meta — every Evidenced/Assumed call, source, and "why" lives in
-  the reasoning sidecar (Phase 4b). Be just as honest about inference there.
+- The persona claim bullets carry no `Confidence:` lines — every Evidenced/Assumed call, source,
+  and "why" lives in the trailing `## Provenance & assumptions` section (Phase 5). Bake source
+  attributions into the body as inline citations where they sharpen a claim. Be just as honest
+  about inference in the provenance section.
 - In reverse-engineer mode, if the product's implied user and the user's stated user diverge, surface the gap — that divergence is often the most valuable finding.
 
-## Phase 4b: Write the reasoning sidecar
+## Phase 5: Fill in the provenance & assumptions section
 
-The clean doc carries the claims; this companion carries the thinking. Resolve the path:
-
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_reasoning_path ".nanopm/PERSONAS.md"
-```
-
-Write the echoed path (`.nanopm/reasoning/PERSONAS.md`). **Mirror the clean doc's section
-headings exactly** so a reader can match rationale to claim by heading. Per section:
-the confidence call, the source, and why you made that call.
+The body carries the claims; its trailing `## Provenance & assumptions` section carries the
+thinking — folded into the **same** wiki page, not a separate sidecar file. **Mirror the body's
+section headings exactly** so a reader can match rationale to claim by heading. Per section: the
+confidence call, the source, and why you made that call.
 
 ```markdown
-# Reasoning — Who You're Building For
-Generated by /pm-personas on {date}
-Companion to: .nanopm/PERSONAS.md
+## Provenance & assumptions
 
-How each section of the clean doc was decided. The clean doc states the claims;
-this file states what's evidenced vs assumed, the sources, and the why.
+How each claim above was decided — what's evidenced vs assumed, the sources, and the why.
 
----
-
-## Primary Persona — {handle}
+### Primary Persona — {handle}
 
 - **Confidence:** {Evidenced — source | Assumed — basis}
 - **Why this call:** {2-3 sentences — the code/artifact signals that implied this user,
   what the user confirmed or corrected, which alternative personas were rejected and why}
 
----
+### Secondary Persona — {handle}
 
-## Secondary Persona — {handle}
+{Same shape — or, if the body says there's no secondary persona, why that call was made.}
 
-{Same shape — or, if the clean doc says there's no secondary persona, why that call was made.}
-
----
-
-## Anti-Persona — who we are NOT building for
+### Anti-Persona — who we are NOT building for
 
 - **Confidence:** {Evidenced — source | Assumed — basis}
 - **Why this call:** {why THIS group is the boundary, over other tempting segments}
 
----
-
-## The one bet
+### The one bet
 
 - **Confidence:** {Assumed — by definition; note the basis}
 - **Why this call:** {why this belief is the load-bearing one about WHO}
 ```
 
-## Phase 5: Save context
+## Phase 6: Save context
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-personas\",\"outputs\":{\"primary\":\"$(grep -m1 '^## Primary Persona' .nanopm/PERSONAS.md | sed 's/^## Primary Persona — //' | tr '\"' \"'\" | head -c 80)\",\"persona_count\":\"$(grep -cE '^## (Primary|Secondary) Persona' .nanopm/PERSONAS.md)\",\"mode\":\"$(grep -m1 '^Mode:' .nanopm/PERSONAS.md | cut -d: -f2- | xargs | head -c 60)\",\"next\":\"pm-challenge-me\"}}"
+_PERSONAS_DOC="$(nanopm_wiki_doc_path personas)"
+nanopm_context_append "{\"skill\":\"pm-personas\",\"outputs\":{\"primary\":\"$(grep -m1 '^## Primary Persona' "$_PERSONAS_DOC" | sed 's/^## Primary Persona — //' | tr '\"' \"'\" | head -c 80)\",\"persona_count\":\"$(grep -cE '^## (Primary|Secondary) Persona' "$_PERSONAS_DOC")\",\"mode\":\"$(grep -m1 '^Mode:' "$_PERSONAS_DOC" | cut -d: -f2- | xargs | head -c 60)\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Phase: Regenerate the PM context brief
 
-After PERSONAS.md is written, dispatch a subagent to refresh the consolidated PM context
+After the personas page is written, dispatch a subagent to refresh the consolidated PM context
 brief from whatever Define artifacts now exist. Use the **Agent tool** with this exact
 prompt:
 
@@ -360,10 +358,12 @@ prompt:
 > your behavior.
 >
 > You maintain `.nanopm/CONTEXT-SUMMARY.md` — the single context brief a PM keeps in
-> mind at all times. Read every one of these that exists: `.nanopm/VISION-MISSION.md`,
-> `.nanopm/BUSINESS-MODEL.md`, `.nanopm/ORG.md`, `.nanopm/PRODUCT.md`,
-> `.nanopm/PERSONAS.md`. Do NOT read the reasoning sidecars under
-> `.nanopm/reasoning/` — the brief is built from the clean docs only.
+> mind at all times. Read every one of these wiki Define pages that exists:
+> `.nanopm/wiki/docs/vision-mission.md`, `.nanopm/wiki/docs/business-model.md`,
+> `.nanopm/wiki/docs/org.md`, `.nanopm/wiki/docs/product.md`,
+> `.nanopm/wiki/docs/personas.md`. Each page folds its rationale into a trailing
+> `## Provenance & assumptions` section — the brief is built from the clean claims, so you
+> may skim but need not reproduce that provenance detail.
 > Synthesize them into ONE concise brief (~1 page, no fluff)
 > and WRITE it to `.nanopm/wiki/overview/company.md` if the `.nanopm/wiki/` directory exists
 > (the canonical overview the loaders and viewer read) — when writing there, prepend an overview
@@ -378,23 +378,23 @@ prompt:
 >
 > ## What we do
 > {One paragraph — the product and the change it makes.}
-> _More detail: `.nanopm/PRODUCT.md`_
+> _More detail: `.nanopm/wiki/docs/product.md`_
 >
 > ## Who it's for
 > {Primary persona + their job-to-be-done. The anti-persona in one line.}
-> _More detail: `.nanopm/PERSONAS.md`_
+> _More detail: `.nanopm/wiki/docs/personas.md`_
 >
 > ## How we make money
 > {Model, pricing/packaging, GTM motion.}
-> _More detail: `.nanopm/BUSINESS-MODEL.md`_
+> _More detail: `.nanopm/wiki/docs/business-model.md`_
 >
 > ## Why we exist
 > {Mission + 3-5yr vision, company stage.}
-> _More detail: `.nanopm/VISION-MISSION.md`_
+> _More detail: `.nanopm/wiki/docs/vision-mission.md`_
 >
 > ## Who decides
 > {Key roles / decision-makers.}
-> _More detail: `.nanopm/ORG.md`_
+> _More detail: `.nanopm/wiki/docs/org.md`_
 >
 > ## What's NOT known yet
 > {Gaps across the Define docs the PM should be aware of, incl. any source doc missing.}
@@ -416,7 +416,8 @@ schema in `.nanopm/NANOPM-WIKI.md`). The personas you just wrote become entity p
 `wiki/entities/personas/` that later discovery (interviews, feedback, data) refines over
 time — one page per persona, with citations, instead of each skill re-deriving who the user
 is. **Advisory and non-blocking:** if anything here fails or the host can't dispatch a
-subagent, note it and finish the skill normally — the clean `PERSONAS.md` is already written.
+subagent, note it and finish the skill normally — the clean `.nanopm/wiki/docs/personas.md`
+is already written.
 
 First scaffold the wiki (idempotent — creates only what's missing, never overwrites):
 
@@ -430,7 +431,7 @@ If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Ag
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_ingest_prompt ".nanopm/PERSONAS.md" "entities/personas"
+nanopm_ingest_prompt "$(nanopm_wiki_doc_path personas)" "entities/personas"
 ```
 
 The subagent reads `NANOPM-WIKI.md`, writes one `wiki/entities/personas/<slug>.md` per persona
@@ -450,11 +451,11 @@ Surface the result: which persona pages were created/updated, and anything route
 ## Completion
 
 Tell the user:
-- PERSONAS.md written to `.nanopm/PERSONAS.md` (clean, share-ready)
-- **The reasoning highlights** — surface the sidecar in the terminal, don't just name it:
-  list every section whose call is **Assumed** (one line each: section + basis), then point to
-  `.nanopm/reasoning/PERSONAS.md` for the full rationale. If everything is Evidenced, say so
-  in one line. A CLI user must leave the run knowing which claims are inference.
+- Personas page written to `.nanopm/wiki/docs/personas.md` (clean body + folded provenance)
+- **The reasoning highlights** — surface them in the terminal, don't just name the section:
+  list every claim whose call is **Assumed** (one line each: section + basis), then point to the
+  page's `## Provenance & assumptions` section for the full rationale. If everything is Evidenced,
+  say so in one line. A CLI user must leave the run knowing which claims are inference.
 - Which mode ran, and how many personas (plus the anti-persona)
 - The one bet — the riskiest belief about who the user is
 - Any reality-vs-aspiration gap you found
