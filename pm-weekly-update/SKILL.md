@@ -42,7 +42,7 @@ nanopm_context_read pm-weekly-update
 
 Check for previous weekly updates to maintain continuity of tone and ongoing commitments:
 ```bash
-ls .nanopm/weekly-updates/ 2>/dev/null | sort | tail -3 || echo "NO_PRIOR_UPDATES"
+ls .nanopm/wiki/docs/weekly-update-*.md 2>/dev/null | sort | tail -3 || echo "NO_PRIOR_UPDATES"
 ```
 
 ## Phase 1: Identify the audience
@@ -188,22 +188,21 @@ NEXT MILESTONE
 - If "needs your input" is empty, omit the section entirely
 - Never use "we're making great progress" without a concrete data point
 
-## Phase 5: Write the wiki Weekly Update page
+## Phase 5: Write the dated wiki Weekly Update page
 
-Write the latest draft to the wiki doc page at `$(nanopm_wiki_doc_path weekly-update)` (i.e. `.nanopm/wiki/docs/weekly-update.md`) — overwrite. The file MUST start with frontmatter, then the update body:
+Write the update to a DATED wiki doc page — one per week, history preserved (same
+pattern as standup/retro). The path embeds today's date:
+`$(nanopm_wiki_doc_path "weekly-update-$(date +%F)")` (i.e.
+`.nanopm/wiki/docs/weekly-update-YYYY-MM-DD.md`). The file MUST start with frontmatter,
+then the update body:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_path "weekly-update-$(date +%F)"                                    # the dated page to write
 nanopm_wiki_doc_frontmatter pm-weekly-update user-stated "$(date +%Y-%m-%d)" "{sources}"
 ```
 
-(Replace `{sources}` with the actual sources used — e.g. `git,linear,roadmap` — as a comma-separated list.) The body below the frontmatter is the update drafted in Phase 4.
-
-Also append to weekly history:
-```bash
-mkdir -p .nanopm/weekly-updates
-cp "$(nanopm_wiki_doc_path weekly-update)" ".nanopm/weekly-updates/$(date +%Y-%m-%d).md" 2>/dev/null || true
-```
+(Replace `{sources}` with the actual sources used — e.g. `git,linear,roadmap` — as a comma-separated list.) The body below the frontmatter is the update drafted in Phase 4. There is no separate "latest" file or `.nanopm/weekly-updates/` archive — each week is its own dated page.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -213,7 +212,7 @@ nanopm_context_append "{\"skill\":\"pm-weekly-update\",\"outputs\":{\"date\":\"$
 ## Completion
 
 Tell the user:
-- Draft written to `.nanopm/wiki/docs/weekly-update.md`
+- Draft written to `.nanopm/wiki/docs/weekly-update-$(date +%F).md` (this week's dated page)
 - Remind them to check the "NEEDS YOUR INPUT" section before sending — that's the most actionable part
 - If anything slipped: "The slippage is in the update. Don't soften it — your stakeholders will respect the honesty more than the spin."
 

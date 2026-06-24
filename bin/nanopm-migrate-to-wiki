@@ -375,16 +375,30 @@ def main() -> int:
             else:
                 did.append(f"fold   {page.relative_to(project)} (after copy)")  # dry-run preview
 
-    # prds/ subtree -> wiki/docs/prds/ (per-file, skip existing)
-    prds = nano / "prds"
-    if prds.is_dir():
-        dest_dir = wiki / "docs" / "prds"
-        for f in prds.glob("*.md"):
+    # prds/ and tasks/ subtrees -> wiki/docs/<name>/ (per-file, skip existing).
+    for sub in ("prds", "tasks"):
+        srcdir = nano / sub
+        if not srcdir.is_dir():
+            continue
+        dest_dir = wiki / "docs" / sub
+        for f in srcdir.glob("*.md"):
             dest = dest_dir / f.name
             if not dest.exists():
                 did.append(f"doc    {dest.relative_to(project)}")
                 if not dry:
                     dest_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dest)
+
+    # weekly-updates/<date>.md -> wiki/docs/weekly-update-<date>.md (dated docs, same
+    # pattern as standup/retro; the skill writes these directly now).
+    wkdir = nano / "weekly-updates"
+    if wkdir.is_dir():
+        for f in sorted(wkdir.glob("*.md")):
+            dest = (wiki / "docs") / f"weekly-update-{f.name}"
+            if not dest.exists():
+                did.append(f"doc    {dest.relative_to(project)}")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
 
     # 6. Events: repair + migrate the raw log --------------------------------
@@ -486,7 +500,7 @@ def main() -> int:
         # copy these into the wiki BEFORE finalize, so on a real run the mirror always
         # exists; under --dry-run those copies haven't landed, so treat a non-empty
         # source as "would be mirrored" (matching 8b) for a faithful preview.
-        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities")):
+        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities"), ("tasks", "docs/tasks")):
             ldir = nano / legacy_rel
             wdir = wiki / wiki_rel
             if not ldir.is_dir():
@@ -510,8 +524,31 @@ def main() -> int:
                 did.append(f"rmdir  {ldir.relative_to(project)} (finalize)")
                 if not dry:
                     ldir.rmdir()
+        # 8e. weekly-updates/<date>.md -> mirrored as wiki/docs/weekly-update-<date>.md
+        # (renamed, so it can't share 8d's same-name logic).
+        wkdir = nano / "weekly-updates"
+        if wkdir.is_dir():
+            entries = list(wkdir.iterdir())
+            md_files = sorted(p for p in entries if p.suffix == ".md")
+            removed = 0
+            for f in md_files:
+                mirror = (wiki / "docs") / f"weekly-update-{f.name}"
+                mirror_ready = (mirror.is_file() and mirror.stat().st_size > 0) or (dry and f.stat().st_size > 0)
+                if mirror_ready:
+                    did.append(f"rm     {f.relative_to(project)} (finalize)")
+                    removed += 1
+                    if not dry:
+                        f.unlink()
+                else:
+                    log(f"finalize: keeping {f.relative_to(project)} — docs/weekly-update-{f.name} missing/empty")
+            non_md = [p for p in entries if p.suffix != ".md"]
+            if not non_md and removed > 0 and removed == len(md_files):
+                did.append(f"rmdir  {wkdir.relative_to(project)} (finalize)")
+                if not dry:
+                    wkdir.rmdir()
         log("finalize: legacy summaries, flat Define/Plan docs, folded sidecars, and the "
-            "relocated prds/ + opportunities/ root copies removed where mirrored in the wiki.")
+            "relocated prds/ + tasks/ + opportunities/ + weekly-updates/ root copies "
+            "removed where mirrored in the wiki.")
     else:
         log("note: legacy flat docs / summaries / reasoning sidecars kept (copy mode). "
             "Re-run with --finalize once the wiki pages are confirmed.")

@@ -236,6 +236,9 @@ enum PhaseMapper {
                 || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
             if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
             if lower.hasPrefix("wiki/docs/prds/") { return .ship }
+            // tasks/ are pm-breakdown outputs bound for external trackers — relocated
+            // into the wiki for storage but kept hidden from the browser (as before).
+            if lower.hasPrefix("wiki/docs/tasks/") { return nil }
             // wiki/docs/<skill>.md: a migrated doc — fall through to the filename
             // matching below (vision/strategy/feedback/... -> phase). Any other wiki
             // markdown lands in "Other".
