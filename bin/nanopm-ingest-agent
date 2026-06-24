@@ -184,7 +184,7 @@ def cmd_reindex(args) -> int:
     opp_index = Path(args.project) / ".nanopm" / "opportunities" / "INDEX.md"
     if opp_index.is_file() and not any((wiki / "entities" / "opportunities").glob("*.md")):
         out.append("## Opportunities")
-        out.append("- See [`.nanopm/opportunities/INDEX.md`](../opportunities/INDEX.md) "
+        out.append("- See [`.nanopm/wiki/entities/opportunities/INDEX.md`](../entities/opportunities/INDEX.md) "
                    "(legacy location — not yet backfilled into entities/).")
         out.append("")
 

@@ -22,7 +22,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_PRD_DIR=".nanopm/prds"
+_PRD_DIR=".nanopm/wiki/docs/prds"
 mkdir -p "$_PRD_DIR"
 _METHODOLOGY=$(nanopm_config_get "methodology")
 echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
@@ -160,7 +160,7 @@ Stop after 3 questions or when context is sufficient.
 
 Derive a slug: `_SLUG_FEATURE=$(echo "$_FEATURE" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')`
 
-Write to `.nanopm/prds/{slug-feature}.md` using the format that matches `_METHODOLOGY`.
+Write to `.nanopm/wiki/docs/prds/{slug-feature}.md` using the format that matches `_METHODOLOGY`.
 
 ---
 
@@ -364,7 +364,7 @@ This phase enforces ETHOS principles 4 and 6: *"Evidence Before Conviction"* and
 
 ### 4b.1. Extract the Falsification paragraph
 
-Read the drafted `.nanopm/prds/${_SLUG_FEATURE}.md`. Pull the text under the `## Falsification` heading into `_FALSIF_TEXT`.
+Read the drafted `.nanopm/wiki/docs/prds/${_SLUG_FEATURE}.md`. Pull the text under the `## Falsification` heading into `_FALSIF_TEXT`.
 
 If the section is missing or empty, STOP and tell the user: *"PRD has no Falsification section. The template requires one. Add a paragraph stating what evidence would prove this bet wrong, then re-run."* Exit non-zero.
 
@@ -517,7 +517,7 @@ nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $
 ## Completion
 
 Tell the user:
-- PRD written to `.nanopm/prds/{feature}.md`
+- PRD written to `.nanopm/wiki/docs/prds/{feature}.md`
 - Open questions that need answers before implementation
 - The success criteria — ask if they look right
 - Suggested next step: hand this PRD to your engineering team or run `/pm-breakdown` to create tickets, or `/pm-retro` after shipping to compare plan vs reality

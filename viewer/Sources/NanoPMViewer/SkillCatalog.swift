@@ -185,8 +185,8 @@ enum SkillCatalog {
             blurb: "A ranked, agent-maintained database of user opportunities (Teresa Torres) — the problems behind what you build, not the solutions. bootstrap drafts the set from feedback + your assumptions + Nano's hypotheses; add captures one at a time.",
             icon: "lightbulb",
             skillCommand: "/pm-opportunities",
-            headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
-            phase: .discover, output: .file("opportunities/INDEX.md")
+            headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/wiki/entities/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
+            phase: .discover, output: .file("wiki/entities/opportunities/INDEX.md")
         ),
         SkillDoc(
             title: "Competitor Intel",
@@ -230,7 +230,7 @@ enum SkillCatalog {
             icon: "doc.text.fill",
             skillCommand: "/pm-prd",
             headlessArgs: "Ask the user (via the interface contract) which feature to spec if it is not obvious from ROADMAP.md.",
-            phase: .ship, output: .folder(prefix: "prds/", opens: NavRoute.prdsPage)
+            phase: .ship, output: .folder(prefix: "wiki/docs/prds/", opens: NavRoute.prdsPage)
         ),
         SkillDoc(
             title: "Breakdown",

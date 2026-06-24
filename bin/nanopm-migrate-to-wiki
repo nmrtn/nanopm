@@ -16,7 +16,9 @@ What it does (idempotent — safe to re-run):
                "## Provenance & assumptions" section (idempotent; never folds twice).
   6. Events    repair + migrate ~/.nanopm/memory/{slug}.jsonl -> .nanopm/raw/events.jsonl
                (join newline-split records, drop exact-duplicate lines).
-  7. Opps      leave .nanopm/opportunities/ in place (already a conformant section).
+  7. Opps      copy .nanopm/opportunities/ -> wiki/entities/opportunities/ (its
+               canonical home, schema §2). prds/ -> wiki/docs/prds/. --finalize removes
+               the root copies once mirrored.
 
 By default it COPIES (non-destructive): the legacy files stay so the current
 preamble keeps working until the loader cutover lands. Pass --finalize to remove the
@@ -404,10 +406,20 @@ def main() -> int:
         else:
             log(f"events: no raw log at {src_log} (nothing to seed).")
 
-    # 7. Opportunities note --------------------------------------------------
-    if (nano / "opportunities").is_dir():
-        log("opportunities: left in place at .nanopm/opportunities/ "
-            "(already a conformant section; the entity-backfill task handles linking).")
+    # 7. Opportunities: relocate the legacy root section into the wiki -------
+    # .nanopm/opportunities/ is an entity section; its canonical home is
+    # wiki/entities/opportunities/ (schema §2). Copy per-file (skip existing), so
+    # --finalize can remove the root copy once it's mirrored.
+    legacy_opps = nano / "opportunities"
+    if legacy_opps.is_dir():
+        opp_dest = wiki / "entities" / "opportunities"
+        for f in legacy_opps.glob("*.md"):
+            dest = opp_dest / f.name
+            if not dest.exists():
+                did.append(f"opp    {dest.relative_to(project)}")
+                if not dry:
+                    opp_dest.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dest)
 
     # Finalize ---------------------------------------------------------------
     if args.finalize:
@@ -469,8 +481,37 @@ def main() -> int:
                         side.unlink()
                 else:
                     log(f"finalize: keeping reasoning/{name} — not yet folded into the wiki page")
-        log("finalize: legacy summaries, flat Define/Plan docs, and folded sidecars "
-            "removed where their wiki replacement exists.")
+        # 8d. Relocated sections (prds, opportunities): remove the root copy once its
+        # file is mirrored under the wiki, then drop the emptied legacy dir. Steps 5/7
+        # copy these into the wiki BEFORE finalize, so on a real run the mirror always
+        # exists; under --dry-run those copies haven't landed, so treat a non-empty
+        # source as "would be mirrored" (matching 8b) for a faithful preview.
+        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities")):
+            ldir = nano / legacy_rel
+            wdir = wiki / wiki_rel
+            if not ldir.is_dir():
+                continue
+            entries = list(ldir.iterdir())
+            md_files = sorted(p for p in entries if p.suffix == ".md")
+            removed = 0
+            for f in md_files:
+                mirror = wdir / f.name
+                mirror_ready = (mirror.is_file() and mirror.stat().st_size > 0) or (dry and f.stat().st_size > 0)
+                if mirror_ready:
+                    did.append(f"rm     {f.relative_to(project)} (finalize)")
+                    removed += 1
+                    if not dry:
+                        f.unlink()
+                else:
+                    log(f"finalize: keeping {f.relative_to(project)} — {wiki_rel}/{f.name} missing/empty")
+            # The dir is droppable only if every entry was a removed .md (no stray files).
+            non_md = [p for p in entries if p.suffix != ".md"]
+            if not non_md and removed > 0 and removed == len(md_files):
+                did.append(f"rmdir  {ldir.relative_to(project)} (finalize)")
+                if not dry:
+                    ldir.rmdir()
+        log("finalize: legacy summaries, flat Define/Plan docs, folded sidecars, and the "
+            "relocated prds/ + opportunities/ root copies removed where mirrored in the wiki.")
     else:
         log("note: legacy flat docs / summaries / reasoning sidecars kept (copy mode). "
             "Re-run with --finalize once the wiki pages are confirmed.")

@@ -146,7 +146,7 @@ struct OpportunitiesOverviewView: View {
     /// No `SCHEMA.md` means the DB isn't bootstrapped yet — the menu collapses to
     /// a single Bootstrap action (you can't add to / generate into a DB that
     /// doesn't exist; the skill enforces the same override).
-    private var hasSchema: Bool { store.artifacts.contains { $0.relativePath == "opportunities/SCHEMA.md" } }
+    private var hasSchema: Bool { store.artifacts.contains { ["wiki/entities/opportunities/SCHEMA.md","opportunities/SCHEMA.md"].contains($0.relativePath) } }
 
     /// Live L1 themes, derived from the loaded opportunities, for the
     /// "Generate → By theme" submenu. Empty until the table has loaded.
@@ -257,7 +257,7 @@ struct OpportunitiesOverviewView: View {
                 ContentUnavailableView(
                     "No opportunities yet",
                     systemImage: "lightbulb",
-                    description: Text("Run /pm-opportunities in your agent to bootstrap the database — it lands in .nanopm/opportunities/.")
+                    description: Text("Run /pm-opportunities in your agent to bootstrap the database — it lands in .nanopm/wiki/entities/opportunities/.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

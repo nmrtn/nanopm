@@ -27,10 +27,12 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
     var order: Int { Phase.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// Helpers for PRD artifacts (the `prds/` subfolder of .nanopm/).
+/// Helpers for PRD artifacts. Under wiki-canonical writes PRDs live at
+/// `wiki/docs/prds/`; the legacy `prds/` root path is kept for un-migrated projects.
 enum PRDFiles {
     static func isPRD(_ relativePath: String) -> Bool {
-        relativePath.hasPrefix("prds/") && relativePath.hasSuffix(".md")
+        (relativePath.hasPrefix("wiki/docs/prds/") || relativePath.hasPrefix("prds/"))
+            && relativePath.hasSuffix(".md")
     }
 
     /// Parses the PRD/pitch header for a display title and status.
@@ -171,10 +173,14 @@ func prettyDocName(_ relativePath: String) -> String {
 /// expandable "Opportunities" entry in Discover (INDEX is the landing), not
 /// listed as flat sidebar rows — mirroring how PRDs and Competitors collapse.
 enum OpportunityFiles {
-    static let dirPrefix = "opportunities/"
+    /// Canonical home under wiki-canonical writes (schema §2); the legacy root
+    /// `opportunities/` path is kept for un-migrated projects.
+    static let dirPrefix = "wiki/entities/opportunities/"
+    static let legacyPrefix = "opportunities/"
 
     static func isOpportunityFile(_ relativePath: String) -> Bool {
-        relativePath.lowercased().hasPrefix(dirPrefix)
+        let l = relativePath.lowercased()
+        return l.hasPrefix(dirPrefix) || l.hasPrefix(legacyPrefix)
     }
 
     private static func basename(_ relativePath: String) -> String {
@@ -211,17 +217,16 @@ enum PhaseMapper {
         let lower = relativePath.lowercased()
         let file = (lower as NSString).lastPathComponent
 
-        // vNext wiki layout (.nanopm/wiki/ + raw/). Overviews and entity pages are
-        // canonical here and map to their phase; index/log/_review and the raw/
-        // source layer are machinery (hidden); NANOPM-WIKI.md is the schema (hidden).
-        // wiki/docs/ holds not-yet-canonical copies of the root skill docs — skills
-        // still read/write the root files, so it stays hidden to avoid double-listing
-        // until skills migrate to write there.
+        // vNext wiki layout (.nanopm/wiki/ + raw/) — now canonical (wiki-canonical
+        // writes). Overviews + entity pages map to their phase; index/log/_review and
+        // the raw/ source layer are machinery (hidden); NANOPM-WIKI.md is the schema
+        // (hidden). wiki/docs/ holds the migrated skill docs: prds/ -> Ship, the rest
+        // fall through to the same filename matching the root docs used.
         if lower == "nanopm-wiki.md" { return nil }
         if lower.hasPrefix("raw/") { return nil }
         if lower.hasPrefix("wiki/") {
             if file == "index.md" || file == "log.md" { return nil }
-            if lower.hasPrefix("wiki/_review/") || lower.hasPrefix("wiki/docs/") { return nil }
+            if lower.hasPrefix("wiki/_review/") { return nil }
             if lower == "wiki/overview/company.md" { return .define }
             if lower == "wiki/overview/current-work.md" { return .plan }
             if lower.hasPrefix("wiki/entities/personas/")
@@ -230,7 +235,14 @@ enum PhaseMapper {
             if lower.hasPrefix("wiki/entities/competitors/")
                 || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
             if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
-            return lower.hasSuffix(".md") ? .other : nil
+            if lower.hasPrefix("wiki/docs/prds/") { return .ship }
+            // wiki/docs/<skill>.md: a migrated doc — fall through to the filename
+            // matching below (vision/strategy/feedback/... -> phase). Any other wiki
+            // markdown lands in "Other".
+            if !lower.hasPrefix("wiki/docs/") {
+                return lower.hasSuffix(".md") ? .other : nil
+            }
+            // fall through for wiki/docs/ files
         }
 
         if lower.hasPrefix("prds/") { return .ship }

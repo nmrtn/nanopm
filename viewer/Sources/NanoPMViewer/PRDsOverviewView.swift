@@ -45,7 +45,7 @@ struct PRDsOverviewView: View {
                     ContentUnavailableView(
                         "No PRDs yet",
                         systemImage: "doc.badge.plus",
-                        description: Text("Run /pm-prd in your agent to write a product spec — it lands in .nanopm/prds/.")
+                        description: Text("Run /pm-prd in your agent to write a product spec — it lands in .nanopm/wiki/docs/prds/.")
                     )
                 } else {
                     VStack(spacing: 0) {
