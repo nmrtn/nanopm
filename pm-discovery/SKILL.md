@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_DISCOVERY_FILE=".nanopm/DISCOVERY.md"
 ```
 
 ## When to run this
@@ -71,10 +70,10 @@ Ask as SEPARATE sequential AskUserQuestion calls — one call per question, neve
 **Before Q1**, check for an existing persona definition:
 
 ```bash
-[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+[ -f "$(nanopm_wiki_doc_path personas)" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
 ```
 
-**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md` and use the primary persona to pre-fill Q1 — confirm it rather than asking cold: "PERSONAS.md says you're building for {primary persona}. Still the focus for this discovery, or are we exploring a different user?" (If no PERSONAS.md exists and the discovery lands on a sharp user definition, recommend `/pm-personas` to formalize it at the end.)
+**If PERSONAS_EXISTS:** read `.nanopm/wiki/docs/personas.md` and use the primary persona to pre-fill Q1 — confirm it rather than asking cold: "The personas page says you're building for {primary persona}. Still the focus for this discovery, or are we exploring a different user?" (If no personas page exists and the discovery lands on a sharp user definition, recommend `/pm-personas` to formalize it at the end.)
 
 **Q1: Who is the user you're focused on?**
 "Describe the specific person you're trying to help. Not a category — a person.
@@ -159,9 +158,9 @@ Examples of cheap tests:
 
 Avoid: building anything, running surveys to hundreds of people, waiting for "enough data."
 
-## Phase 6: Write DISCOVERY.md
+## Phase 6: Write the wiki Discovery page
 
-Write `.nanopm/DISCOVERY.md`:
+Write `$(nanopm_wiki_doc_path discovery)` (`.nanopm/wiki/docs/discovery.md`). Begin the file with frontmatter from `nanopm_wiki_doc_frontmatter pm-discovery user-stated "$(date +%Y-%m-%d)" "{sources}"`, then the body below:
 
 ```markdown
 # Product Discovery
@@ -238,13 +237,13 @@ of who the user is and what they actually need. The challenge session will be si
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 .nanopm/DISCOVERY.md | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' .nanopm/DISCOVERY.md | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-challenge-me\"}}"
+nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 \"$(nanopm_wiki_doc_path discovery)\" | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' \"$(nanopm_wiki_doc_path discovery)\" | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- DISCOVERY.md written to `.nanopm/DISCOVERY.md`
+- Discovery page written to `.nanopm/wiki/docs/discovery.md`
 - The top assumption by risk score and the cheapest way to test it
 - How long each test should take before results are actionable
 - "Run tests before building. The goal of discovery is to fail fast on paper, not in code."

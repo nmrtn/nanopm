@@ -1,7 +1,7 @@
 ---
 name: pm-challenge-me
 version: 0.1.0
-description: "Challenge Me. Adversarial product challenge: a skeptical-CPO read of what you're building, who for, and the biggest strategic gap — then three direct challenges you should answer, starting with the question you're avoiding. Produces CHALLENGES.md."
+description: "Challenge Me. Adversarial product challenge: a skeptical-CPO read of what you're building, who for, and the biggest strategic gap — then three direct challenges you should answer, starting with the question you're avoiding. Produces .nanopm/wiki/docs/challenges.md."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_CHALLENGES_FILE=".nanopm/CHALLENGES.md"
 _CONTEXT_FILE="CONTEXT.md"
 ```
 
@@ -38,7 +37,7 @@ nanopm_context_read pm-audit  # legacy — this skill was previously /pm-audit
 
 If a prior entry exists (either name), show: "Prior challenge session found from {ts}. Running a fresh one — prior context will inform it."
 
-If a legacy `.nanopm/AUDIT.md` exists and `.nanopm/CHALLENGES.md` does not, read AUDIT.md as prior context — it is the output of the previous incarnation of this skill.
+If a legacy `.nanopm/AUDIT.md` exists and `.nanopm/wiki/docs/challenges.md` does not, read AUDIT.md as prior context — it is the output of the previous incarnation of this skill.
 
 Read all prior context to inform the session:
 ```bash
@@ -93,22 +92,22 @@ Store these for use in Phase 4 synthesis. Only 🟢 high-confidence findings sho
 Check for PERSONAS.md — if it exists, it defines who you're building for (from /pm-personas):
 
 ```bash
-[ -f ".nanopm/PERSONAS.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+[ -f ".nanopm/wiki/docs/personas.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
 ```
 
-**If PERSONAS_EXISTS:** read `.nanopm/PERSONAS.md`. Use the primary persona to pre-fill Section 2 (who you're building for) — don't re-derive the user from scratch. Two checks worth making explicit: (1) if your honest assessment of the *real* user diverges from the primary persona, that divergence is a finding — surface it in Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming — and a strong candidate for the `users` challenge in Phase 5.
+**If PERSONAS_EXISTS:** read `.nanopm/wiki/docs/personas.md`. Use the primary persona to pre-fill Section 2 (who you're building for) — don't re-derive the user from scratch. Two checks worth making explicit: (1) if your honest assessment of the *real* user diverges from the primary persona, that divergence is a finding — surface it in Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming — and a strong candidate for the `users` challenge in Phase 5.
 
 Check for the Define-phase context docs — this skill is **evaluative**, not descriptive. Where these exist, build on them instead of re-establishing the basic facts:
 
 ```bash
-for f in PRODUCT VISION-MISSION BUSINESS-MODEL ORG; do
-  [ -f ".nanopm/$f.md" ] && echo "${f}_EXISTS" || echo "${f}_MISSING"
+for slug in product vision-mission business-model org; do
+  [ -f ".nanopm/wiki/docs/$slug.md" ] && echo "${slug}_EXISTS" || echo "${slug}_MISSING"
 done
 ```
 
-**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. It is the descriptive ground truth — use it to pre-fill Section 1 (what you're actually building) and the workflow/feature facts. **Do NOT re-derive what the product does from scratch.** This skill's job is to judge it: where does the shipped reality diverge from the stated direction, and what's the biggest gap. If `PRODUCT.md` is stamped `Completeness: draft`, emit a one-line non-blocking warning ("challenging against a draft product concept — findings are provisional") and proceed.
+**If product exists:** read `.nanopm/wiki/docs/product.md`. It is the descriptive ground truth — use it to pre-fill Section 1 (what you're actually building) and the workflow/feature facts. **Do NOT re-derive what the product does from scratch.** This skill's job is to judge it: where does the shipped reality diverge from the stated direction, and what's the biggest gap. If `product.md` is stamped `Completeness: draft`, emit a one-line non-blocking warning ("challenging against a draft product concept — findings are provisional") and proceed.
 
-**If VISION-MISSION / BUSINESS-MODEL / ORG exist:** read them. The gap (Section 3) is most often the distance between the stated mission/business model and what's actually shipped — name it concretely using these docs rather than guessing the intent.
+**If vision-mission / business-model / org exist:** read them (`.nanopm/wiki/docs/vision-mission.md`, `.nanopm/wiki/docs/business-model.md`, `.nanopm/wiki/docs/org.md`). The gap (Section 3) is most often the distance between the stated mission/business model and what's actually shipped — name it concretely using these docs rather than guessing the intent.
 
 Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
 
@@ -266,7 +265,7 @@ Synthesize a first-pass understanding of:
 
 ## Phase 5: Adversarial gate — the three challenges
 
-This phase enforces ETHOS principle 3: *"Every product decision has a question underneath it that the team is not asking. Find it. Ask it out loud."* The skill produces **three challenges**, each from a different angle. Challenge #1 — "The Question You're Avoiding" — is hard-gated: an adversarial subagent produces it against a strict rubric, then the typed state validator enforces that a well-formed question lands in `decision.jsonl` before CHALLENGES.md is written. Challenges #2 and #3 go through the same rubric but are droppable if they fail validation twice.
+This phase enforces ETHOS principle 3: *"Every product decision has a question underneath it that the team is not asking. Find it. Ask it out loud."* The skill produces **three challenges**, each from a different angle. Challenge #1 — "The Question You're Avoiding" — is hard-gated: an adversarial subagent produces it against a strict rubric, then the typed state validator enforces that a well-formed question lands in `decision.jsonl` before the wiki Challenges page is written. Challenges #2 and #3 go through the same rubric but are droppable if they fail validation twice.
 
 ### 5a. Dispatch the adversarial subagent
 
@@ -330,13 +329,23 @@ print(json.dumps({
 }))" | nanopm_state_log --type decision
 ```
 
-If `nanopm_state_log` exits non-zero **for the `strategy` challenge**, the structural gate has rejected the record. Show the user the stderr message and STOP — CHALLENGES.md MUST NOT be written without a valid question recorded in state. Re-run after fixing (usually a malformed key or out-of-range confidence). If it fails for `users` or `focus`, drop that challenge with a warning and continue.
+If `nanopm_state_log` exits non-zero **for the `strategy` challenge**, the structural gate has rejected the record. Show the user the stderr message and STOP — the wiki Challenges page MUST NOT be written without a valid question recorded in state. Re-run after fixing (usually a malformed key or out-of-range confidence). If it fails for `users` or `focus`, drop that challenge with a warning and continue.
 
-Only after the `strategy` state write returns 0, proceed to Phase 6. Section 4 of CHALLENGES.md MUST contain each `_Q_TEXT` verbatim, with its `_Q_RATIONALE` as the supporting paragraph.
+Only after the `strategy` state write returns 0, proceed to Phase 6. Section 4 of the wiki Challenges page MUST contain each `_Q_TEXT` verbatim, with its `_Q_RATIONALE` as the supporting paragraph.
 
-## Phase 6: Write CHALLENGES.md
+## Phase 6: Write the wiki Challenges page
 
-Write `.nanopm/CHALLENGES.md`:
+Write `$(nanopm_wiki_doc_path challenges)` (= `.nanopm/wiki/docs/challenges.md`). The file is the frontmatter block followed by the body below.
+
+Generate the frontmatter with the lib helper — `{sources}` is the comma-separated list of data sources used (e.g. `website,FEEDBACK.md,CONTEXT.md`):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_frontmatter pm-challenge-me user-stated "$(date +%Y-%m-%d)" "{sources}" \
+  > "$(nanopm_wiki_doc_path challenges)"
+```
+
+Then append the body to the same file:
 
 ```markdown
 # Challenge Me
@@ -347,7 +356,7 @@ Project: {slug}
 
 ## 1. What You're Actually Building
 
-[If PRODUCT.md exists, build on its description — reference it ("per PRODUCT.md") rather than
+[If the product wiki page exists, build on its description — reference it ("per the product page") rather than
 re-deriving the basics; spend your words on what's sharper or contradicts it. If it doesn't exist,
 synthesize from scratch — not the founder's pitch. What the shipped work, metrics,
 and user behavior reveal about what this product actually is. Must include:
@@ -433,13 +442,14 @@ If biggest unknown is flagged: "Run /pm-interview to answer {question} before /p
 *Sources: {list which tiers were used — website, connectors, CONTEXT.md}*
 ```
 
-If a legacy `.nanopm/AUDIT.md` exists, after writing CHALLENGES.md tell the user it has been superseded: "Legacy AUDIT.md found — CHALLENGES.md supersedes it. You can delete .nanopm/AUDIT.md."
+If a legacy `.nanopm/AUDIT.md` exists, after writing the wiki Challenges page tell the user it has been superseded: "Legacy AUDIT.md found — the wiki Challenges page (`.nanopm/wiki/docs/challenges.md`) supersedes it. You can delete .nanopm/AUDIT.md."
 
 ## Phase 7: Save context
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-challenge-me\",\"outputs\":{\"gap\":\"$(head -1 .nanopm/CHALLENGES.md | tr '\"' \"'\")\",\"next\":\"$(grep 'Run:' .nanopm/CHALLENGES.md | head -1 | sed 's/.*\///;s/\*//g' | xargs)\"}}"
+_CHALLENGES_DOC="$(nanopm_wiki_doc_path challenges)"
+nanopm_context_append "{\"skill\":\"pm-challenge-me\",\"outputs\":{\"gap\":\"$(grep -m1 '^# ' "$_CHALLENGES_DOC" | tr '\"' \"'\")\",\"next\":\"$(grep 'Run:' "$_CHALLENGES_DOC" | head -1 | sed 's/.*\///;s/\*//g' | xargs)\"}}"
 ```
 
 Also append a more complete JSON with the challenge questions (key + question per angle) for downstream skills.
@@ -447,7 +457,7 @@ Also append a more complete JSON with the challenge questions (key + question pe
 ## Completion
 
 Tell the user:
-- CHALLENGES.md written to `.nanopm/CHALLENGES.md`
+- Challenges written to `.nanopm/wiki/docs/challenges.md`
 - Which data sources were used
 - The challenges, verbatim — they are the point of this skill, don't bury them
 - Which questions they should revisit (any marked [ANSWER] that weren't filled)

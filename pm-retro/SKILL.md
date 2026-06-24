@@ -1,7 +1,7 @@
 ---
 name: pm-retro
 version: 0.1.0
-description: "PM retrospective. Compares ROADMAP.md NOW items against actual commits since the last roadmap run. Surfaces what shipped, what drifted, and what to carry forward. Closes the planning loop."
+description: "PM retrospective. Compares the roadmap page's NOW items against actual commits since the last roadmap run. Surfaces what shipped, what drifted, and what to carry forward. Closes the planning loop."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion
 ---
 
@@ -22,7 +22,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_RETRO_FILE=".nanopm/RETRO.md"
+_RETRO_FILE="$(nanopm_wiki_doc_path "retro-$(date +%F)")"
 ```
 
 ## Phase 0: Prior context
@@ -38,22 +38,25 @@ If prior retro found: "Prior retro from {ts}. This run covers commits since then
 ## Phase 1: Check for required artifacts
 
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"  # legacy flat fallback
+[ -f "$_ROADMAP" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -d ".git" ]               && echo "GIT_REPO"        || echo "NOT_GIT_REPO"
 ```
 
-If ROADMAP_MISSING and CHALLENGES_MISSING: "No ROADMAP.md or CHALLENGES.md found. Run /pm-challenge-me and /pm-roadmap first to get full retro value. Continuing with git history only."
+If ROADMAP_MISSING and CHALLENGES_MISSING: "No roadmap or challenges page found in the wiki (`.nanopm/wiki/docs/`). Run /pm-challenge-me and /pm-roadmap first to get full retro value. Continuing with git history only."
 
 If NOT_GIT_REPO: "This directory is not a git repo — can't read commit history. Run `git init` or navigate to your project root."
 
 ## Phase 2: Determine retro window
 
 ```bash
-# When was the roadmap last written? Use as retro start point.
-_ROADMAP_COMMIT=$(git log --oneline -1 -- .nanopm/ROADMAP.md 2>/dev/null | awk '{print $1}')
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+# When was the roadmap last written? Use as retro start point. Anchor on the wiki
+# page, falling back to the legacy flat file so older history still resolves.
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"
+_ROADMAP_COMMIT=$(git log --oneline -1 -- "$_ROADMAP" .nanopm/ROADMAP.md 2>/dev/null | awk '{print $1}')
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 _CHALLENGES_COMMIT=$(git log --oneline -1 -- "$_CHALLENGES" 2>/dev/null | awk '{print $1}')
 
 if [ -n "$_ROADMAP_COMMIT" ]; then
@@ -75,17 +78,18 @@ Tell the user: "Reviewing {N} commits since roadmap was written {date or 'recent
 
 ## Phase 3: Extract roadmap items
 
-If ROADMAP_EXISTS, extract the NOW items (planned work):
+If ROADMAP_EXISTS, extract the NOW items (planned work) from the wiki roadmap page:
 
 ```bash
-grep -A 50 '## NOW' .nanopm/ROADMAP.md 2>/dev/null | \
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"
+grep -A 50 '## NOW' "$_ROADMAP" 2>/dev/null | \
   grep -B 50 '## NEXT\|## LATER\|^---' | \
   grep -v '^##\|^---' | grep -v '^$' | head -30
 ```
 
 Also extract NEXT items (look for any that may have been pulled forward early):
 ```bash
-grep -A 50 '## NEXT' .nanopm/ROADMAP.md 2>/dev/null | \
+grep -A 50 '## NEXT' "$_ROADMAP" 2>/dev/null | \
   grep -B 50 '## LATER\|^---' | \
   grep -v '^##\|^---' | grep -v '^$' | head -20
 ```
@@ -114,9 +118,11 @@ If the commit messages are ambiguous about intent (e.g., very terse messages), a
 
 Only ask if genuinely unclear. Skip if all commits are parseable. Max one question.
 
-## Phase 6: Write RETRO.md
+## Phase 6: Write the dated wiki Retro page
 
-Write `.nanopm/RETRO.md`:
+Retros are **dated wiki docs** — one page per retro, so history is preserved across cycles (each run writes a new `retro-YYYY-MM-DD.md`, never overwriting prior retros).
+
+Write the page to `$(nanopm_wiki_doc_path "retro-$(date +%F)")` (i.e. `.nanopm/wiki/docs/retro-YYYY-MM-DD.md`). The file begins with the frontmatter emitted by `nanopm_wiki_doc_frontmatter pm-retro evidence-backed "$(date +%Y-%m-%d)" "{sources}"` (substitute the real docs/connectors used — roadmap, git log, challenges — for `{sources}`), immediately followed by the body below:
 
 ```markdown
 # PM Retrospective
@@ -159,9 +165,9 @@ If nothing to flag: "No significant drift — execution is tracking the plan."}
 ## Carry Forward
 
 {NOW items not shipped that should move into the next cycle. Copy them here verbatim
-from ROADMAP.md so the next /pm-roadmap run can pull them in.}
+from the roadmap page so the next /pm-roadmap run can pull them in.}
 
-- {item from ROADMAP.md NOW section}
+- {item from the roadmap page's NOW section}
 
 ---
 
@@ -173,20 +179,21 @@ Update your roadmap with carry-forward items and new priorities from this retro.
 
 ---
 
-*Sources: ROADMAP.md, git log, CHALLENGES.md (if present)*
+*Sources: roadmap page, git log, challenges page (if present)*
 ```
 
 ## Phase 7: Save context
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-retro\",\"outputs\":{\"shipped\":\"$(grep -c '✅' .nanopm/RETRO.md 2>/dev/null || echo 0) items shipped\",\"window_commits\":\"${_COMMIT_COUNT:-?} commits\",\"next\":\"pm-roadmap\"}}"
+_RETRO_FILE="$(nanopm_wiki_doc_path "retro-$(date +%F)")"
+nanopm_context_append "{\"skill\":\"pm-retro\",\"outputs\":{\"shipped\":\"$(grep -c '✅' "$_RETRO_FILE" 2>/dev/null || echo 0) items shipped\",\"window_commits\":\"${_COMMIT_COUNT:-?} commits\",\"next\":\"pm-roadmap\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- RETRO.md written to `.nanopm/RETRO.md`
+- Retro written to the dated wiki page `.nanopm/wiki/docs/retro-YYYY-MM-DD.md` (one page per retro — prior retros are preserved)
 - How many roadmap items shipped, in progress, not started
 - Whether significant drift was detected
 - Carry-forward items for the next planning cycle

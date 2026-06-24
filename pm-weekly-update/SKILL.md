@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_UPDATE_FILE=".nanopm/WEEKLY_UPDATE.md"
 ```
 
 ## When to run this
@@ -89,21 +88,21 @@ If LINEAR available:
 
 **Roadmap and objectives:**
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && cat .nanopm/ROADMAP.md || echo "NO_ROADMAP"
-[ -f ".nanopm/OBJECTIVES.md" ] && cat .nanopm/OBJECTIVES.md || echo "NO_OBJECTIVES"
+[ -f ".nanopm/wiki/docs/roadmap.md" ] && cat .nanopm/wiki/docs/roadmap.md || echo "NO_ROADMAP"
+[ -f ".nanopm/wiki/docs/objectives.md" ] && cat .nanopm/wiki/docs/objectives.md || echo "NO_OBJECTIVES"
 _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && head -40 "$_CHALLENGES" || echo "NO_CHALLENGES"
 ```
 
 **Define context (tailor the update):**
 ```bash
-[ -f ".nanopm/ORG.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
-[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+[ -f ".nanopm/wiki/docs/org.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
+[ -f ".nanopm/wiki/docs/business-model.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 ```
 
-**If ORG_EXISTS:** read `.nanopm/ORG.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
+**If ORG_EXISTS:** read `.nanopm/wiki/docs/org.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
 
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
 
 **Prior week's commitments:**
 If a previous update exists, extract any "next week I will..." commitments and check which were honored.
@@ -189,14 +188,21 @@ NEXT MILESTONE
 - If "needs your input" is empty, omit the section entirely
 - Never use "we're making great progress" without a concrete data point
 
-## Phase 5: Save the update
+## Phase 5: Write the wiki Weekly Update page
 
-Write to `.nanopm/WEEKLY_UPDATE.md` (latest draft — overwrite).
+Write the latest draft to the wiki doc page at `$(nanopm_wiki_doc_path weekly-update)` (i.e. `.nanopm/wiki/docs/weekly-update.md`) — overwrite. The file MUST start with frontmatter, then the update body:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_frontmatter pm-weekly-update user-stated "$(date +%Y-%m-%d)" "{sources}"
+```
+
+(Replace `{sources}` with the actual sources used — e.g. `git,linear,roadmap` — as a comma-separated list.) The body below the frontmatter is the update drafted in Phase 4.
 
 Also append to weekly history:
 ```bash
 mkdir -p .nanopm/weekly-updates
-cp .nanopm/WEEKLY_UPDATE.md ".nanopm/weekly-updates/$(date +%Y-%m-%d).md" 2>/dev/null || true
+cp "$(nanopm_wiki_doc_path weekly-update)" ".nanopm/weekly-updates/$(date +%Y-%m-%d).md" 2>/dev/null || true
 ```
 
 ```bash
@@ -207,7 +213,7 @@ nanopm_context_append "{\"skill\":\"pm-weekly-update\",\"outputs\":{\"date\":\"$
 ## Completion
 
 Tell the user:
-- Draft written to `.nanopm/WEEKLY_UPDATE.md`
+- Draft written to `.nanopm/wiki/docs/weekly-update.md`
 - Remind them to check the "NEEDS YOUR INPUT" section before sending — that's the most actionable part
 - If anything slipped: "The slippage is in the update. Don't soften it — your stakeholders will respect the honesty more than the spin."
 
