@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""nanopm-export — render a wiki section to ONE shareable markdown file, on demand.
+
+Part of wiki-canonical writes (Option A). Once the flat Define/Plan docs are retired
+and everything lives in .nanopm/wiki/, this is how you hand someone a single file —
+"send me your product brief" — without re-introducing a second always-on copy.
+
+It is GENERATED OUTPUT, never an edit surface and never written automatically: a skill
+never calls it; the human runs it when they want a shareable artifact. Editing the
+result has no effect on the wiki — change the wiki page and re-export.
+
+By default it emits the CLEAN, share-ready text: page frontmatter and the
+"## Provenance & assumptions" sections are stripped (the reasoning is for the wiki,
+not the shared brief). Pass --with-provenance to keep them.
+
+Sections:
+  company        the Define brief: overview/company.md + the 5 Define doc pages
+  current-work   the Plan brief:   overview/current-work.md + the 3 Plan doc pages
+  all            company + current-work
+  <doc-slug>     a single doc page, e.g. `strategy`, `vision-mission`
+
+Usage:
+  nanopm-export <section> [--project DIR] [-o FILE] [--with-provenance]
+
+Exit codes: 0 ok, 1 error (nothing to export / bad section), 2 bad usage.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import sys
+from pathlib import Path
+
+# section -> (overview page, [doc slugs]) relative to .nanopm/wiki/
+SECTIONS = {
+    "company": ("overview/company.md",
+                ["vision-mission", "business-model", "org", "product", "personas"]),
+    "current-work": ("overview/current-work.md",
+                     ["objectives", "strategy", "roadmap"]),
+}
+PROVENANCE_HEADING = "## Provenance & assumptions"
+
+
+def strip_frontmatter(text: str) -> str:
+    """Drop a leading `---`-fenced YAML frontmatter block, if present."""
+    if text.lstrip().startswith("---"):
+        parts = text.split("---", 2)
+        if len(parts) == 3:
+            return parts[2].lstrip("\n")
+    return text
+
+
+def strip_provenance(text: str) -> str:
+    """Remove the `## Provenance & assumptions` section (heading through the next
+    top-level `## ` heading or EOF), matched at line start (trailing-trim only, like
+    the migrate tool's has_provenance and the viewer's isProvenanceHeading)."""
+    lines = text.split("\n")
+    start = None
+    for i, ln in enumerate(lines):
+        if ln.rstrip() == PROVENANCE_HEADING:
+            start = i
+            break
+    if start is None:
+        return text
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if lines[j].startswith("## "):
+            end = j
+            break
+    kept = lines[:start] + lines[end:]
+    return "\n".join(kept).rstrip() + "\n"
+
+
+def render_page(path: Path, with_provenance: bool) -> str | None:
+    if not path.is_file():
+        return None
+    text = strip_frontmatter(path.read_text(encoding="utf-8", errors="replace"))
+    if not with_provenance:
+        text = strip_provenance(text)
+    return text.strip()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("section", help="company | current-work | all | <doc-slug>")
+    ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
+    ap.add_argument("-o", "--output", default=None, help="write to FILE (default: stdout)")
+    ap.add_argument("--with-provenance", action="store_true",
+                    help="keep the '## Provenance & assumptions' sections (default: strip)")
+    args = ap.parse_args()
+
+    wiki = Path(args.project) / ".nanopm" / "wiki"
+    if not wiki.is_dir():
+        print(f"ERROR: {wiki} not found — run from a project with a .nanopm/wiki/ (run a skill or "
+              "nanopm-migrate-to-wiki first).", file=sys.stderr)
+        return 1
+
+    today = _dt.date.today().isoformat()
+    wp = args.with_provenance
+
+    # Resolve the section to an ordered list of (title, page-path).
+    sec = args.section.lower()
+    pages: list[tuple[str, Path]] = []
+    if sec == "all":
+        wanted = ["company", "current-work"]
+    elif sec in SECTIONS:
+        wanted = [sec]
+    else:
+        # treat as a single doc slug
+        doc = wiki / "docs" / f"{sec}.md"
+        if not doc.is_file():
+            print(f"ERROR: unknown section '{args.section}' and no wiki page at "
+                  f"docs/{sec}.md. Sections: {', '.join(SECTIONS)}, all, or a doc slug.",
+                  file=sys.stderr)
+            return 1
+        pages = [(sec, doc)]
+        wanted = []
+
+    for s in wanted:
+        overview_rel, slugs = SECTIONS[s]
+        pages.append((f"{s} overview", wiki / overview_rel))
+        for slug in slugs:
+            pages.append((slug, wiki / "docs" / f"{slug}.md"))
+
+    # Render, skipping pages that don't exist (note them to stderr).
+    blocks: list[str] = []
+    for title, path in pages:
+        body = render_page(path, wp)
+        if body:
+            blocks.append(body)
+        else:
+            print(f"note: skipped {path.relative_to(Path(args.project))} (not present)",
+                  file=sys.stderr)
+
+    if not blocks:
+        print(f"ERROR: nothing to export for '{args.section}' — no wiki pages present yet.",
+              file=sys.stderr)
+        return 1
+
+    header = (f"<!-- Generated by nanopm-export on {today} from .nanopm/wiki — "
+              "a point-in-time share copy. Do not edit; change the wiki and re-export. -->\n")
+    out = header + "\n" + "\n\n---\n\n".join(blocks) + "\n"
+
+    if args.output:
+        Path(args.output).write_text(out, encoding="utf-8")
+        print(f"exported {args.section} -> {args.output} ({len(blocks)} page(s))", file=sys.stderr)
+    else:
+        sys.stdout.write(out)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
