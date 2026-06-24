@@ -134,6 +134,9 @@ struct ProjectView: View {
                     phaseGroup(.discover)
                     phaseGroup(.plan)
                     phaseGroup(.ship)
+                    // Catch-all for markdown that maps to no phase. Renders only
+                    // when such files exist (phaseGroup self-hides when empty).
+                    phaseGroup(.other)
                 }
                 .listStyle(.sidebar)
                 .contentMargins(.top, 10, for: .scrollContent)
