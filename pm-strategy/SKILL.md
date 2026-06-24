@@ -1,7 +1,7 @@
 ---
 name: pm-strategy
 version: 0.1.0
-description: "Define product strategy. Reads objectives + challenge-session context, generates a strategy, dispatches adversarial subagent to challenge it, synthesizes into STRATEGY.md."
+description: "Define product strategy. Reads objectives + challenge-session context, generates a strategy, dispatches adversarial subagent to challenge it, synthesizes into the wiki Plan page (.nanopm/wiki/docs/strategy.md)."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent
 ---
 
@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_STRATEGY_FILE=".nanopm/STRATEGY.md"
 ```
 
 ## Phase 0: Prior context
@@ -41,21 +40,22 @@ If found: "Prior strategy found from {ts}. This run will produce a revised strat
 Read upstream artifacts if they exist:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/OBJECTIVES.md"     ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
-[ -f ".nanopm/PERSONAS.md"       ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"       ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
-[ -f ".nanopm/VISION-MISSION.md" ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
-[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
-[ -f ".nanopm/PRODUCT.md"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
+[ -f "$(nanopm_wiki_doc_path objectives)"      ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
+[ -f "$(nanopm_wiki_doc_path personas)"        ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
+[ -f ".nanopm/FEEDBACK.md"                     ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
+[ -f "$(nanopm_wiki_doc_path vision-mission)"  ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
+[ -f "$(nanopm_wiki_doc_path business-model)"  ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+[ -f "$(nanopm_wiki_doc_path product)"         ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
 ```
 
-**If VISION_MISSION_EXISTS:** read `.nanopm/VISION-MISSION.md`. The strategy must *serve the mission* — the bet should be a credible step toward the stated mission/vision, not a detour from it. If the bet pulls away from the mission, name that tension explicitly.
+**If VISION_MISSION_EXISTS:** read `.nanopm/wiki/docs/vision-mission.md`. The strategy must *serve the mission* — the bet should be a credible step toward the stated mission/vision, not a detour from it. If the bet pulls away from the mission, name that tension explicitly.
 
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. The strategy must *win commercially* — pressure-test the bet against the business model, pricing, and GTM motion. A bet that grows usage but doesn't move the business is incomplete; say how it pays off.
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. The strategy must *win commercially* — pressure-test the bet against the business model, pricing, and GTM motion. A bet that grows usage but doesn't move the business is incomplete; say how it pays off.
 
-**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. The strategy must *fit what exists* — ground the position and "How we win" in the current product map, not an imagined product. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept." All three reads are advisory — if a doc is absent, proceed without it.
+**If PRODUCT_EXISTS:** read `.nanopm/wiki/docs/product.md`. The strategy must *fit what exists* — ground the position and "How we win" in the current product map, not an imagined product. If the page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept." All three reads are advisory — if a doc is absent, proceed without it.
 
 **If FEEDBACK.md exists:** read it before drafting strategy. The top unaddressed signal is the most grounded input you have — the bet should either address it directly or explicitly explain why it doesn't. A strategy that ignores the loudest user signal is a strategy with a named gap.
 
@@ -138,9 +138,20 @@ Review the adversarial challenge. Consider:
 
 Update the strategy draft with any material changes from the challenge.
 
-## Phase 6: Write STRATEGY.md
+## Phase 6: Write the wiki Plan page
 
-Write `.nanopm/STRATEGY.md`:
+Resolve the path with the helper and write the echoed file (`.nanopm/wiki/docs/strategy.md`):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_path strategy
+nanopm_wiki_doc_frontmatter pm-strategy user-stated "$(date +%Y-%m-%d)" "{sources}"
+```
+
+The file content is, in order: **(a)** the frontmatter block emitted by
+`nanopm_wiki_doc_frontmatter` above (replace `{sources}` with the comma-separated
+sources that existed: CHALLENGES, OBJECTIVES, adversarial review, user answers), then
+**(b)** the same body below:
 
 ```markdown
 # Product Strategy
@@ -221,7 +232,7 @@ Not hedging — a specific, named risk with a specific trigger condition.}
 
 ## Phase 7: User review
 
-Present STRATEGY.md to the user via AskUserQuestion:
+Present the strategy (`.nanopm/wiki/docs/strategy.md`) to the user via AskUserQuestion:
 
 "Strategy draft written. The adversarial challenge raised: {one-line summary of challenge}.
 
@@ -237,11 +248,11 @@ If B or C: take the user's input, update the relevant section(s), re-run the adv
 
 After the user has approved the strategy in Phase 7, record the bet as a typed `decision` so downstream skills (`pm-roadmap`, `pm-prd`) can read it via the schema-validated state layer instead of grepping markdown.
 
-Extract the bet line from `.nanopm/STRATEGY.md` (the single sentence under `## The Bet`). Derive a kebab-case `key` (alphanumeric + hyphens, ≤60 chars) summarizing the bet. The bet is `user-stated` (user approved in Phase 7); if the adversarial gate rewrote it, use `adversarial`.
+Extract the bet line from `$(nanopm_wiki_doc_path strategy)` (the single sentence under `## The Bet`). Derive a kebab-case `key` (alphanumeric + hyphens, ≤60 chars) summarizing the bet. The bet is `user-stated` (user approved in Phase 7); if the adversarial gate rewrote it, use `adversarial`.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-# _BET_TEXT and _BET_KEY are derived from STRATEGY.md
+# _BET_TEXT and _BET_KEY are derived from $(nanopm_wiki_doc_path strategy)
 python3 -c "
 import json, os
 print(json.dumps({
@@ -277,29 +288,32 @@ print(json.dumps({
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-strategy\",\"outputs\":{\"bet\":\"$(grep -A1 '## The Bet' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"risk\":\"$(grep -A1 '## The Risk' .nanopm/STRATEGY.md | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-roadmap\"}}"
+_STRATEGY_DOC="$(nanopm_wiki_doc_path strategy)"
+nanopm_context_append "{\"skill\":\"pm-strategy\",\"outputs\":{\"bet\":\"$(grep -A1 '## The Bet' "$_STRATEGY_DOC" | tail -1 | tr '\"' \"'\" | head -c 120)\",\"risk\":\"$(grep -A1 '## The Risk' "$_STRATEGY_DOC" | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-roadmap\"}}"
 ```
 
 ## Phase: Regenerate the plan brief
 
-After STRATEGY.md is written, refresh the consolidated current-work brief so every
-downstream skill run carries the latest plan. Print the canonical prompt and dispatch
-it with the **Agent tool**:
+After the wiki Plan page is written, refresh the consolidated current-work brief so
+every downstream skill run carries the latest plan. Print the canonical prompt and
+dispatch it with the **Agent tool** (same shared prompt the other Plan skills use, so
+the brief stays consistent — edit it once in `nanopm_plan_brief_prompt`):
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_plan_brief_prompt
 ```
 
-The subagent reads whichever of OBJECTIVES/STRATEGY/ROADMAP exist and writes
-`.nanopm/PLAN-SUMMARY.md`, overwriting any previous version. This brief is loaded into
-every skill's preamble (`nanopm_load_plan`), so keeping it current is what stops
-downstream work from drifting from the live plan.
+The subagent's prompt carries its own security preamble. It reads whichever wiki Plan docs exist and writes
+`.nanopm/wiki/overview/current-work.md` (or `.nanopm/PLAN-SUMMARY.md` when the wiki is
+absent), overwriting any previous version. This brief is loaded into every skill's
+preamble (`nanopm_load_plan`), so keeping it current is what stops downstream work from
+drifting from the live plan.
 
 ## Completion
 
 Tell the user:
-- STRATEGY.md written to `.nanopm/STRATEGY.md`
+- Strategy written to `.nanopm/wiki/docs/strategy.md`
 - The adversarial challenge and whether it changed the strategy
 - The open question that still needs answering
 - Recommended next skill: `/pm-roadmap` to translate this strategy into a concrete plan
