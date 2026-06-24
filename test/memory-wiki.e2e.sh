@@ -133,7 +133,19 @@ echo "$_out" | grep -q "WIKI_REVIEWS: 1" || fail "nanopm_load_reviews: expected 
 echo "$_out" | grep -q "nanopm-confidence-gate list" || fail "nanopm_load_reviews: missing drain hint"
 ok "drainer: nanopm_load_reviews surfaces the held write + how to drain it"
 
-# draining clears it: reject the held write, drainer goes quiet
+# approve round-trip: the gate's core value — a held write, once confirmed, lands
+# on the page with its content. (Reject is tested below; approve is tested here.)
+_eve="wiki/entities/personas/eve.md"
+printf '%s\n' '# Eve (held, then approved)' | "$_GATE" apply --target "$_eve" --confidence 4 >/dev/null
+[ ! -f ".nanopm/$_eve" ] || fail "approve setup: conf-4 write should be held, not applied"
+_eid=$(ls .nanopm/wiki/_review/*.json | xargs grep -l "$_eve" | head -1 | xargs basename | sed 's/\.json$//')
+"$_GATE" approve "$_eid" >/dev/null || fail "gate approve failed"
+[ -f ".nanopm/$_eve" ] || fail "approve: held write must land on the page after approval"
+grep -q "Eve (held, then approved)" ".nanopm/$_eve" || fail "approve: applied page missing the held content"
+ls .nanopm/wiki/_review/"$_eid".json >/dev/null 2>&1 && fail "approve: review record should be cleared after apply" || true
+ok "confidence-gate: approve applies a held write to the page and clears the review"
+
+# draining clears it: reject the OTHER held write (dana), drainer goes quiet
 _rid=$(ls .nanopm/wiki/_review/*.json | head -1 | xargs basename | sed 's/\.json$//')
 "$_GATE" reject "$_rid" >/dev/null || fail "gate reject failed"
 [ -z "$(nanopm_load_reviews)" ] || fail "nanopm_load_reviews: should be silent after the queue is drained"

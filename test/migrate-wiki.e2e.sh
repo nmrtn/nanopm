@@ -62,8 +62,14 @@ ok "migrate: scaffolds wiki + schema, seeds overviews from legacy summaries"
 # ── 2. event log migrated + repaired ──────────────────────────────────────────
 [ -f "$_PROJ/.nanopm/raw/events.jsonl" ] || fail "events: raw/events.jsonl not seeded"
 _valid=$(grep -c '"skill"' "$_PROJ/.nanopm/raw/events.jsonl" 2>/dev/null || echo 0)
-[ "$_valid" -ge 2 ] || fail "events: expected >=2 repaired lines, got $_valid"
-ok "migrate: legacy global log migrated + repaired into raw/events.jsonl ($_valid valid lines)"
+# Exact count (not >=): a no-op verbatim copy of the 3-line legacy log would also
+# pass ">=2" and wouldn't prove repair. Require exactly the 2 valid records...
+[ "$_valid" = "2" ] || fail "events: expected exactly 2 repaired lines, got $_valid"
+# ...AND prove the corrupt line was actually dropped, not carried through.
+if grep -q "not valid json" "$_PROJ/.nanopm/raw/events.jsonl"; then
+  fail "events: corrupt line was carried through, not repaired"
+fi
+ok "migrate: legacy global log repaired into raw/events.jsonl (2 valid, corrupt line dropped)"
 
 # ── 3. non-destructive: legacy files still present in copy mode ───────────────
 [ -f "$_PROJ/.nanopm/CONTEXT-SUMMARY.md" ] && [ -f "$_PROJ/.nanopm/PLAN-SUMMARY.md" ] \

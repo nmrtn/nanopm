@@ -366,7 +366,10 @@ prompt:
 > `.nanopm/reasoning/` — the brief is built from the clean docs only.
 > Synthesize them into ONE concise brief (~1 page, no fluff)
 > and WRITE it to `.nanopm/wiki/overview/company.md` if the `.nanopm/wiki/` directory exists
-> (that is the canonical overview the loaders and viewer read), otherwise `.nanopm/CONTEXT-SUMMARY.md` — overwriting any previous version, with
+> (the canonical overview the loaders and viewer read) — when writing there, prepend an overview
+> frontmatter block before the first heading (`type: overview`, `section: define`,
+> `generated: {date}`, `sources: [{which Define docs existed}]` between `---` fences); otherwise
+> write `.nanopm/CONTEXT-SUMMARY.md` (no frontmatter). Overwrite any previous version, with
 > exactly these sections:
 >
 > ```markdown
@@ -438,11 +441,11 @@ citation with `nanopm-ingest-agent citation-check` before writing, then runs
 
 **Host without an Agent tool (graceful fallback):** the main agent follows the same steps
 inline — for each persona, scaffold the page from the §4.2 entity template, route the write
-through `nanopm-confidence-gate apply`, then `reindex` + `log`. If even that isn't possible,
+through `~/.nanopm/bin/nanopm-confidence-gate apply`, then `reindex` + `log`. If even that isn't possible,
 skip and tell the user the personas weren't ingested into the wiki yet.
 
 Surface the result: which persona pages were created/updated, and anything routed to review
-(`nanopm-confidence-gate list`).
+(`~/.nanopm/bin/nanopm-confidence-gate list`).
 
 ## Completion
 

@@ -352,7 +352,7 @@ The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes
 `nanopm-confidence-gate` (high-confidence auto-applies; shaky matches and reversals are held for
 review — intended), then runs `nanopm-ingest-agent reindex` + `log`. On a host without an Agent
 tool it follows the same steps inline. Surface which entity pages changed and anything routed to
-review (`nanopm-confidence-gate list`).
+review (`~/.nanopm/bin/nanopm-confidence-gate list`).
 
 ## Phase 7: Save context
 
