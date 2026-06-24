@@ -823,7 +823,9 @@ You maintain .nanopm/PLAN-SUMMARY.md — the single current-work brief a PM keep
 mind at all times (the plan counterpart to .nanopm/CONTEXT-SUMMARY.md). Read every
 one of these that exists: .nanopm/OBJECTIVES.md, .nanopm/STRATEGY.md,
 .nanopm/ROADMAP.md. Synthesize them into ONE concise brief (~1 page, no fluff) and
-WRITE it to .nanopm/PLAN-SUMMARY.md, overwriting any previous version, with exactly
+WRITE it to .nanopm/wiki/overview/current-work.md if the .nanopm/wiki/ directory
+exists (that is the canonical overview the loaders and viewer read), otherwise to
+.nanopm/PLAN-SUMMARY.md — overwriting any previous version, with exactly
 these sections:
 
 ```markdown
