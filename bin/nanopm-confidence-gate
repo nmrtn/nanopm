@@ -30,12 +30,18 @@ Exit codes: 0 ok, 1 error, 2 bad usage.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
 import hashlib
 import json
 import re
 import sys
 from pathlib import Path
+
+try:
+    import fcntl  # POSIX (macOS / Linux) — nanopm's supported hosts
+except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
+    fcntl = None
 
 DEFAULT_THRESHOLD = 7
 # Review ids are basename + sha1 hex (see review_id); a well-formed id never
@@ -55,6 +61,25 @@ def nano_dir(project: str) -> Path:
 
 def review_dir(project: str) -> Path:
     return nano_dir(project) / "wiki" / "_review"
+
+
+@contextlib.contextmanager
+def wiki_lock(project: str):
+    """Serialize page writes against concurrent ingest runs and the
+    nanopm-ingest-agent reindex/log (both take this same .nanopm/wiki/.lock), so a
+    gated write never overlaps an index regeneration. Advisory exclusive flock;
+    no-op on non-POSIX hosts."""
+    wiki = nano_dir(project) / "wiki"
+    wiki.mkdir(parents=True, exist_ok=True)
+    if fcntl is None:
+        yield
+        return
+    with open(wiki / ".lock", "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
 def resolve_target(project: str, target: str) -> Path | None:
@@ -86,8 +111,9 @@ def cmd_apply(args) -> int:
         return err(f"target {args.target!r} escapes .nanopm/ — refused")
     high_conf = args.confidence >= args.threshold
     if high_conf and not args.reversal:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content, encoding="utf-8")
+        with wiki_lock(args.project):
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
         print(f"APPLIED {args.target}")
         return 0
     # Hold for review.
@@ -101,7 +127,7 @@ def cmd_apply(args) -> int:
         "threshold": args.threshold,
         "reversal": bool(args.reversal),
         "reason": args.reason or "",
-        "ts": _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ts": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "content": content,
     }
     (rdir / f"{rid}.json").write_text(
@@ -162,9 +188,10 @@ def cmd_approve(args) -> int:
     dest = resolve_target(args.project, target)
     if dest is None:
         return err(f"target {target!r} escapes .nanopm/ — refused")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(r.get("content", ""), encoding="utf-8")
-    rf.unlink()
+    with wiki_lock(args.project):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(r.get("content", ""), encoding="utf-8")
+        rf.unlink()
     print(f"APPLIED {r['target']}")
     return 0
 

@@ -378,7 +378,11 @@ this exact prompt:
 > `.nanopm/PERSONAS.md`. Do NOT read the reasoning sidecars under
 > `.nanopm/reasoning/` — the brief is built from the clean docs only.
 > Synthesize them into ONE concise brief (~1 page, no fluff)
-> and WRITE it to `.nanopm/CONTEXT-SUMMARY.md`, overwriting any previous version, with
+> and WRITE it to `.nanopm/wiki/overview/company.md` if the `.nanopm/wiki/` directory exists
+> (the canonical overview the loaders and viewer read) — when writing there, prepend an overview
+> frontmatter block before the first heading (`type: overview`, `section: define`,
+> `generated: {date}`, `sources: [{which Define docs existed}]` between `---` fences); otherwise
+> write `.nanopm/CONTEXT-SUMMARY.md` (no frontmatter). Overwrite any previous version, with
 > exactly these sections:
 >
 > ```markdown

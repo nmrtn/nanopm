@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# Memory-wiki ingest-loop E2E test (Phase 2 pilot)
+#
+# Proves the mechanical "fuel enters the engine" loop that the pm-personas ingest
+# subagent drives — WITHOUT an LLM. Simulates the deterministic steps the subagent
+# runs: scaffold -> citation-check (dedup) -> confidence-gate apply (gated write)
+# -> reindex -> log, plus the review-queue routing for low-confidence writes.
+#
+# Covers the bins shipped in #110 (nanopm-ingest-agent, nanopm-confidence-gate) and
+# the nanopm_wiki_ensure scaffold added in Phase 2.
+#
+# Usage: bash test/memory-wiki.e2e.sh
+# Exit 0 = pass, exit 1 = fail
+set -euo pipefail
+
+_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+_TMPDIR=$(mktemp -d /tmp/nanopm-wiki-XXXXXX)
+_INGEST="$_REPO_ROOT/bin/nanopm-ingest-agent"
+_GATE="$_REPO_ROOT/bin/nanopm-confidence-gate"
+
+cleanup() { rm -rf "$_TMPDIR"; }
+trap cleanup EXIT
+
+ok()   { printf '  \033[0;32m✓\033[0m %s\n' "$*"; }
+fail() {
+  printf '  \033[0;31m✗\033[0m %s\n' "$*"
+  echo "  RESULT: FAILED"
+  exit 1
+}
+
+echo
+echo "  nanopm E2E: memory-wiki ingest loop"
+echo "  ===================================="
+echo "  Temp dir: $_TMPDIR"
+echo
+
+command -v python3 >/dev/null 2>&1 || fail "python3 not found (hard dependency)"
+
+export HOME="$_TMPDIR"
+cd "$_TMPDIR"
+git init -q
+# shellcheck source=/dev/null
+source "$_REPO_ROOT/lib/nanopm.sh"
+
+_PAGE="wiki/entities/personas/theo.md"
+_CIT='"I live in the terminal" — interview, 2026-06-23'
+
+# ── 1. scaffold ───────────────────────────────────────────────────────────────
+nanopm_wiki_ensure || fail "nanopm_wiki_ensure returned non-zero"
+[ -d ".nanopm/wiki/entities/personas" ] || fail "scaffold: entities/personas dir missing"
+[ -d ".nanopm/raw/interviews" ]          || fail "scaffold: raw/interviews dir missing"
+[ -f ".nanopm/NANOPM-WIKI.md" ]          || fail "scaffold: NANOPM-WIKI.md not written"
+ok "scaffold: nanopm_wiki_ensure creates wiki/raw tree + NANOPM-WIKI.md"
+
+# idempotent: a second call must not error or clobber the schema
+_schema_before=$(cat .nanopm/NANOPM-WIKI.md)
+nanopm_wiki_ensure || fail "nanopm_wiki_ensure not idempotent (second call failed)"
+[ "$_schema_before" = "$(cat .nanopm/NANOPM-WIKI.md)" ] || fail "scaffold: second call overwrote NANOPM-WIKI.md"
+ok "scaffold: idempotent (re-run is a no-op, schema preserved)"
+
+# ── 2. citation-check on an absent page -> NEW ────────────────────────────────
+set +e
+_out=$("$_INGEST" citation-check --target "$_PAGE" --citation "$_CIT"); _rc=$?
+set -e
+[ "$_rc" = "1" ] && [ "$_out" = "NEW" ] || fail "citation-check (absent page): expected NEW/exit1, got '$_out'/exit$_rc"
+ok "citation-check: NEW when the page doesn't exist yet"
+
+# ── 3. confidence-gate apply (high confidence) -> auto-applies ────────────────
+cat > /tmp/nanopm-wiki-page.$$ <<MD
+---
+id: theo
+type: persona
+title: "Theo — solo founder in the terminal"
+status: active
+provenance: evidence-backed
+sources: []
+relates_to: []
+last_updated: 2026-06-23
+---
+
+## Who
+A solo founder who does product management in the same terminal as their code.
+
+## Evidence
+- $_CIT
+MD
+_out=$("$_GATE" apply --target "$_PAGE" --confidence 8 < /tmp/nanopm-wiki-page.$$)
+rm -f /tmp/nanopm-wiki-page.$$
+case "$_out" in APPLIED*) ;; *) fail "gate apply (conf 8): expected APPLIED, got '$_out'";; esac
+[ -f ".nanopm/$_PAGE" ] || fail "gate apply: entity page not written to .nanopm/$_PAGE"
+ok "confidence-gate: high-confidence write auto-applies to the entity page"
+
+# ── 4. reindex picks the page up by frontmatter ───────────────────────────────
+"$_INGEST" reindex >/dev/null || fail "reindex returned non-zero"
+[ -f ".nanopm/wiki/index.md" ] || fail "reindex: wiki/index.md not created"
+grep -q "Theo — solo founder in the terminal" .nanopm/wiki/index.md \
+  || fail "reindex: index.md does not list the persona page title"
+ok "reindex: index.md lists the new persona page (read from frontmatter title)"
+
+# ── 5. log appends a heartbeat ────────────────────────────────────────────────
+"$_INGEST" log --op ingest --title "Theo persona (pm-personas)" >/dev/null || fail "log returned non-zero"
+[ -f ".nanopm/wiki/log.md" ] || fail "log: wiki/log.md not created"
+grep -q "Theo persona (pm-personas)" .nanopm/wiki/log.md || fail "log: heartbeat line missing"
+ok "log: ingest heartbeat appended to wiki/log.md"
+
+# ── 6. citation-check is now DUPLICATE (anchored dedup, not substring) ────────
+set +e
+_out=$("$_INGEST" citation-check --target "$_PAGE" --citation "$_CIT"); _rc=$?
+set -e
+[ "$_rc" = "0" ] && [ "$_out" = "DUPLICATE" ] || fail "citation-check (written): expected DUPLICATE/exit0, got '$_out'/exit$_rc"
+ok "citation-check: DUPLICATE once the citation is on the page"
+
+# a short substring of an existing citation must NOT false-match (the bug Phase 2 fixed)
+set +e
+_out=$("$_INGEST" citation-check --target "$_PAGE" --citation 'terminal'); _rc=$?
+set -e
+[ "$_rc" = "1" ] && [ "$_out" = "NEW" ] || fail "citation-check (substring): 'terminal' must be NEW, got '$_out'/exit$_rc"
+ok "citation-check: short substring of an existing quote is NOT a false duplicate"
+
+# ── 7. low-confidence write is held for review, not applied ───────────────────
+_newpage="wiki/entities/personas/dana.md"
+_out=$(printf '%s\n' '# Dana (shaky)' | "$_GATE" apply --target "$_newpage" --confidence 3 --reason "weak signal")
+case "$_out" in REVIEW*) ;; *) fail "gate apply (conf 3): expected REVIEW, got '$_out'";; esac
+[ ! -f ".nanopm/$_newpage" ] || fail "gate apply (conf 3): low-confidence write must NOT touch the page"
+_review_count=$(ls .nanopm/wiki/_review/*.json 2>/dev/null | wc -l | tr -d ' ')
+[ "$_review_count" = "1" ] || fail "gate: expected 1 held review, found $_review_count"
+"$_GATE" list | grep -q "$_newpage" || fail "gate list: held write not surfaced"
+ok "confidence-gate: low-confidence write held in _review/ (not applied), surfaced by list"
+
+# ── 8. queue drainer surfaces the held write (the preamble's job) ─────────────
+_out=$(nanopm_load_reviews)
+echo "$_out" | grep -q "WIKI_REVIEWS: 1" || fail "nanopm_load_reviews: expected 'WIKI_REVIEWS: 1', got '$_out'"
+echo "$_out" | grep -q "nanopm-confidence-gate list" || fail "nanopm_load_reviews: missing drain hint"
+ok "drainer: nanopm_load_reviews surfaces the held write + how to drain it"
+
+# approve round-trip: the gate's core value — a held write, once confirmed, lands
+# on the page with its content. (Reject is tested below; approve is tested here.)
+_eve="wiki/entities/personas/eve.md"
+printf '%s\n' '# Eve (held, then approved)' | "$_GATE" apply --target "$_eve" --confidence 4 >/dev/null
+[ ! -f ".nanopm/$_eve" ] || fail "approve setup: conf-4 write should be held, not applied"
+_eid=$(ls .nanopm/wiki/_review/*.json | xargs grep -l "$_eve" | head -1 | xargs basename | sed 's/\.json$//')
+"$_GATE" approve "$_eid" >/dev/null || fail "gate approve failed"
+[ -f ".nanopm/$_eve" ] || fail "approve: held write must land on the page after approval"
+grep -q "Eve (held, then approved)" ".nanopm/$_eve" || fail "approve: applied page missing the held content"
+ls .nanopm/wiki/_review/"$_eid".json >/dev/null 2>&1 && fail "approve: review record should be cleared after apply" || true
+ok "confidence-gate: approve applies a held write to the page and clears the review"
+
+# draining clears it: reject the OTHER held write (dana), drainer goes quiet
+_rid=$(ls .nanopm/wiki/_review/*.json | head -1 | xargs basename | sed 's/\.json$//')
+"$_GATE" reject "$_rid" >/dev/null || fail "gate reject failed"
+[ -z "$(nanopm_load_reviews)" ] || fail "nanopm_load_reviews: should be silent after the queue is drained"
+ok "drainer: silent once the queue is empty"
+
+# ── 9. lint sleep pass: runs once, then throttles ────────────────────────────
+nanopm_wiki_lint_check >/dev/null 2>&1 || fail "nanopm_wiki_lint_check returned non-zero"
+[ -f ".nanopm/wiki/.last-lint" ] || fail "lint sleep pass: throttle marker not written"
+_out2=$(nanopm_wiki_lint_check)   # second call same day -> throttled, no output
+[ -z "$_out2" ] || fail "lint sleep pass: second call should be throttled (silent), got '$_out2'"
+ok "lint sleep pass: runs once, writes throttle marker, then stays quiet for the day"
+
+# ── 10. lock: concurrent log appends don't lose lines ─────────────────────────
+# log.md is read-modify-write; without the wiki lock, parallel runs clobber each
+# other and lines vanish. Fire 10 at once and require all 10 to survive.
+_before=$(grep -c "^## \[" .nanopm/wiki/log.md 2>/dev/null || echo 0)
+for i in $(seq 1 10); do
+  "$_INGEST" log --op ingest --title "concurrent-$i" >/dev/null &
+done
+wait
+_after=$(grep -c "^## \[" .nanopm/wiki/log.md 2>/dev/null || echo 0)
+_added=$(( _after - _before ))
+[ "$_added" = "10" ] || fail "lock: expected 10 concurrent log lines to all land, got $_added"
+ok "lock: 10 concurrent log appends all survive (no lost lines under contention)"
+
+echo
+echo "  ─────────────────────────────"
+echo "  RESULT: PASSED — memory-wiki ingest loop OK"
+echo "  ─────────────────────────────"

@@ -32,9 +32,15 @@ Exit codes: reindex/log -> 0 ok, 1 error. citation-check -> 0 DUPLICATE, 1 NEW, 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
 import sys
 from pathlib import Path
+
+try:
+    import fcntl  # POSIX (macOS / Linux) — nanopm's supported hosts
+except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
+    fcntl = None
 
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
@@ -48,6 +54,26 @@ def err(msg: str) -> int:
 
 def wiki_dir(project: str) -> Path:
     return Path(project) / ".nanopm" / "wiki"
+
+
+@contextlib.contextmanager
+def wiki_lock(project: str):
+    """Serialize mutations to the shared wiki files (index.md, log.md, pages) so
+    concurrent ingest runs ("parallel waves", NANOPM-WIKI.md §11) can't tear the
+    index or lose a log line. Advisory exclusive flock on .nanopm/wiki/.lock; a
+    no-op on non-POSIX hosts. All writers (here + nanopm-confidence-gate) take the
+    same lock, so a reindex never overlaps a log append or a page write."""
+    wiki = wiki_dir(project)
+    wiki.mkdir(parents=True, exist_ok=True)
+    if fcntl is None:
+        yield
+        return
+    with open(wiki / ".lock", "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -156,14 +182,15 @@ def cmd_reindex(args) -> int:
 
     # Cross-link the opportunities DB if it lives at the legacy path (pre-backfill).
     opp_index = Path(args.project) / ".nanopm" / "opportunities" / "INDEX.md"
-    if opp_index.is_file() and not (wiki / "entities" / "opportunities").glob("*.md"):
+    if opp_index.is_file() and not any((wiki / "entities" / "opportunities").glob("*.md")):
         out.append("## Opportunities")
         out.append("- See [`.nanopm/opportunities/INDEX.md`](../opportunities/INDEX.md) "
                    "(legacy location — not yet backfilled into entities/).")
         out.append("")
 
     if not args.dry_run:
-        (wiki / "index.md").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+        with wiki_lock(args.project):
+            (wiki / "index.md").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
     print(f"reindex: {total} page(s) across {sum(1 for g in order if groups.get(g))} group(s)"
           + (" (dry-run)" if args.dry_run else " -> wiki/index.md"))
     return 0
@@ -177,18 +204,35 @@ def cmd_log(args) -> int:
     line = f"## [{day}] {args.op} | {args.title}"
     lg = wiki / "log.md"
     if not args.dry_run:
-        existing = lg.read_text(encoding="utf-8") if lg.is_file() else "# Wiki Log\n"
-        if not existing.endswith("\n"):
-            existing += "\n"
-        lg.write_text(existing + line + "\n", encoding="utf-8")
+        # Locked: log append is read-modify-write, so a concurrent run would
+        # otherwise drop a heartbeat line.
+        with wiki_lock(args.project):
+            existing = lg.read_text(encoding="utf-8") if lg.is_file() else "# Wiki Log\n"
+            if not existing.endswith("\n"):
+                existing += "\n"
+            lg.write_text(existing + line + "\n", encoding="utf-8")
     print(f"log: {line}" + (" (dry-run)" if args.dry_run else ""))
     return 0
 
 
+def _norm_citation(s: str) -> str:
+    """Normalize a citation for identity comparison: strip a leading markdown
+    bullet ("- ") and collapse internal whitespace, so formatting differences
+    don't defeat the match (and so trailing spaces don't create false 'NEW's)."""
+    s = s.strip()
+    if s.startswith("- "):
+        s = s[2:]
+    return " ".join(s.split())
+
+
 def cmd_citation_check(args) -> int:
     """Dedup gate: is this citation already on the page? The citation IS the
-    identity (NANOPM-WIKI.md §5), so a substring match means update-in-place, not
-    append. Returns 0=DUPLICATE, 1=NEW so a caller can branch on the exit code."""
+    identity (NANOPM-WIKI.md §5). We match it against each existing citation LINE
+    (normalized, anchored to a whole line) — NOT as a raw substring of the page.
+    A substring test false-matches short citations (e.g. "terminal" inside "I live
+    in the terminal" — interview, 2026-06-23) and drops distinct records, which is
+    the exact dedup bug the wiki is meant to fix. Returns 0=DUPLICATE, 1=NEW so a
+    caller can branch on the exit code."""
     cit = args.citation.strip()
     if not cit:
         print("ERROR: empty citation", file=sys.stderr)
@@ -199,9 +243,11 @@ def cmd_citation_check(args) -> int:
         print("NEW")          # page doesn't exist yet -> definitely new
         return 1
     body = target.read_text(encoding="utf-8", errors="replace")
-    if cit in body:
-        print("DUPLICATE")
-        return 0
+    needle = _norm_citation(cit)
+    for line in body.splitlines():
+        if _norm_citation(line) == needle:
+            print("DUPLICATE")
+            return 0
     print("NEW")
     return 1
 
