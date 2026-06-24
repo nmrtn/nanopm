@@ -404,7 +404,11 @@ def main() -> int:
             else:
                 log(f"finalize: keeping {legacy} — {dest_rel} is missing/empty, not safe to delete")
         # 8b. Flat Define/Plan docs: remove once the wiki page exists and is non-empty.
-        for name in DOC_NAMES:
+        # ONLY the migrated docs (DOC_SKILL) — those whose owning skill now writes the
+        # wiki and won't re-create the flat file. Other DOC_NAMES (COMPETITORS,
+        # CHALLENGES, …) belong to skills not yet routed: their flat doc is still the
+        # live source, so finalize must leave it (deleting it would just churn).
+        for name in DOC_SKILL:
             src = nano / name
             page = docs_dir / name.lower()
             if not src.is_file() or src.is_symlink():
@@ -429,7 +433,7 @@ def main() -> int:
         # separate reasoning sidecar"): a freshly written page's provenance is newer
         # and authoritative, so dropping the stale legacy sidecar is intended, not loss.
         if reasoning_dir.is_dir():
-            for name in DOC_NAMES:
+            for name in DOC_SKILL:  # migrated docs only — leave e.g. reasoning/COMPETITORS.md
                 side = reasoning_dir / name
                 page = docs_dir / name.lower()
                 if not side.is_file():
