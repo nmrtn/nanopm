@@ -2,11 +2,21 @@
   "name": "nanopm",
   "displayName": "nanopm",
   "description": "Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-end.",
-  "version": "0.20.0",
-  "author": { "name": "Nicolas Martin & Guillaume Simon", "url": "https://github.com/nmrtn" },
+  "version": "0.21.0",
+  "author": {
+    "name": "Nicolas Martin & Guillaume Simon",
+    "url": "https://github.com/nmrtn"
+  },
   "homepage": "https://github.com/nmrtn/nanopm",
   "license": "MIT",
-  "keywords": ["pm", "product-management", "skills", "okr", "roadmap", "discovery"],
+  "keywords": [
+    "pm",
+    "product-management",
+    "skills",
+    "okr",
+    "roadmap",
+    "discovery"
+  ],
   "hooks": "./hooks/hooks.json",
   "skills": [
     "./pm-vision-mission",
