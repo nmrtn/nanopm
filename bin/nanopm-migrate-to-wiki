@@ -376,7 +376,7 @@ def main() -> int:
                 did.append(f"fold   {page.relative_to(project)} (after copy)")  # dry-run preview
 
     # prds/ and tasks/ subtrees -> wiki/docs/<name>/ (per-file, skip existing).
-    for sub in ("prds", "tasks"):
+    for sub in ("prds", "tasks", "handoffs"):
         srcdir = nano / sub
         if not srcdir.is_dir():
             continue
@@ -500,7 +500,7 @@ def main() -> int:
         # copy these into the wiki BEFORE finalize, so on a real run the mirror always
         # exists; under --dry-run those copies haven't landed, so treat a non-empty
         # source as "would be mirrored" (matching 8b) for a faithful preview.
-        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities"), ("tasks", "docs/tasks")):
+        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities"), ("tasks", "docs/tasks"), ("handoffs", "docs/handoffs")):
             ldir = nano / legacy_rel
             wdir = wiki / wiki_rel
             if not ldir.is_dir():

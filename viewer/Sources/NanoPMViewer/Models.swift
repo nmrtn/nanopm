@@ -236,6 +236,9 @@ enum PhaseMapper {
                 || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
             if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
             if lower.hasPrefix("wiki/docs/prds/") { return .ship }
+            // handoffs/ are the human-readable handoff (the shareable ticket list) —
+            // surfaced under Ship, as the root handoffs/ was.
+            if lower.hasPrefix("wiki/docs/handoffs/") { return .ship }
             // tasks/ are pm-breakdown outputs bound for external trackers — relocated
             // into the wiki for storage but kept hidden from the browser (as before).
             if lower.hasPrefix("wiki/docs/tasks/") { return nil }

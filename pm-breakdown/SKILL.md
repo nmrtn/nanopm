@@ -177,8 +177,8 @@ echo "WORKFLOW_FILE: $_WORKFLOW_FILE (Symphony reads this from the repo root)"
 ### If `_TARGET=human`:
 
 ```bash
-_HUMAN_FILE=".nanopm/handoffs/${_FEATURE_SLUG}.md"
-mkdir -p ".nanopm/handoffs"
+_HUMAN_FILE=".nanopm/wiki/docs/handoffs/${_FEATURE_SLUG}.md"
+mkdir -p ".nanopm/wiki/docs/handoffs"
 echo "HUMAN_FILE: $_HUMAN_FILE"
 ```
 
