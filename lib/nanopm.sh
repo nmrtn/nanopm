@@ -1341,7 +1341,7 @@ ask questions.
   NANOPM-WIKI.md            # this file
   raw/                      # immutable sources — never loaded whole
     events.jsonl            # the typed event log
-    feedback/ intel/ data/ interviews/ git-activity/
+    feedback/ competitors/ data/ interviews/ git-activity/
   wiki/
     index.md                # catalog — ALWAYS loaded (see §7)
     log.md                  # chronological heartbeat — greppable (see §8)

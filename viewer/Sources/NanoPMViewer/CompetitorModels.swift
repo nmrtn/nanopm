@@ -47,13 +47,13 @@ enum CompetitorFiles {
     /// the generic phase lists when that section is visible).
     static func isCompetitorFile(_ relativePath: String) -> Bool {
         isLandscape(relativePath)
-            || relativePath == "competitors.json"
-            || relativePath.hasPrefix("intel/")
+            || relativePath == "raw/competitors/competitors.json" || relativePath == "competitors.json"
+            || relativePath.hasPrefix("raw/competitors/")
     }
 
     static func isReport(_ relativePath: String) -> Bool {
         isLandscape(relativePath)
-            || (relativePath.hasPrefix("intel/INTEL-") && relativePath.hasSuffix(".md"))
+            || (relativePath.hasPrefix("raw/competitors/INTEL-") && relativePath.hasSuffix(".md"))
     }
 
     static func reportTitle(_ relativePath: String) -> String {
@@ -62,11 +62,11 @@ enum CompetitorFiles {
         return base.replacingOccurrences(of: "INTEL-", with: "Report ")
     }
 
-    /// "intel/snapshots/<slug>/<page>.md" → page key, e.g. "changelog"
+    /// "raw/competitors/snapshots/<slug>/<page>.md" → page key, e.g. "changelog"
     static func snapshotPage(_ relativePath: String) -> String? {
         let parts = relativePath.split(separator: "/")
-        guard parts.count == 4, parts[0] == "intel", parts[1] == "snapshots" else { return nil }
-        return (String(parts[3]) as NSString).deletingPathExtension
+        guard parts.count == 5, parts[0] == "raw", parts[1] == "competitors", parts[2] == "snapshots" else { return nil }
+        return (String(parts[4]) as NSString).deletingPathExtension
     }
 
     static let pageOrder = ["changelog", "api_docs", "pricing", "other"]

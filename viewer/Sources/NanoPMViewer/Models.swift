@@ -223,6 +223,10 @@ enum PhaseMapper {
         // (hidden). wiki/docs/ holds the migrated skill docs: prds/ -> Ship, the rest
         // fall through to the same filename matching the root docs used.
         if lower == "nanopm-wiki.md" { return nil }
+        // raw/ is the immutable source layer — hidden from the browser — EXCEPT the
+        // competitor intel (snapshots + dated INTEL reports), which the Competitors
+        // section reads from the store and groups on its own page.
+        if lower.hasPrefix("raw/competitors/") { return .discover }
         if lower.hasPrefix("raw/") { return nil }
         if lower.hasPrefix("wiki/") {
             if file == "index.md" || file == "log.md" { return nil }

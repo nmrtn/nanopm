@@ -193,7 +193,7 @@ enum SkillCatalog {
             blurb: "Competitor changelogs, docs, pricing and product updates — snapshotted, diffed against the last run, reported.",
             icon: "binoculars",
             skillCommand: "/pm-competitors-intel",
-            headlessArgs: "If .nanopm/competitors.json exists, default to running the intel check on all configured competitors without asking. If it is missing, set it up first by asking the user (via the interface contract) which competitors to monitor and which pages, then write the config and run the check.",
+            headlessArgs: "If .nanopm/raw/competitors/competitors.json exists, default to running the intel check on all configured competitors without asking. If it is missing, set it up first by asking the user (via the interface contract) which competitors to monitor and which pages, then write the config and run the check.",
             phase: .discover, output: .file("COMPETITORS.md")
         ),
 

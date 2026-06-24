@@ -22,9 +22,9 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_INTEL_DIR=".nanopm/intel"
-_SNAPSHOT_DIR=".nanopm/intel/snapshots"
-_COMPETITORS_FILE=".nanopm/competitors.json"
+_INTEL_DIR=".nanopm/raw/competitors"
+_SNAPSHOT_DIR=".nanopm/raw/competitors/snapshots"
+_COMPETITORS_FILE=".nanopm/raw/competitors/competitors.json"
 mkdir -p "$_INTEL_DIR" "$_SNAPSHOT_DIR"
 
 # Mode routing. The default run is the cheap diff veille (one diff subagent).
@@ -167,7 +167,7 @@ For each competitor named, ask (sequentially):
 - "What is {name}'s pricing page URL? (skip if not relevant)"
 - "Any other page to monitor? (blog, status page, etc. — skip to finish)"
 
-Write `.nanopm/competitors.json`:
+Write `.nanopm/raw/competitors/competitors.json`:
 
 ```json
 {
@@ -278,7 +278,7 @@ _DATE=$(date +%Y-%m-%d)
 _REPORT_FILE="$_INTEL_DIR/INTEL-${_DATE}.md"
 ```
 
-Write `.nanopm/intel/INTEL-{date}.md`:
+Write `.nanopm/raw/competitors/INTEL-{date}.md`:
 
 ```markdown
 # Competitor Intel
@@ -558,7 +558,7 @@ nanopm_context_append "{\"skill\":\"pm-competitors-intel\",\"ts\":\"$(date -u +%
 ## Completion
 
 Tell the user:
-- Intel report written to `.nanopm/intel/INTEL-{date}.md`
+- Intel report written to `.nanopm/raw/competitors/INTEL-{date}.md`
 - Competitive landscape updated at the canonical wiki page (`.nanopm/wiki/docs/competitors.md`)
 - How many material changes were found, and for which competitors
 - If discovery ran: which competitors were proposed/added, and any flagged `⚠ couldn't verify`

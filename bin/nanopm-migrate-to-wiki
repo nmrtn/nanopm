@@ -82,7 +82,7 @@ DOC_SKILL = {
 # on a page is also the fold's idempotency key — never fold twice.
 PROVENANCE_HEADING = "## Provenance & assumptions"
 ENTITY_TYPES = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
-RAW_SUBDIRS = ["feedback", "intel", "data", "interviews", "git-activity"]
+RAW_SUBDIRS = ["feedback", "competitors", "data", "interviews", "git-activity"]
 
 
 def log(msg: str) -> None:
@@ -435,6 +435,30 @@ def main() -> int:
                     opp_dest.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
 
+    # 7b. Competitor intel: relocate the legacy .nanopm/intel/ tree + competitors.json
+    # into raw/competitors/ (the renamed raw subdir — "intel" was incoherent with the
+    # competitors entity type). Recursive: snapshots/ has per-competitor subdirs.
+    comp_raw = raw / "competitors"
+    legacy_intel = nano / "intel"
+    if legacy_intel.is_dir():
+        for src in legacy_intel.rglob("*"):
+            if src.is_dir() or src.name == ".DS_Store":
+                continue
+            dest = comp_raw / src.relative_to(legacy_intel)
+            if not dest.exists():
+                did.append(f"intel  {dest.relative_to(project)}")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dest)
+    legacy_cjson = nano / "competitors.json"
+    if legacy_cjson.is_file():
+        dest = comp_raw / "competitors.json"
+        if not dest.exists():
+            did.append(f"intel  {dest.relative_to(project)}")
+            if not dry:
+                comp_raw.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(legacy_cjson, dest)
+
     # Finalize ---------------------------------------------------------------
     if args.finalize:
         # 8a. Overviews: remove the legacy summary once its wiki overview exists.
@@ -546,9 +570,34 @@ def main() -> int:
                 did.append(f"rmdir  {wkdir.relative_to(project)} (finalize)")
                 if not dry:
                     wkdir.rmdir()
+        # 8f. Competitor intel: drop the legacy intel/ tree + competitors.json once every
+        # file is mirrored under raw/competitors/.
+        comp_raw = raw / "competitors"
+        legacy_intel = nano / "intel"
+        if legacy_intel.is_dir():
+            files = [p for p in legacy_intel.rglob("*") if p.is_file() and p.name != ".DS_Store"]
+            all_mirrored = all(
+                (comp_raw / p.relative_to(legacy_intel)).is_file() or (dry and p.stat().st_size >= 0)
+                for p in files
+            )
+            if files and all_mirrored:
+                did.append(f"rm     intel/ (tree, finalize)")
+                if not dry:
+                    shutil.rmtree(legacy_intel)
+            else:
+                log("finalize: keeping intel/ — not all files mirrored under raw/competitors/")
+        legacy_cjson = nano / "competitors.json"
+        if legacy_cjson.is_file():
+            mirror = comp_raw / "competitors.json"
+            if mirror.is_file() or (dry and legacy_cjson.stat().st_size >= 0):
+                did.append(f"rm     competitors.json (finalize)")
+                if not dry:
+                    legacy_cjson.unlink()
+            else:
+                log("finalize: keeping competitors.json — not yet mirrored under raw/competitors/")
         log("finalize: legacy summaries, flat Define/Plan docs, folded sidecars, and the "
-            "relocated prds/ + tasks/ + opportunities/ + weekly-updates/ root copies "
-            "removed where mirrored in the wiki.")
+            "relocated prds/ + tasks/ + opportunities/ + weekly-updates/ + intel/ root "
+            "copies removed where mirrored in the wiki.")
     else:
         log("note: legacy flat docs / summaries / reasoning sidecars kept (copy mode). "
             "Re-run with --finalize once the wiki pages are confirmed.")

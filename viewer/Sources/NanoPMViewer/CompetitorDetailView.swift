@@ -86,7 +86,7 @@ struct CompetitorsPageView: View {
     /// Newest dated INTEL report — source of the page-top Strategic implications.
     private var latestIntelReport: Artifact? {
         store.artifacts
-            .filter { $0.relativePath.hasPrefix("intel/INTEL-") && $0.relativePath.hasSuffix(".md") }
+            .filter { $0.relativePath.hasPrefix("raw/competitors/INTEL-") && $0.relativePath.hasSuffix(".md") }
             .sorted { $0.relativePath > $1.relativePath }
             .first
     }
@@ -355,7 +355,7 @@ struct CompetitorDetailView: View {
 
     private var snapshots: [Artifact] {
         store.artifacts
-            .filter { $0.relativePath.hasPrefix("intel/snapshots/\(competitor.slug)/") }
+            .filter { $0.relativePath.hasPrefix("raw/competitors/snapshots/\(competitor.slug)/") }
             .sorted {
                 let a = CompetitorFiles.pageOrder.firstIndex(of: CompetitorFiles.snapshotPage($0.relativePath) ?? "") ?? .max
                 let b = CompetitorFiles.pageOrder.firstIndex(of: CompetitorFiles.snapshotPage($1.relativePath) ?? "") ?? .max
