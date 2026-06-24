@@ -672,9 +672,12 @@ nanopm_update_check() {
 
 nanopm_load_context() {
   # Prefer the wiki overview (vNext layout); fall back to the legacy flat summary
-  # for projects that haven't run nanopm-migrate-to-wiki yet.
-  local f=".nanopm/wiki/overview/company.md"
-  [ -s "$f" ] || f=".nanopm/CONTEXT-SUMMARY.md"
+  # for projects that haven't run nanopm-migrate-to-wiki yet. Root-relative (not
+  # PWD-relative) so a skill run from a subdir reads the same wiki nanopm_wiki_ensure
+  # scaffolds at the project root.
+  local root f; root="$(_nanopm_project_root)"
+  f="$root/.nanopm/wiki/overview/company.md"
+  [ -s "$f" ] || f="$root/.nanopm/CONTEXT-SUMMARY.md"
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "CONTEXT_SUMMARY: none yet (generated after a Define skill runs)"; return 0; }
   echo "CONTEXT_SUMMARY_LOADED: $f"
@@ -712,8 +715,10 @@ PY
 
 nanopm_load_plan() {
   # Prefer the wiki overview (vNext layout); fall back to the legacy flat summary.
-  local f=".nanopm/wiki/overview/current-work.md"
-  [ -s "$f" ] || f=".nanopm/PLAN-SUMMARY.md"
+  # Root-relative so a subdir run reads the same wiki the preamble scaffolds.
+  local root f; root="$(_nanopm_project_root)"
+  f="$root/.nanopm/wiki/overview/current-work.md"
+  [ -s "$f" ] || f="$root/.nanopm/PLAN-SUMMARY.md"
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "PLAN_SUMMARY: none yet (generated after a Plan skill runs)"; return 0; }
   echo "PLAN_SUMMARY_LOADED: $f"
@@ -741,7 +746,9 @@ PY
 # scaffolded by nanopm-migrate-to-wiki.
 
 nanopm_load_index() {
-  local f=".nanopm/wiki/index.md"
+  # Root-relative so a subdir run reads the same wiki the preamble scaffolds.
+  local root f; root="$(_nanopm_project_root)"
+  f="$root/.nanopm/wiki/index.md"
   [ -s "$f" ] || { echo "WIKI_INDEX: none yet (run nanopm-migrate-to-wiki to scaffold the wiki)"; return 0; }
   echo "WIKI_INDEX_LOADED: $f"
   # Bounded, framed as reference data (a planted line in a page title must not ride
@@ -1403,17 +1410,28 @@ last_updated: <YYYY-MM-DD>
 ### 4.3 Doc page (`docs/*.md`) — a filed-back view
 A skill's output (strategy, roadmap, a PRD). A point-in-time synthesis, not the
 substrate. Query answers worth keeping are filed here too, so explorations compound.
+Under **wiki-canonical writes** every Define/Plan skill writes its output HERE — at
+`nanopm_wiki_doc_path <slug>`, opened with `nanopm_wiki_doc_frontmatter` — never as a
+flat `.nanopm/<X>.md`. The "why" that used to live in a separate `.nanopm/reasoning/`
+sidecar folds INTO this page: facts carry inline claim citations (§5), and the
+Evidenced/Assumed calls live in a trailing `## Provenance & assumptions` section. One
+file, self-describing.
 
 ```markdown
 ---
 type: doc
 skill: pm-strategy
+provenance: user-stated    # nano-hypothesis | user-stated | evidence-backed (§5)
 generated: <YYYY-MM-DD>
 supersedes: <prior doc id or "none">
 sources: [<entity/raw ids>]
 ---
 # <title>
-<body — the artifact>
+<body — the artifact, with inline "<quote/data>" — <source>, <date> citations (§5)>
+
+## Provenance & assumptions
+<the folded sidecar: each material claim marked Evidenced (with its citation) or
+Assumed (with the reasoning). This is what the viewer's "Reasoning" surface reads.>
 ```
 
 ## 5. Provenance — always explicit
@@ -1435,6 +1453,11 @@ the same page.
 **Supersede, never delete.** When new evidence overturns a claim, move the old claim
 under `## Open / superseded` with the date and the replacing citation. The wiki
 records what was believed, when, and what replaced it.
+
+**No separate reasoning sidecar.** Under wiki-canonical writes the `.nanopm/reasoning/`
+sidecar is retired: the Evidenced/Assumed calls fold into the doc page's
+`## Provenance & assumptions` section (§4.3) and entity pages' inline citations. There
+is exactly one file per fact — the wiki page — and its provenance travels with it.
 
 ## 6. Typed relationship edges
 
@@ -1529,8 +1552,12 @@ deferred).
 
 Any path convention defined here is mirrored in the SwiftUI viewer; they change in
 lockstep (per CLAUDE.md):
-- `ReasoningFiles` (viewer/Models.swift) <-> `nanopm_reasoning_path` (lib/nanopm.sh)
+- The viewer's "Reasoning" surface <-> each doc page's `## Provenance & assumptions`
+  section (§4.3) + entity-page inline citations. Under wiki-canonical writes this
+  REPLACES the old `ReasoningFiles` <-> `nanopm_reasoning_path` sidecar coupling —
+  provenance is per-page, not a separate `.nanopm/reasoning/` file.
 - `PhaseMapper` (viewer/Models.swift) <-> the section -> overview mapping in §3
+- Skills file doc views at `nanopm_wiki_doc_path` <-> the viewer's `docs/` scan.
 
 If you move a path in this file, update both sides or the viewer silently mis-renders.
 
@@ -1574,6 +1601,61 @@ nanopm_wiki_ensure() {
     fi
   fi
   return 0
+}
+
+# ── Wiki doc-page write contract (vNext, Option A — wiki-canonical writes) ────
+#
+# Under wiki-canonical writes a Define/Plan skill files its output as a wiki DOC
+# PAGE (schema §4.3) instead of a flat .nanopm/<X>.md plus a separate reasoning
+# sidecar. The skill writes ONE file at nanopm_wiki_doc_path, opened with the
+# frontmatter from nanopm_wiki_doc_frontmatter; the reasoning that used to live in
+# the .nanopm/reasoning/ sidecar folds INTO the page as inline claim citations (§5)
+# plus a trailing "## Provenance & assumptions" section. The viewer reads that
+# section in place of the old sidecar (NANOPM-WIKI.md §12). Entity-level compounding
+# still flows through the ingest subagent (nanopm_ingest_prompt); these two helpers
+# cover the deterministic doc-view write every skill shares.
+#
+# These SUPERSEDE nanopm_reasoning_path, which is retained only so not-yet-routed
+# skills and the migrate tool keep working during the transition.
+
+nanopm_wiki_doc_path() {
+  # Usage: nanopm_wiki_doc_path <slug>     e.g. vision-mission | strategy | roadmap
+  #   ->   <root>/.nanopm/wiki/docs/<slug>.md   (docs/ created on demand)
+  # The wiki-canonical counterpart of nanopm_reasoning_path. Callers pass a bare
+  # section slug (not a path); the slug is normalized so a skill name or a doc
+  # basename both resolve to the same canonical page.
+  local root slug
+  root="$(_nanopm_project_root)"
+  # Accept a skill name, a bare slug, or a legacy doc path/basename — all normalize
+  # to the same canonical page: strip any dir + .md, lowercase, hyphenate, then drop
+  # a leading "pm-" so the skill name (pm-strategy) and the legacy slug (STRATEGY.md)
+  # converge on one page (docs/strategy.md) instead of forking.
+  slug=$(printf '%s' "$1" | sed 's#.*/##; s#\.md$##' | tr '[:upper:]' '[:lower:]' | tr ' _' '--' | sed 's/^pm-//; s/[^a-z0-9-]//g')
+  mkdir -p "$root/.nanopm/wiki/docs" 2>/dev/null
+  printf '%s\n' "$root/.nanopm/wiki/docs/${slug}.md"
+}
+
+nanopm_wiki_doc_frontmatter() {
+  # Usage: nanopm_wiki_doc_frontmatter <skill> <provenance> <date> <sources-csv>
+  # Emits the schema §4.3 doc-page frontmatter block (between --- fences) that a
+  # skill prepends before its body. <provenance> is one of
+  # nano-hypothesis|user-stated|evidence-backed (§5); <sources-csv> is a
+  # comma-joined id list (the docs/entities/raw this view was synthesized from).
+  # Keeps every wiki write self-describing so the index/lint agents and the viewer
+  # read it without guessing.
+  local skill="$1" prov="${2:-user-stated}" date="$3" sources="${4:-}"
+  # Guard the YAML flow-sequence: drop characters that would break `sources: [...]`
+  # (brackets, '#', quotes). Real ids are kebab-slugs or entity paths (competitors/cursor).
+  sources=$(printf '%s' "$sources" | sed 's#[^A-Za-z0-9,_ ./-]##g')
+  cat <<EOF
+---
+type: doc
+skill: ${skill}
+provenance: ${prov}
+generated: ${date}
+sources: [${sources}]
+---
+EOF
 }
 
 # Emits the ingest/bookkeeper subagent prompt the main agent dispatches (gated) to
@@ -1976,6 +2058,10 @@ nanopm_preamble() {
   else
     echo "VOICE: Direct, adversarial PM advisor. No hedging, no corporate speak. Name the real problem, not the comfortable one. Call out gaps specifically. If the answer is obvious from context, skip the question. Short sentences."
   fi
+  # Ensure the wiki scaffold exists before we load its catalog, so generated
+  # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
+  # creates nothing that already exists, never overwrites a page or the schema.
+  nanopm_wiki_ensure
   # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
   # loading the whole raw event log into every run.
   nanopm_load_index
