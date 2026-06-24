@@ -35,21 +35,29 @@ struct Competitor: Identifiable, Hashable, Codable, Sendable {
 }
 
 enum CompetitorFiles {
+    /// The competitor landscape report — the wiki-canonical page, with the legacy
+    /// flat path as a fallback for un-migrated projects. (pm-competitors-intel writes
+    /// wiki/docs/competitors.md under wiki-canonical writes.)
+    static let reportPaths = ["wiki/docs/competitors.md", "COMPETITORS.md"]
+    static func isLandscape(_ relativePath: String) -> Bool {
+        reportPaths.contains(relativePath)
+    }
+
     /// True for artifacts owned by the Competitors nav section (hidden from
     /// the generic phase lists when that section is visible).
     static func isCompetitorFile(_ relativePath: String) -> Bool {
-        relativePath == "COMPETITORS.md"
+        isLandscape(relativePath)
             || relativePath == "competitors.json"
             || relativePath.hasPrefix("intel/")
     }
 
     static func isReport(_ relativePath: String) -> Bool {
-        relativePath == "COMPETITORS.md"
+        isLandscape(relativePath)
             || (relativePath.hasPrefix("intel/INTEL-") && relativePath.hasSuffix(".md"))
     }
 
     static func reportTitle(_ relativePath: String) -> String {
-        if relativePath == "COMPETITORS.md" { return "Latest Report" }
+        if isLandscape(relativePath) { return "Latest Report" }
         let base = (((relativePath as NSString).lastPathComponent) as NSString).deletingPathExtension
         return base.replacingOccurrences(of: "INTEL-", with: "Report ")
     }

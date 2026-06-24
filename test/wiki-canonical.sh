@@ -25,8 +25,13 @@ echo "  nanopm wiki-canonical enforcement"
 echo "  ================================="
 
 # Migrated skills and their RETIRED flat doc basename (parallel arrays).
-_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-objectives pm-strategy pm-roadmap)
-_DOCS=(VISION-MISSION BUSINESS-MODEL ORG PRODUCT PERSONAS OBJECTIVES STRATEGY ROADMAP)
+# Define/Plan (Phase 1) + Discover/Daily-Ops (Phase 2). pm-interview owns two docs
+# (interview + the cumulative feedback page), so it appears twice. pm-standup/pm-retro
+# write DATED wiki docs, so their retired flat doc is STANDUP/RETRO.
+_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-objectives pm-strategy pm-roadmap \
+         pm-challenge-me pm-competitors-intel pm-user-feedback pm-interview pm-interview pm-data pm-discovery pm-weekly-update pm-standup pm-retro)
+_DOCS=(VISION-MISSION BUSINESS-MODEL ORG PRODUCT PERSONAS OBJECTIVES STRATEGY ROADMAP \
+       CHALLENGES COMPETITORS FEEDBACK INTERVIEW FEEDBACK DATA DISCOVERY WEEKLY_UPDATE STANDUP RETRO)
 
 echo
 echo "  No flat writes in migrated skills"

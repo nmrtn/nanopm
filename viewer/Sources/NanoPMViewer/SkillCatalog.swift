@@ -43,23 +43,48 @@ struct SkillDoc: Identifiable {
 enum SkillCatalog {
     static func docs(for phase: Phase) -> [SkillDoc] { all.filter { $0.phase == phase } }
 
+    /// True if a `.file(output)` skill owns this artifact. Under wiki-canonical writes
+    /// a skill's output moved from the legacy flat `<DOC>.md` to its wiki page
+    /// `wiki/docs/<slug>.md`, where <slug> is the output basename lowercased with
+    /// '_'/' ' -> '-' (matching nanopm_wiki_doc_path). Dated docs (standup/retro)
+    /// match by `<slug>-` prefix, e.g. wiki/docs/standup-2026-06-24.md. The legacy
+    /// flat path still matches so un-migrated projects keep working.
+    static func fileMatches(output: String, artifact: String) -> Bool {
+        if output == artifact { return true }
+        guard artifact.hasPrefix("wiki/docs/") else { return false }
+        func stem(_ p: String) -> String {
+            let base = ((p as NSString).lastPathComponent as NSString).deletingPathExtension
+            return base.lowercased()
+                .replacingOccurrences(of: "_", with: "-")
+                .replacingOccurrences(of: " ", with: "-")
+        }
+        let o = stem(output), a = stem(artifact)
+        if a == o { return true }
+        // Dated docs only (standup-YYYY-MM-DD, retro-YYYY-MM-DD): the remainder after
+        // "<slug>-" must be an ISO date, so a future page slug like "org-chart" can't
+        // be silently claimed by the "org" skill.
+        guard a.hasPrefix(o + "-") else { return false }
+        let suffix = String(a.dropFirst(o.count + 1))
+        return suffix.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
+    }
+
     /// Icon for the skill that produces this artifact, so the sidebar matches
     /// the overview pages. Nil when no catalog skill owns the path.
     static func icon(forArtifact relativePath: String) -> String? {
         all.first { doc in
-            if case .file(let path) = doc.output { return path == relativePath }
+            if case .file(let path) = doc.output { return fileMatches(output: path, artifact: relativePath) }
             return false
         }?.icon
     }
 
     /// The skill whose output owns this artifact, so a document's own detail
     /// page can offer the same Run action as the phase overview. Matches a
-    /// `.file` output exactly or a `.folder` output by path prefix; returns nil
-    /// for artifacts no skill produces (e.g. reasoning sidecars).
+    /// `.file` output (legacy flat path or its wiki page) or a `.folder` output by
+    /// path prefix; returns nil for artifacts no skill produces.
     static func doc(forArtifact relativePath: String) -> SkillDoc? {
         all.first { doc in
             switch doc.output {
-            case .file(let path): return path == relativePath
+            case .file(let path): return fileMatches(output: path, artifact: relativePath)
             case .folder(let prefix, _): return relativePath.hasPrefix(prefix)
             case .handoff: return false
             }

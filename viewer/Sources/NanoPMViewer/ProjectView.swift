@@ -417,7 +417,7 @@ struct ProjectView: View {
                 phase: phase,
                 store: store,
                 onOpen: { route in
-                    self.selection = (route == "COMPETITORS.md" && showCompetitorsSection)
+                    self.selection = (CompetitorFiles.isLandscape(route) && showCompetitorsSection)
                         ? NavRoute.competitorsPage
                         : route
                 },

@@ -71,13 +71,16 @@ struct CompetitorsPageView: View {
         return (win, exposed)
     }
 
-    /// The reasoning sidecar for COMPETITORS.md (written by /pm-competitors-intel
-    /// in analyze mode). Opens from a "Reasoning" button in a separate window,
-    /// never as its own sidebar row — mirrors the Define-doc convention.
-    private var reasoningArtifact: Artifact? {
-        guard displayed?.relativePath == "COMPETITORS.md" else { return nil }
-        let path = ReasoningFiles.sidecarPath(for: "COMPETITORS.md")
-        return store.artifacts.first { $0.relativePath == path }
+    /// Where the "Reasoning" window reads from (path relative to .nanopm/). Under
+    /// wiki-canonical writes the rationale is the landscape page's inline
+    /// "## Provenance & assumptions" section; the window extracts it. Falls back to a
+    /// legacy reasoning/COMPETITORS.md sidecar for un-migrated projects. Only shown
+    /// when the displayed report is the landscape (not a dated INTEL report).
+    private var reasoningSourcePath: String? {
+        guard let dp = displayed?.relativePath, CompetitorFiles.isLandscape(dp) else { return nil }
+        if let c = content, ReasoningFiles.hasProvenance(c) { return dp }
+        let sidecar = ReasoningFiles.sidecarPath(for: "COMPETITORS.md")
+        return store.artifacts.first { $0.relativePath == sidecar }?.relativePath
     }
 
     /// Newest dated INTEL report — source of the page-top Strategic implications.
@@ -93,8 +96,8 @@ struct CompetitorsPageView: View {
         store.artifacts
             .filter { CompetitorFiles.isReport($0.relativePath) }
             .sorted {
-                if $0.relativePath == "COMPETITORS.md" { return true }
-                if $1.relativePath == "COMPETITORS.md" { return false }
+                if CompetitorFiles.isLandscape($0.relativePath) { return true }
+                if CompetitorFiles.isLandscape($1.relativePath) { return false }
                 return $0.relativePath > $1.relativePath
             }
     }
@@ -154,7 +157,7 @@ struct CompetitorsPageView: View {
                     .disabled(intelRunning)
                     .help("Launch Competitor Intel: diff veille, discover new entrants, or full SWOT + positioning analysis")
 
-                    if let reasoning = reasoningArtifact {
+                    if let reasoningPath = reasoningSourcePath {
                         ActionButton(
                             title: "Reasoning",
                             systemImage: "macwindow.on.rectangle",
@@ -163,7 +166,7 @@ struct CompetitorsPageView: View {
                             openWindow(
                                 id: NanoPMViewerApp.reasoningWindowID,
                                 value: ReasoningWindowContext(
-                                    absolutePath: store.project.nanopmPath + "/" + reasoning.relativePath,
+                                    absolutePath: store.project.nanopmPath + "/" + reasoningPath,
                                     docName: "Competitors"
                                 )
                             )
@@ -279,9 +282,9 @@ struct CompetitorsPageView: View {
                 implications = nil
             }
 
-            // Win / exposed from the COMPETITORS.md positioning matrix (analyze mode).
-            var landscape = displayed?.relativePath == "COMPETITORS.md" ? loadedContent : nil
-            if landscape == nil, let comp = store.artifacts.first(where: { $0.relativePath == "COMPETITORS.md" }) {
+            // Win / exposed from the competitor landscape positioning matrix (analyze mode).
+            var landscape = CompetitorFiles.isLandscape(displayed?.relativePath ?? "") ? loadedContent : nil
+            if landscape == nil, let comp = store.artifacts.first(where: { CompetitorFiles.isLandscape($0.relativePath) }) {
                 landscape = try? await store.content(of: comp)
             }
             if let landscape {
