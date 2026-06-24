@@ -34,6 +34,7 @@ import argparse
 import datetime as _dt
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -44,7 +45,8 @@ from pathlib import Path
 DOC_NAMES = [
     "VISION-MISSION.md", "BUSINESS-MODEL.md", "ORG.md", "PRODUCT.md", "PERSONAS.md",
     "OBJECTIVES.md", "STRATEGY.md", "ROADMAP.md", "CHALLENGES.md", "AUDIT.md",
-    "COMPETITORS.md", "FEEDBACK.md", "DATA.md", "DISCOVERY.md", "WEEKLY_UPDATE.md",
+    "COMPETITORS.md", "FEEDBACK.md", "INTERVIEW.md", "DATA.md", "DISCOVERY.md",
+    "WEEKLY_UPDATE.md",
 ]
 # CONTEXT-SUMMARY / PLAN-SUMMARY are the overviews; handled separately, not as docs.
 OVERVIEWS = {
@@ -63,7 +65,17 @@ DOC_SKILL = {
     "OBJECTIVES.md": "pm-objectives",
     "STRATEGY.md": "pm-strategy",
     "ROADMAP.md": "pm-roadmap",
+    # Discover / Daily-Ops (wiki-canonical Phase 2)
+    "CHALLENGES.md": "pm-challenge-me",
+    "COMPETITORS.md": "pm-competitors-intel",
+    "FEEDBACK.md": "pm-user-feedback",
+    "INTERVIEW.md": "pm-interview",
+    "DATA.md": "pm-data",
+    "DISCOVERY.md": "pm-discovery",
+    "WEEKLY_UPDATE.md": "pm-weekly-update",
 }
+# AUDIT.md (retired pm-audit) and SCAN.md (retired pm-scan) stay OUT of DOC_SKILL:
+# no live skill owns them, so --finalize must not treat them as migrated.
 # The section a folded reasoning sidecar lands under (schema §4.3 / §5). Its presence
 # on a page is also the fold's idempotency key — never fold twice.
 PROVENANCE_HEADING = "## Provenance & assumptions"
@@ -218,6 +230,16 @@ def sidecar_body(text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def doc_page_name(name: str) -> str:
+    """The wiki/docs/ page filename for a legacy doc name, matching the slug
+    nanopm_wiki_doc_path produces (lowercase, '_' and ' ' -> '-'). So WEEKLY_UPDATE.md
+    -> weekly-update.md, not weekly_update.md — the skill and the migrate tool must
+    land on the SAME page (change one, change both)."""
+    stem = name[:-3] if name.lower().endswith(".md") else name
+    slug = re.sub(r"[^a-z0-9-]", "", stem.lower().replace("_", "-").replace(" ", "-"))
+    return slug + ".md"
+
+
 def has_provenance(text: str) -> bool:
     """True if the page already carries a Provenance & assumptions section. Matched at
     line start (not a raw substring) so the heading quoted in prose or a code fence
@@ -307,7 +329,7 @@ def main() -> int:
     doc_will_exist: set[str] = {p.name for p in docs_dir.glob("*.md")} if docs_dir.is_dir() else set()
     for name in DOC_NAMES:
         src = nano / name
-        dest = docs_dir / name.lower()
+        dest = docs_dir / doc_page_name(name)
         if not src.is_file() or dest.exists():
             continue
         skill = DOC_SKILL.get(name)
@@ -334,8 +356,8 @@ def main() -> int:
     if reasoning_dir.is_dir():
         for name in DOC_NAMES:
             side = reasoning_dir / name
-            page = docs_dir / name.lower()
-            if not side.is_file() or name.lower() not in doc_will_exist:
+            page = docs_dir / doc_page_name(name)
+            if not side.is_file() or doc_page_name(name) not in doc_will_exist:
                 continue
             # On a real run the page is on disk; under --dry-run a just-"copied" page
             # isn't — treat the would-be page (a legacy doc) as having no provenance yet.
@@ -410,7 +432,7 @@ def main() -> int:
         # live source, so finalize must leave it (deleting it would just churn).
         for name in DOC_SKILL:
             src = nano / name
-            page = docs_dir / name.lower()
+            page = docs_dir / doc_page_name(name)
             if not src.is_file() or src.is_symlink():
                 continue  # never written, or a company-share symlink — leave it
             # Safety guard: only delete once the wiki page is present and non-empty.
@@ -420,13 +442,13 @@ def main() -> int:
             if page.is_file():
                 page_ready = page.stat().st_size > 0
             else:
-                page_ready = name.lower() in doc_will_exist and src.stat().st_size > 0
+                page_ready = doc_page_name(name) in doc_will_exist and src.stat().st_size > 0
             if page_ready:
                 did.append(f"rm     {src.relative_to(project)} (finalize)")
                 if not dry:
                     src.unlink()
             else:
-                log(f"finalize: keeping {name} — wiki/docs/{name.lower()} is missing/empty, not safe to delete")
+                log(f"finalize: keeping {name} — wiki/docs/{doc_page_name(name)} is missing/empty, not safe to delete")
         # 8c. Reasoning sidecars: remove once the wiki page carries provenance —
         # either folded this run (`folded`) or already present from a fresh
         # wiki-canonical write. The latter is SUPERSEDE semantics (schema §5: "no
@@ -435,7 +457,7 @@ def main() -> int:
         if reasoning_dir.is_dir():
             for name in DOC_SKILL:  # migrated docs only — leave e.g. reasoning/COMPETITORS.md
                 side = reasoning_dir / name
-                page = docs_dir / name.lower()
+                page = docs_dir / doc_page_name(name)
                 if not side.is_file():
                     continue
                 page_has_prov = name in folded or (
