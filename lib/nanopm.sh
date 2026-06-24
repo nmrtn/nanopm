@@ -1576,6 +1576,10 @@ Steps:
    Prefer UPDATING an existing page over creating a near-duplicate.
 4. Dedup by citation BEFORE writing. For each claim's citation, run:
      nanopm-ingest-agent citation-check --target <page> --citation '<verbatim> — <source>, <date>'
+   Pass the EXACT citation line you will write to the page (the same
+   '"<verbatim>" — <source>, <date>' text), NOT a paraphrase or the bare fact —
+   dedup matches the whole citation line, so a loose arg misses real duplicates and
+   the same evidence piles up on re-ingest.
    DUPLICATE -> already recorded; refine in place, do not append a second copy.
    NEW -> add it.
 5. Supersede, don't delete: if a claim overturns an older one, move the old claim
