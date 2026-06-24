@@ -221,7 +221,7 @@ fi
 # load_context falls back to the legacy flat summary when no wiki overview exists.
 echo "# legacy context" > .nanopm/CONTEXT-SUMMARY.md
 _ctx=$(nanopm_load_context 2>&1 || true)
-if echo "$_ctx" | grep -q "CONTEXT_SUMMARY_LOADED: .nanopm/CONTEXT-SUMMARY.md"; then
+if echo "$_ctx" | grep -qE "CONTEXT_SUMMARY_LOADED:.*\.nanopm/CONTEXT-SUMMARY.md"; then
   ok "nanopm_load_context: falls back to legacy CONTEXT-SUMMARY.md"
 else
   fail "nanopm_load_context: expected legacy fallback. Got: $_ctx"
@@ -231,7 +231,7 @@ fi
 mkdir -p .nanopm/wiki/overview
 printf -- '---\ntype: overview\n---\n# Company\nbody\n' > .nanopm/wiki/overview/company.md
 _ctx=$(nanopm_load_context 2>&1 || true)
-if echo "$_ctx" | grep -q "CONTEXT_SUMMARY_LOADED: .nanopm/wiki/overview/company.md"; then
+if echo "$_ctx" | grep -qE "CONTEXT_SUMMARY_LOADED:.*\.nanopm/wiki/overview/company.md"; then
   ok "nanopm_load_context: prefers wiki/overview/company.md when present"
 else
   fail "nanopm_load_context: expected wiki overview preference. Got: $_ctx"
@@ -240,7 +240,7 @@ fi
 # load_index loads the catalog once present.
 echo "# Wiki Index" > .nanopm/wiki/index.md
 _idx=$(nanopm_load_index 2>&1 || true)
-if echo "$_idx" | grep -q "WIKI_INDEX_LOADED: .nanopm/wiki/index.md"; then
+if echo "$_idx" | grep -qE "WIKI_INDEX_LOADED:.*\.nanopm/wiki/index.md"; then
   ok "nanopm_load_index: loads the catalog when present"
 else
   fail "nanopm_load_index: expected WIKI_INDEX_LOADED. Got: $_idx"
