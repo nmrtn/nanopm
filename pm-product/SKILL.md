@@ -48,7 +48,7 @@ depth is `/pm-personas`'s job; "is this the right thing" is `/pm-challenge-me`'s
 > **Wiki-canonical writes.** This skill writes ONLY to the wiki Define page
 > `.nanopm/wiki/docs/product.md` (resolved via `nanopm_wiki_doc_path product`). Reasoning is folded
 > inline under a trailing `## Provenance & assumptions` section — there is no separate
-> `.nanopm/PRODUCT.md` and no `.nanopm/reasoning/` sidecar.
+> `.nanopm/wiki/docs/product.md` and no `.nanopm/reasoning/` sidecar.
 
 ## Phase 0: Prior context
 
@@ -81,7 +81,7 @@ _WEBSITE=$(nanopm_config_get "company_website" 2>/dev/null)
 echo "WEBSITE: ${_WEBSITE:-none}"
 _ARTIFACTS=0
 for f in SCAN CHALLENGES AUDIT DISCOVERY FEEDBACK DATA CONTEXT; do
-  [ -f ".nanopm/$f.md" ] && _ARTIFACTS=$((_ARTIFACTS+1))
+  { [ -f ".nanopm/wiki/docs/$(echo "$f" | tr 'A-Z' 'a-z' | tr '_' '-').md" ] || [ -f ".nanopm/$f.md" ]; } && _ARTIFACTS=$((_ARTIFACTS+1))
 done
 echo "ARTIFACTS=$_ARTIFACTS"
 ```

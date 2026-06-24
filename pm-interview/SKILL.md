@@ -61,8 +61,9 @@ If prior interview entries found: "Found {N} past sessions. This session builds 
 Read prior context to understand which assumptions have already been tested and what signal exists.
 
 ```bash
-[ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f "$(nanopm_wiki_doc_path feedback)" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
 [ -f "$(nanopm_wiki_doc_path product)" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"

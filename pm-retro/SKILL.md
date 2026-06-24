@@ -38,9 +38,10 @@ If prior retro found: "Prior retro from {ts}. This run covers commits since then
 ## Phase 1: Check for required artifacts
 
 ```bash
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"  # legacy flat fallback
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/wiki/docs/roadmap.md"  # legacy flat fallback
 [ -f "$_ROADMAP" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -d ".git" ]               && echo "GIT_REPO"        || echo "NOT_GIT_REPO"
 ```
@@ -52,11 +53,12 @@ If NOT_GIT_REPO: "This directory is not a git repo — can't read commit history
 ## Phase 2: Determine retro window
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # When was the roadmap last written? Use as retro start point. Anchor on the wiki
 # page, falling back to the legacy flat file so older history still resolves.
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"
-_ROADMAP_COMMIT=$(git log --oneline -1 -- "$_ROADMAP" .nanopm/ROADMAP.md 2>/dev/null | awk '{print $1}')
-_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/wiki/docs/roadmap.md"
+_ROADMAP_COMMIT=$(git log --oneline -1 -- "$_ROADMAP" .nanopm/wiki/docs/roadmap.md 2>/dev/null | awk '{print $1}')
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 _CHALLENGES_COMMIT=$(git log --oneline -1 -- "$_CHALLENGES" 2>/dev/null | awk '{print $1}')
 
 if [ -n "$_ROADMAP_COMMIT" ]; then
@@ -81,7 +83,8 @@ Tell the user: "Reviewing {N} commits since roadmap was written {date or 'recent
 If ROADMAP_EXISTS, extract the NOW items (planned work) from the wiki roadmap page:
 
 ```bash
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/ROADMAP.md"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/wiki/docs/roadmap.md"
 grep -A 50 '## NOW' "$_ROADMAP" 2>/dev/null | \
   grep -B 50 '## NEXT\|## LATER\|^---' | \
   grep -v '^##\|^---' | grep -v '^$' | head -30

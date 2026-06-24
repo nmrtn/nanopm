@@ -42,10 +42,10 @@ Key things to extract:
 ## Phase 1: Context check
 
 ```bash
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f ".nanopm/wiki/docs/personas.md"        ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"                  ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/wiki/docs/feedback.md"                  ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
 [ -f ".nanopm/wiki/docs/vision-mission.md"  ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
 [ -f ".nanopm/wiki/docs/business-model.md"  ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 ```

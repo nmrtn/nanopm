@@ -79,10 +79,10 @@ Offer re-fetch only if last run was >30 days ago: "Re-fetch from {url}? (y/N)"
 Check for DATA.md — if it exists, it contains quantitative analytics from /pm-data:
 
 ```bash
-[ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
+[ -f ".nanopm/wiki/docs/data.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
 ```
 
-**If DATA_EXISTS:** read `.nanopm/DATA.md`. Extract:
+**If DATA_EXISTS:** read `.nanopm/wiki/docs/data.md`. Extract:
 - The most recent analysis question and its key insight
 - Metrics marked 🟢 high confidence — these are facts, not hypotheses
 - Any "biggest unknown" flagged — these are candidates for the challenges in Phase 5
@@ -112,7 +112,7 @@ done
 Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
 
 ```bash
-[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/wiki/docs/feedback.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
 ```
 
 **If FEEDBACK_EXISTS:** read FEEDBACK.md. Extract the top unaddressed signal and top themes. These will pre-fill Q6 in Phase 3 and enrich the Phase 4 synthesis. Note: do not re-fetch Dovetail or Notion feedback — FEEDBACK.md already synthesizes those sources.

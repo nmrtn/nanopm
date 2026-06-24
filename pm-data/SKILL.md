@@ -45,9 +45,10 @@ nanopm_context_read pm-data
 Check for a prior wiki data page — if it exists, show a one-line summary of the last analysis and its date. Don't repeat the same analysis unless explicitly requested.
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 [ -f "$(nanopm_wiki_doc_path data)" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
 [ -f ".nanopm/wiki/docs/challenges.md" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
+[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
 [ -f ".nanopm/wiki/docs/product.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 

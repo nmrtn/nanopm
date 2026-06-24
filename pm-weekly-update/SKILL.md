@@ -90,7 +90,7 @@ If LINEAR available:
 ```bash
 [ -f ".nanopm/wiki/docs/roadmap.md" ] && cat .nanopm/wiki/docs/roadmap.md || echo "NO_ROADMAP"
 [ -f ".nanopm/wiki/docs/objectives.md" ] && cat .nanopm/wiki/docs/objectives.md || echo "NO_OBJECTIVES"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && head -40 "$_CHALLENGES" || echo "NO_CHALLENGES"
 ```
 

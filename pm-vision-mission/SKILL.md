@@ -101,7 +101,7 @@ _SITE=$(nanopm_config_get "company_website" 2>/dev/null || true)
 [ -n "$_SITE" ] && echo "WEBSITE=$_SITE" || echo "WEBSITE_NONE"
 _ARTIFACTS=0
 for f in PRODUCT BUSINESS-MODEL ORG PERSONAS SCAN DISCOVERY CHALLENGES AUDIT STRATEGY CONTEXT; do
-  [ -f ".nanopm/$f.md" ] && _ARTIFACTS=$((_ARTIFACTS+1))
+  { [ -f ".nanopm/wiki/docs/$(echo "$f" | tr 'A-Z' 'a-z' | tr '_' '-').md" ] || [ -f ".nanopm/$f.md" ]; } && _ARTIFACTS=$((_ARTIFACTS+1))
 done
 echo "ARTIFACTS=$_ARTIFACTS"
 ```

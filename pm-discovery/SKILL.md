@@ -70,6 +70,7 @@ Ask as SEPARATE sequential AskUserQuestion calls — one call per question, neve
 **Before Q1**, check for an existing persona definition:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 [ -f "$(nanopm_wiki_doc_path personas)" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
 ```
 

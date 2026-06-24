@@ -51,6 +51,7 @@ If a prior entry exists, show: "Last intel run: {ts}. Checking for changes since
 Check for the Define context docs (now canonical wiki pages) — they let the report compare us-vs-them on *real* positioning instead of a guess:
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 [ -f "$(nanopm_wiki_doc_path business-model)" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 [ -f "$(nanopm_wiki_doc_path product)"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
 [ -f "$(nanopm_wiki_doc_path strategy)"       ] && echo "STRATEGY_EXISTS"       || echo "STRATEGY_MISSING"
@@ -357,6 +358,7 @@ This phase **reuses the snapshots already captured in Phase 3** — it does not 
 ### 5b.1 — Analysis subagent (forces / faiblesses / gaps)
 
 ```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 [ -f "$(nanopm_wiki_doc_path product)" ] && echo "PRODUCT_FOR_ANALYSIS" || echo "NO_PRODUCT_DOC"
 ```
 

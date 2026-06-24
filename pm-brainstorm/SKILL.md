@@ -22,7 +22,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-echo "OBJECTIVES: $( [ -f .nanopm/OBJECTIVES.md ] && echo present || echo absent )"
+echo "OBJECTIVES: $( [ -f .nanopm/wiki/docs/objectives.md ] && echo present || echo absent )"
 ```
 
 ## What this is

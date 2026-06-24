@@ -121,7 +121,7 @@ not `evidence-backed`).
 subagent (do NOT read these raw into your own context):
 
 ```bash
-for d in FEEDBACK DATA; do [ -f ".nanopm/$d.md" ] && echo "PRESENT: $d" || echo "ABSENT: $d"; done
+for d in FEEDBACK DATA; do { [ -f ".nanopm/wiki/docs/$(echo "$d" | tr 'A-Z' 'a-z' | tr '_' '-').md" ] || [ -f ".nanopm/$d.md" ]; } && echo "PRESENT: $d" || echo "ABSENT: $d"; done
 ```
 
 For each PRESENT doc, dispatch ONE retrieval subagent via the **Agent tool**, printing the prompt with:

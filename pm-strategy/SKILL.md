@@ -41,11 +41,11 @@ Read upstream artifacts if they exist:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 [ -f "$(nanopm_wiki_doc_path objectives)"      ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
 [ -f "$(nanopm_wiki_doc_path personas)"        ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"                     ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
+[ -f ".nanopm/wiki/docs/feedback.md"                     ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
 [ -f "$(nanopm_wiki_doc_path vision-mission)"  ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
 [ -f "$(nanopm_wiki_doc_path business-model)"  ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 [ -f "$(nanopm_wiki_doc_path product)"         ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
