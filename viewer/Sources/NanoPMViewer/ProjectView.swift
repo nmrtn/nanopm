@@ -521,11 +521,18 @@ struct ArtifactDetailView: View {
             .flatMap { $0.skillCommand == nil ? nil : $0 }
     }
 
-    /// The reasoning sidecar paired with this doc, when one exists on disk.
-    private var reasoningArtifact: Artifact? {
+    /// Where the "Reasoning" window reads from, as a path relative to .nanopm/.
+    /// Wiki-canonical: this doc page itself when its provenance is folded inline
+    /// (the window extracts the "## Provenance & assumptions" section). Legacy:
+    /// a separate `reasoning/<doc>.md` sidecar if one exists on disk. Nil when the
+    /// doc has neither, so the button doesn't show.
+    private var reasoningSourcePath: String? {
+        if let content, ReasoningFiles.hasProvenance(content) {
+            return artifact.relativePath
+        }
         guard !ReasoningFiles.isReasoning(artifact.relativePath) else { return nil }
         let sidecar = ReasoningFiles.sidecarPath(for: artifact.relativePath)
-        return store.artifacts.first { $0.relativePath == sidecar }
+        return store.artifacts.first { $0.relativePath == sidecar }?.relativePath
     }
 
     var body: some View {
@@ -542,7 +549,7 @@ struct ArtifactDetailView: View {
                             SkillRunButton(doc: runDoc, store: store,
                                            claudeAvailable: claudeAvailable, onAnswer: onAnswer)
                         }
-                        if let reasoning = reasoningArtifact {
+                        if let reasoningPath = reasoningSourcePath {
                             ActionButton(
                                 title: "Reasoning",
                                 systemImage: "macwindow.on.rectangle",
@@ -551,7 +558,7 @@ struct ArtifactDetailView: View {
                                 openWindow(
                                     id: NanoPMViewerApp.reasoningWindowID,
                                     value: ReasoningWindowContext(
-                                        absolutePath: store.project.nanopmPath + "/" + reasoning.relativePath,
+                                        absolutePath: store.project.nanopmPath + "/" + reasoningPath,
                                         docName: artifact.displayName
                                     )
                                 )

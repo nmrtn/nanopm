@@ -53,21 +53,54 @@ enum PRDFiles {
     }
 }
 
-/// Helpers for reasoning sidecars (the `reasoning/` subfolder of .nanopm/).
-/// Each Define skill writes a clean, share-ready doc plus
-/// `reasoning/<same filename>` carrying the Evidenced/Assumed calls, sources,
-/// and rationale. The path convention mirrors `nanopm_reasoning_path` in
-/// lib/nanopm.sh — change one and you must change the other. Sidecars are
-/// never listed in the sidebar; they surface as a "Reasoning" pane on their
-/// clean doc's detail view.
+/// Helpers for a doc's reasoning surface. Under **wiki-canonical writes** each doc
+/// page carries its rationale inline in a `## Provenance & assumptions` section
+/// (schema §4.3/§5) — there is no separate `reasoning/` file. The viewer surfaces
+/// that section in a "Reasoning" window. The coupling that used to be
+/// `nanopm_reasoning_path` ↔ a sidecar file is now this section ↔ the page (NANOPM-WIKI
+/// §12). Legacy projects (pre-migration, or not-yet-routed skills like
+/// competitors-intel) still have a `reasoning/<doc>.md` sidecar; `isReasoning` /
+/// `sidecarPath` keep working for them as a fallback.
 enum ReasoningFiles {
+    /// The line-start heading that opens a page's inline provenance section.
+    static let provenanceHeading = "## Provenance & assumptions"
+
     static func isReasoning(_ relativePath: String) -> Bool {
         relativePath.hasPrefix("reasoning/")
     }
 
-    /// "VISION-MISSION.md" → "reasoning/VISION-MISSION.md"
+    /// "VISION-MISSION.md" → "reasoning/VISION-MISSION.md" (legacy sidecar fallback).
     static func sidecarPath(for relativePath: String) -> String {
         "reasoning/" + (relativePath as NSString).lastPathComponent
+    }
+
+    /// A line IS the provenance heading. Trailing-only trim so this matches exactly
+    /// the set `bin/nanopm-migrate-to-wiki`'s `has_provenance` (Python `rstrip()`)
+    /// accepts — the heading at column 0. Keep the two in lockstep (NANOPM-WIKI §12).
+    private static func isProvenanceHeading(_ line: String) -> Bool {
+        String(line.reversed().drop { $0 == " " || $0 == "\t" }.reversed()) == provenanceHeading
+    }
+
+    /// True if a doc page carries an inline provenance section (heading matched at
+    /// line start, so a mention in prose or a code fence can't false-positive).
+    static func hasProvenance(_ content: String) -> Bool {
+        content.components(separatedBy: "\n").contains(where: isProvenanceHeading)
+    }
+
+    /// Extract the provenance section — from its heading through the next top-level
+    /// `## ` heading or end of file — or nil if the page has none. Lets the Reasoning
+    /// window show just the rationale, not the whole clean doc.
+    static func extractProvenance(_ content: String) -> String? {
+        let lines = content.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(where: isProvenanceHeading) else { return nil }
+        var end = lines.count
+        var i = start + 1
+        while i < lines.count {
+            if lines[i].hasPrefix("## ") { end = i; break }
+            i += 1
+        }
+        return lines[start..<end].joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
