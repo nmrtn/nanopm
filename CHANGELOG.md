@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.20.0 — 2026-06-24
+
+### Memory wiki, phase 2: the ingest loop is wired and verified
+
+0.19.0 shipped the memory-wiki engine (schema, migration, ingest/lint/gate CLIs) but nothing dispatched it — the wiki could be migrated into existence, yet no skill filled or maintained it. This release connects it end-to-end.
+
+**What's different for you**
+
+- **Five skills now feed the wiki.** `/pm-personas`, `/pm-interview`, `/pm-user-feedback`, `/pm-data`, and `/pm-competitors-intel` dispatch the ingest bookkeeper after each run — integrating their output into the right entity pages (personas, opportunities, competitors, objectives) through the confidence gate, then reindexing and logging. Advisory and non-blocking, with an inline fallback on hosts without a subagent tool.
+- **Held writes don't strand.** Low-confidence and reversal writes parked by the confidence gate are surfaced at the top of every run (`WIKI_REVIEWS: N…`) with the commands to approve or reject them.
+- **The wiki self-checks.** A throttled (once/day) structural lint pass surfaces stale pages, orphans, and index drift. No-op for projects without a wiki.
+- **Overviews stay fresh.** The company/current-work briefs are now written to the canonical wiki path when the wiki exists, so a migrated project no longer reads a frozen overview while the skill updates a legacy copy.
+
+**Correctness + hardening**
+
+- Citation dedup is anchored to whole citation lines (was an unanchored substring match that dropped distinct records); a dead always-false index guard fixed; `datetime.utcnow()` modernized.
+- Writers take an advisory lock (`.nanopm/wiki/.lock`) so parallel ingest can't tear `index.md` or lose a log line.
+- The episodic event log resolves the git toplevel, fixing a split-brain when a project ran from a subdirectory.
+- New `nanopm_wiki_ensure` scaffolds the wiki idempotently without the heavy one-time migration.
+
+**Verification**
+
+- New `test/memory-wiki.e2e.sh` and `test/migrate-wiki.e2e.sh` cover the mechanical loop (dedup, gate routing, reindex/log, concurrent-write safety) and the migration (repair, idempotency, `--finalize` safety). A real ingest run against a live `PERSONAS.md` produced five conformant persona pages, correctly routed one ambiguous persona to review, and passed lint clean.
+
 ## 0.19.0 — 2026-06-23
 
 ### Memory: a compounding wiki, not an ever-growing logbook
