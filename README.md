@@ -5,7 +5,7 @@
 
 A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
-Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have. An optional macOS viewer browses the artifacts and re-runs skills on the Claude Code backend, for the moments you'd rather not be in a terminal.
+Works with Claude Code, Mistral Vibe, and OpenAI Codex. One install command picks up whichever you have. An optional [macOS viewer](#the-viewer-macos-optional) browses the artifacts and re-runs skills on the Claude Code backend, for the moments you'd rather not be in a terminal.
 
 Built on the SKILL.md standard from [gstack](https://github.com/garrytan/gstack). nanopm is the PM layer.
 
@@ -96,13 +96,7 @@ Claude Code users can install nanopm as a native [plugin](https://code.claude.co
 /plugin install nanopm
 ```
 
-The plugin bundles all skills and bootstraps its shared runtime (`~/.nanopm/`)
-automatically on first session via a `SessionStart` hook. Plugin-installed
-commands are namespaced as `/nanopm:pm-run`, and updates flow through Claude
-Code's own `/plugin` manager. **This path is Claude-Code-specific** — Mistral
-Vibe and OpenAI Codex don't read the plugin manifest, so for those agents use
-the `curl | bash` installer above (it remains the cross-agent path and is
-unaffected by the plugin).
+Commands are namespaced (`/nanopm:pm-run`) and updates flow through Claude Code's own `/plugin` manager. Mistral Vibe and OpenAI Codex don't read the plugin manifest — use the `curl | bash` installer above for those.
 
 ---
 
@@ -142,80 +136,32 @@ The pipeline compounds. Every skill also works standalone.
 
 ---
 
-## Pipeline
+## How it works
 
-nanopm runs in four zones. Context first. Signal in. Planning cycle. Delivery out.
+nanopm runs in four zones — context first, signal in, planning cycle, delivery out. Each skill writes a Markdown page to the wiki for humans and a typed JSONL record for the next skill.
 
 | Zone | Skills | Purpose |
 |---|---|---|
-| **1. Define** | `/pm-vision-mission` · `/pm-business-model` · `/pm-org` · `/pm-product` · `/pm-personas` | Establish company + product context: the business, the org, who it's for, the product map |
-| **2. Discover** | `/pm-user-feedback` · `/pm-interview` · `/pm-data` · `/pm-competitors-intel` · `/pm-opportunities` | Pull the three external signals (user research, analytics, market), then distill them into a ranked DB of user problems |
-| **3. Pipeline** | `/pm-objectives` → `/pm-strategy` → `/pm-roadmap` → `/pm-prd` → `/pm-breakdown` | Skills run in sequence; each reads typed state from the prior |
-| **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Human markdown | `/pm-breakdown` writes to whichever target fits — no preferred default |
-| **Daily Ops** | `/pm-challenge-me` · `/pm-brainstorm` · `/pm-standup` · `/pm-weekly-update` | Recurring day-to-day PM ops: an adversarial challenge, a jam with Nano, the daily briefing, the weekly stakeholder update |
+| **1. Define** | vision-mission · business-model · org · product · personas | Company + product context: the business, the org, who it's for, the product map |
+| **2. Discover** | user-feedback · interview · data · competitors-intel · opportunities | The three external signals (research, analytics, market), distilled into a ranked DB of user problems |
+| **3. Plan** | objectives → strategy → roadmap → prd → breakdown | Runs in sequence; each reads typed state from the prior |
+| **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Symphony · Human | `/pm-breakdown` writes to whichever target fits — see [Handoffs](#handoffs) |
+
+Two one-page briefs are regenerated whenever their phase changes and reloaded into every run — `company.md` (who you are) and `current-work.md` (the bet, the OKRs, what's NOW) — so every skill works from the same baseline instead of drifting. Daily Ops skills (`/pm-challenge-me`, `/pm-brainstorm`, `/pm-standup`, `/pm-weekly-update`, `/pm-retro`) run on any day, outside the pipeline.
+
+Run `/pm-run` for the whole sequence, or invoke any skill standalone.
 
 ---
 
-### 1. Define — establish company + product context
+## The viewer (macOS, optional)
 
-Each Define skill produces a reusable context artifact downstream skills read. Dual-mode: reverse-engineer from code + the public site when material exists, interview from scratch when greenfield. Run the ones you have material for.
+Prefer not to live in a terminal? The optional **NanoPM Viewer** is a native macOS app that browses everything in `.nanopm/` — artifacts grouped by phase (Define / Discover / Plan / Build), rendered as Markdown, with the compounding entity pages (opportunities, competitors, PRDs) as first-class views.
 
-- **`/pm-vision-mission`** — mission, vision, values, company stage → `.nanopm/wiki/docs/vision-mission.md`.
-- **`/pm-business-model`** — business model, pricing, packaging, GTM motion → `.nanopm/wiki/docs/business-model.md`.
-- **`/pm-org`** — org map, key roles, decision-makers → `.nanopm/wiki/docs/org.md`.
-- **`/pm-product`** — deep product map → `.nanopm/wiki/docs/product.md`. Dual-mode: for an existing product it reads the codebase (routes, models, tests, git history) plus the public site and positioning; for greenfield it interviews you to define the product concept from scratch. Reads `openspec/specs/` when present.
-- **`/pm-personas`** — defines who you're building for → `.nanopm/wiki/docs/personas.md`. Reverse-engineers personas from the product page and prior wiki content when they exist, or interviews you from scratch when the repo is empty. JTBD proto-personas + an explicit anti-persona.
+![NanoPM Viewer — the Opportunities database, with the phase sidebar](assets/viewer.png)
 
-After any Define skill finishes, a subagent regenerates `.nanopm/wiki/overview/company.md` — a one-page brief (what you do, who for, business model, org, why) synthesized from whatever Define docs exist. Every downstream skill loads it at startup (via the shared preamble), so the agent always works from the same company + product baseline and context doesn't drift between skills.
+It's also a launcher: re-run any skill on the Claude Code backend without typing a command, follow live runs in an Activity Monitor, and jam with Nano in a graphical Brainstorm chat. Browsing is strictly read-only; running a skill spawns the `claude` CLI under an explicit tool allow-list.
 
-### 2. Discover — the three external signals
-
-Each signal skill produces an artifact the pipeline reads. They're independent. Run only the ones you have data for.
-
-- **`/pm-user-feedback`** — aggregates Dovetail, Productboard, Notion, Linear, GitHub → `.nanopm/wiki/docs/feedback.md`. Clusters themes, surfaces top unaddressed signal.
-- **`/pm-interview`** — interview guide (Torres / Mom Test / JTBD) or transcript debrief from Granola → appends to `.nanopm/wiki/docs/feedback.md`.
-- **`/pm-data`** — answers a product question via PostHog or Amplitude → `.nanopm/wiki/docs/data.md` with confidence-tagged metrics. Consumed by the challenge session and the PRD.
-- **`/pm-competitors-intel`** — discovers competitors from your product description, snapshots their pages and diffs against prior runs → the report at `.nanopm/wiki/docs/competitors.md`, with per-competitor analysis compounding under `.nanopm/wiki/entities/competitors/`. Raw page snapshots, the dated INTEL reports, and the watch config all live under `.nanopm/raw/competitors/`. An opt-in `analyze` mode runs per-competitor SWOT (vs the product page) plus a scored positioning matrix; provenance folds inline into each page's `## Provenance & assumptions` section.
-- **`/pm-opportunities`** — builds and maintains a ranked database of user problems (Teresa Torres sense — the unmet needs behind what you build, not the solutions) → `.nanopm/wiki/entities/opportunities/`, an LLM-wiki the agent keeps current: one `<slug>.md` per opportunity plus a ranked `INDEX.md`, an append-only `LOG.md`, and an editable `SCHEMA.md`. Two levels only (Theme → Opportunity) and every opportunity carries explicit provenance (`evidence-backed` / `user-stated` / `nano-hypothesis`). `bootstrap` drafts the initial set from feedback + your assumptions + Nano's hypotheses; `add` captures one problem at a time; `generate` drafts N more (globally or per theme). Every write — manual or generated — passes through a reusable, strict-by-default **dedup agent** so the DB doesn't fill with near-duplicates, and the macOS viewer can launch any of it from the Opportunities page without a terminal. Sits between the raw feedback firehose and the roadmap — the bridge from Discover into Plan.
-
-### 3. Pipeline — the planning cycle
-
-Each skill writes a markdown page to the wiki for humans and a typed JSONL record for the next skill. Run `/pm-run` for the whole sequence, or invoke any single skill standalone. (The adversarial challenge session, `/pm-challenge-me`, lives in Daily Ops — run it on any day, outside the pipeline.)
-
-1. **`/pm-objectives`** → `.nanopm/wiki/docs/objectives.md` — OKRs with anti-goals and measurable KRs anchored to top signal.
-2. **`/pm-strategy`** → `.nanopm/wiki/docs/strategy.md` — the bet, the risk, what you're saying no to. Adversarial review forces a falsifiable claim. Writes typed `bet` and `scope-out` decisions.
-3. **`/pm-roadmap`** → `.nanopm/wiki/docs/roadmap.md` — NOW/NEXT/LATER, Shape Up bets, or Scrum sprints. The gate writes one typed `target` per committed item (each must contain segment, behavior, metric, timeframe).
-4. **`/pm-prd`** → `.nanopm/wiki/docs/prds/{feature}.md` — full PRD or Shape Up pitch. Required Falsification section, gated on 4 elements. Writes a typed `bet` decision + a `prd` status record.
-5. **`/pm-breakdown`** — tasks + handoff. See zone 4.
-
-After any Plan skill (`/pm-objectives`, `/pm-strategy`, `/pm-roadmap`) finishes, a subagent regenerates `.nanopm/wiki/overview/current-work.md` — a one-page brief (what you're betting on, what you're aiming for, what you're building now, what you're saying no to) synthesized from whatever objectives/strategy/roadmap pages exist. It's the Plan-phase counterpart to the Context Brief: every downstream skill loads it at startup too, right after the context brief, so the agent always carries both who the company is and what it's working on right now.
-
-PM decisions land as typed, schema-validated JSONL in `~/.nanopm/projects/{slug}/{type}.jsonl`. The next skill reads from there.
-
-### 4. Handoffs — where work lands
-
-`/pm-breakdown` writes the tasks to one of six peer targets. No preferred default. See the [Handoffs](#handoffs) section below for the full per-target output spec.
-
-| Target | What gets written |
-|---|---|
-| **Linear** | Issues in a Linear team, with acceptance + PRD link |
-| **GitHub Issues** | Repo issues, with body linking the PRD |
-| **OpenSpec** | `openspec/changes/{feature}/` — pick up with `/opsx:apply` |
-| **gstack** | `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` — pick up with `/plan-ceo-review` |
-| **Symphony** | `WORKFLOW.md` (repo root) + Linear issues — pick up with [OpenAI's Symphony](https://github.com/openai/symphony) |
-| **Human** | `.nanopm/wiki/docs/handoffs/{feature}.md` — paste into any tracker |
-
-Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl`.
-
-### Daily ops (parallel to the pipeline)
-
-These skills run on a day-to-day cadence without going through the planning sequence:
-
-- **`/pm-challenge-me`** — brutal honest read → `.nanopm/wiki/docs/challenges.md`. Reads the product page + the company docs, surfaces the biggest gap, then delivers three direct challenges — strategy, users, focus — starting with the question you're avoiding. The adversarial gate writes a typed `question` decision.
-- **`/pm-brainstorm`** — an informal jam with **Nano**, the expert CPO at your service. A context-loaded thinking partner for product ideas, user problems, and what to build next — no gate, no PRD, no artifact. Sessions are named and **resumable** via your host's native session resume, so the thinking compounds; the viewer adds a graphical chat with the same conversations.
-- **`/pm-standup`** — morning briefing: commits, calendar, meeting notes → a dated `.nanopm/wiki/docs/standup-YYYY-MM-DD.md`.
-- **`/pm-weekly-update`** — stakeholder update email adapted to audience → a dated `.nanopm/wiki/docs/weekly-update-YYYY-MM-DD.md`.
-- **`/pm-retro`** — compares roadmap commitments to actual commits, surfaces drift → a dated `.nanopm/wiki/docs/retro-YYYY-MM-DD.md`.
+It's an early, deliberately throwaway prototype — see [`viewer/README.md`](viewer/README.md) to build and run it.
 
 ---
 
@@ -223,26 +169,14 @@ These skills run on a day-to-day cadence without going through the planning sequ
 
 nanopm remembers across sessions, so each run builds on the last instead of starting cold. Memory is a **maintained wiki**, not a chat log — a small set of always-current pages the agent reads at the start of every run, with deterministic CLIs to keep it tidy. (The pattern is Karpathy's [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).)
 
-- **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated whenever their phase changes and reloaded into every skill — so all work shares one baseline instead of drifting.
-- **Entity pages that compound.** Personas, competitors, opportunities, objectives, features, and people are each meant to get a page that many sources update over time, with citations — new evidence refines the page and supersedes old claims (keeping the history) instead of stacking duplicate notes.
-- **Health & integrity tooling.** `nanopm-lint-agent` flags stale pages, orphans, broken links, and contradictions; `nanopm-ingest-agent` deduplicates by citation; `nanopm-confidence-gate` holds ambiguous writes and reversals for your confirmation.
-- **Just files + git.** No database, no server. A project's `.nanopm/` is exactly three layers: `NANOPM-WIKI.md` (the schema/contract), `raw/` (immutable sources — connector pulls, the typed event log, `raw/competitors/` snapshots), and `wiki/` (all generated content — `wiki/overview/` briefs, `wiki/docs/` skill outputs, `wiki/entities/` compounding pages). No flat top-level docs, no separate reasoning sidecars; the Evidenced/Assumed rationale folds inline into each page's `## Provenance & assumptions` section. Everything under `wiki/` is plain markdown you can read, diff, and edit.
-- **Share on demand.** `nanopm-export <section>` renders a wiki section — `company`, `current-work`, or any doc — into one self-contained markdown file, so retiring the flat docs doesn't cost the "send me the brief" affordance.
+- **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated when their phase changes and reloaded into every run — so all work shares one baseline instead of drifting.
+- **Entity pages that compound.** Personas, competitors, opportunities, objectives, features, and people each get a page that many sources refine over time, with citations — new evidence supersedes old claims (keeping the history) instead of stacking duplicate notes.
+- **Just files + git.** No database, no server. A project's `.nanopm/` is two layers: `raw/` (immutable sources — connector pulls, the typed event log, page snapshots) and `wiki/` (all generated content — the briefs, skill outputs, compounding entity pages). Plain Markdown you can read, diff, and edit.
+- **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions (and warns when a `challenges`/`strategy` page drifts past 20 commits); an ingest pass dedupes by citation; a confidence gate holds ambiguous writes for your confirmation.
 
-> **Status:** the always-loaded briefs, the one-time migration (`nanopm-migrate-to-wiki`), and the maintenance loop are wired. The five signal skills — `/pm-personas`, `/pm-interview`, `/pm-user-feedback`, `/pm-data`, `/pm-competitors-intel` — dispatch the ingest bookkeeper after each run to fill the relevant entity pages through the confidence gate; held writes are surfaced for review at the top of every run, and the lint health pass runs daily. Still maturing: ingest quality depends on real source volume (it compounds as you feed it interviews/feedback/data), and not every skill writes entity pages yet.
+Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — typed `bet`, `target`, `question`, `scope-out`… records, each carrying confidence (1–10) and provenance. Every write goes through a validator that enforces the schema and fails loud on bad input — no silent appends. Re-run `/pm-challenge-me` six months later and it reads the prior decisions before asking anything new.
 
-Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — one file per record type:
-
-| File | What it holds |
-|---|---|
-| `decision.jsonl` | Typed PM decisions: `bet`, `antigoal`, `target`, `methodology`, `gap`, `question`, `scope-in`, `scope-out`. Each carries confidence 1–10 and provenance (`observed`, `user-stated`, `inferred`, `derived`, `adversarial`). |
-| `prd.jsonl` | Per-feature metadata: status (`draft`, `ready`, `handed-off`, `shipped`, `abandoned`), target, path. |
-| `handoff.jsonl` | Which target each PRD went to, when, where. |
-| `timeline.jsonl` | Skill run events: started, completed, outcome, duration. |
-
-Every write goes through `bin/nanopm-state-log`, which enforces the schema before append — required fields, enum allowlists, key format, confidence range, length caps. Bad records fail loud with a non-zero exit. There are no silent appends.
-
-Re-run `/pm-challenge-me` six months later and it reads the prior decisions before asking anything new.
+> **Status:** the always-loaded briefs and the maintenance loop are wired; the signal skills dispatch the ingest bookkeeper through the confidence gate after each run, and the lint health pass runs daily. Still maturing — ingest quality compounds as you feed it real interviews, feedback, and data, and not every skill writes entity pages yet.
 
 ---
 
@@ -311,33 +245,20 @@ nanopm detects your methodology at challenge time (CONTEXT.md intake) and adapts
 
 ---
 
-## Staleness detection
-
-Every skill run warns if your `challenges.md` or `strategy.md` wiki page is more than 20 commits old:
-
-```
-⚠  nanopm: wiki/docs/challenges.md is 34 commits old — consider re-running /pm-challenge-me
-```
-
----
-
 ## Handoffs
 
-nanopm runs the PM half. Delivery lives elsewhere. `/pm-breakdown` writes the breakdown to one of six peer targets — no preferred default, you pick the one that fits how the project actually ships.
+nanopm runs the PM half; delivery lives elsewhere. `/pm-breakdown` writes the breakdown to one of six peer targets — no preferred default, you pick the one that fits how the project actually ships. Every handoff is logged to `~/.nanopm/projects/{slug}/handoff.jsonl` — typed, schema-validated, queryable later.
 
-**Linear** — issues created in a Linear team via MCP or `LINEAR_API_KEY`. Each ticket carries the acceptance criteria and ties back to the PRD requirement.
+| Target | What gets written | Pick up with |
+|---|---|---|
+| **Linear** | Issues in a Linear team, each with acceptance criteria + a link back to the PRD | Linear (MCP or `LINEAR_API_KEY`) |
+| **GitHub Issues** | Repo issues, body links the PRD and embeds acceptance | GitHub (MCP or `GITHUB_TOKEN`) |
+| **OpenSpec** | `openspec/changes/{feature}/` — `proposal.md`, `design.md`, `tasks.md`, spec as SHALL statements | `/opsx:apply` |
+| **gstack** | `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` with `status: ACTIVE` | `/plan-ceo-review` or `/autoplan` |
+| **Symphony** | `WORKFLOW.md` at repo root + Linear issues (embeds PRD path, typed bet, falsification, out-of-scope) | [OpenAI Symphony](https://github.com/openai/symphony) (Linear-only) |
+| **Human** | Self-contained `.nanopm/wiki/docs/handoffs/{feature}.md` — PRD body + copy-paste ticket blocks | paste into any tracker |
 
-**GitHub Issues** — issues in the repo via MCP or `GITHUB_TOKEN`. Body links the PRD and embeds acceptance.
-
-**OpenSpec** — writes `openspec/changes/{feature}/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/{feature}/spec.md` (requirements as SHALL statements). Pick this up with `/opsx:apply` to implement. If your repo already uses OpenSpec, `/pm-product` will read `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
-
-**gstack** — writes `~/.gstack/projects/{slug}/ceo-plans/{date}-{feature}.md` with a `status: ACTIVE` frontmatter. Pick this up in a [gstack](https://github.com/garrytan/gstack) session with `/plan-ceo-review` or `/autoplan` — the file is read directly from gstack's plan glob.
-
-**Symphony** — writes `WORKFLOW.md` to the repo root and creates Linear issues. The `WORKFLOW.md` frontmatter configures [OpenAI's Symphony](https://github.com/openai/symphony) orchestrator; the body is a per-issue prompt template that embeds the PRD path, the typed bet from `decision.jsonl`, the PRD's Falsification criterion, and the out-of-scope items. Symphony's daemon polls Linear, spawns one Codex workspace per ticket, and runs them to PR. Requires `LINEAR_API_KEY` or the Linear MCP — Symphony is Linear-only in its v1 spec.
-
-**Human** — single self-contained markdown at `.nanopm/wiki/docs/handoffs/{feature}.md`. PRD body plus copy-paste-ready ticket blocks. Paste into Notion, Jira, a Slack thread, an email, anything. No external system touched.
-
-Every handoff is recorded in `~/.nanopm/projects/{slug}/handoff.jsonl` — typed, schema-validated, queryable later.
+If your repo already uses OpenSpec, `/pm-product` reads `openspec/specs/` automatically — specs describe intent more accurately than READMEs.
 
 ---
 
@@ -352,28 +273,15 @@ bash uninstall --purge  # removes everything including memory and config
 
 ## Contributing
 
-Add a connector: one markdown file in `connectors/`. See `connectors/README.md`.
-Add a skill: copy any `pm-*/SKILL.md`, follow the preamble pattern in `lib/nanopm.sh`.
-
-## Tests
+Add a connector: one markdown file in `connectors/` (see [`connectors/README.md`](connectors/README.md)).
+Add a skill: copy any `pm-*/SKILL.md` and follow the preamble pattern in `lib/nanopm.sh`.
 
 ```bash
-bash test/run-all.sh               # run the full local suite (no LLM, no network)
-bash test/run-all.sh --with-llm    # also run the adversarial e2e (needs claude CLI)
+bash test/run-all.sh             # full local suite (no LLM, no network)
+bash test/run-all.sh --with-llm  # also run the adversarial e2e (needs the claude CLI)
 ```
 
-Individual suites:
-
-```bash
-bash test/skill-syntax.sh           # static checks: frontmatter, gates, state binaries, telemetry purge
-bash test/state-layer.sh            # nanopm-state-log/read validators
-bash test/multi-host.sh             # NANOPM_HOST detection + nanopm_skill_path resolution
-bash test/gates.sh                  # ETHOS gates wired in pm-challenge-me / pm-roadmap / pm-prd
-bash test/update-check.sh           # semver comparison, stale-cache regression, snooze
-bash test/context-threading.e2e.sh  # legacy context append plumbing
-bash test/website-bootstrap.e2e.sh  # browse + connector tier detection
-bash test/adversarial.e2e.sh        # adversarial subagent gate (needs claude CLI)
-```
+`run-all.sh` wraps the individual suites (skill syntax, state-layer validators, multi-host resolution, ETHOS gates, update-check, the wiki-canonical and e2e checks) — run any of them directly from `test/` while developing.
 
 ---
 
