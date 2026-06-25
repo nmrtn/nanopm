@@ -435,18 +435,17 @@ nanopm_ingest_prompt "$(nanopm_wiki_doc_path personas)" "entities/personas"
 ```
 
 The subagent reads `NANOPM-WIKI.md`, writes one `wiki/entities/personas/<slug>.md` per persona
-(primary, secondary, anti-persona) **through `nanopm-confidence-gate`** (high-confidence claims
-auto-apply; shaky matches and reversals are held for review — that's intended), dedups each
-citation with `nanopm-ingest-agent citation-check` before writing, then runs
+(primary, secondary, anti-persona) directly (single-writer-per-file) with `nanopm-ingest-agent
+apply`, dedups each citation with `nanopm-ingest-agent citation-check` before writing, then runs
 `nanopm-ingest-agent reindex` + `log`. It returns a one-line status.
 
 **Host without an Agent tool (graceful fallback):** the main agent follows the same steps
-inline — for each persona, scaffold the page from the §4.2 entity template, route the write
-through `~/.nanopm/bin/nanopm-confidence-gate apply`, then `reindex` + `log`. If even that isn't possible,
+inline — for each persona, scaffold the page from the §4.2 entity template, write it with
+`~/.nanopm/bin/nanopm-ingest-agent apply`, then `reindex` + `log`. If even that isn't possible,
 skip and tell the user the personas weren't ingested into the wiki yet.
 
-Surface the result: which persona pages were created/updated, and anything routed to review
-(`~/.nanopm/bin/nanopm-confidence-gate list`).
+Surface the result: which persona pages were created/updated. The once-daily judgment lint flags
+any contradiction after the fact — there is no pre-write review queue.
 
 ## Completion
 

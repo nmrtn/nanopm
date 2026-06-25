@@ -249,6 +249,36 @@ def has_provenance(text: str) -> bool:
     return any(ln.rstrip() == PROVENANCE_HEADING for ln in text.splitlines())
 
 
+def _body_after_frontmatter(text: str) -> str:
+    """Drop a LEADING --- frontmatter block, leaving the body. Only strips when the
+    text actually starts with frontmatter, so a body that merely contains `---`
+    section rules (PRDs do) is left intact."""
+    if text.lstrip().startswith("---"):
+        parts = text.split("---", 2)
+        if len(parts) == 3:
+            return parts[2]
+    return text
+
+
+def page_captures_legacy(page_text: str, legacy_text: str) -> bool:
+    """True if the wiki page faithfully captures the legacy flat doc — i.e. the doc was
+    migrated and NOT edited since. The page is `frontmatter + legacy_body
+    [+ '## Provenance & assumptions' ...]` (with_doc_frontmatter prepends the fm; a
+    fold may append provenance). So compare the page body (frontmatter stripped, any
+    trailing folded provenance section cut) against the legacy body (frontmatter
+    stripped too, in case the legacy doc already had its own). A user edit to the flat
+    doc after migration makes this differ — so --finalize keeps it, never deleting an
+    un-mirrored edit (PR #121 review item #3)."""
+    page_body = _body_after_frontmatter(page_text)
+    lines = page_body.splitlines()
+    for i, ln in enumerate(lines):
+        if ln.rstrip() == PROVENANCE_HEADING:
+            lines = lines[:i]
+            break
+    page_body = "\n".join(lines)
+    return page_body.strip() == _body_after_frontmatter(legacy_text).strip()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--dry-run", action="store_true", help="report only, write nothing")
@@ -511,20 +541,32 @@ def main() -> int:
             page = docs_dir / doc_page_name(name)
             if not src.is_file() or src.is_symlink():
                 continue  # never written, or a company-share symlink — leave it
-            # Safety guard: only delete once the wiki page is present and non-empty.
-            # On a real run that's the on-disk page; under --dry-run a page step 5
-            # would copy this run isn't on disk yet, so consult doc_will_exist and the
-            # (non-empty) source we'd copy, so the preview matches the real plan.
-            if page.is_file():
-                page_ready = page.stat().st_size > 0
-            else:
+            # Safety guard: only delete once the wiki page MATCHES the flat doc — so a
+            # flat doc edited after the copy migration is kept, never silently lost
+            # (PR #121 review item #3). On a real run that's a content comparison of
+            # the on-disk page; under --dry-run a page step 5 would copy this run isn't
+            # on disk yet, so consult doc_will_exist + the (non-empty) source we'd copy
+            # (which, just copied, would match), so the preview matches the real plan.
+            if not page.is_file():
                 page_ready = doc_page_name(name) in doc_will_exist and src.stat().st_size > 0
+                reason = "wiki page missing"
+            elif page.stat().st_size == 0:
+                page_ready = False
+                reason = "wiki page empty"
+            elif not page_captures_legacy(
+                    page.read_text(encoding="utf-8", errors="replace"),
+                    src.read_text(encoding="utf-8", errors="replace")):
+                page_ready = False
+                reason = "wiki copy differs"
+            else:
+                page_ready = True
+                reason = ""
             if page_ready:
                 did.append(f"rm     {src.relative_to(project)} (finalize)")
                 if not dry:
                     src.unlink()
             else:
-                log(f"finalize: keeping {name} — wiki/docs/{doc_page_name(name)} is missing/empty, not safe to delete")
+                log(f"finalize: keeping {name} — {reason}, not safe to delete")
         # 8c. Reasoning sidecars: remove once the wiki page carries provenance —
         # either folded this run (`folded`) or already present from a fresh
         # wiki-canonical write. The latter is SUPERSEDE semantics (schema §5: "no

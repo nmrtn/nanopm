@@ -17,6 +17,8 @@ _TESTS=(
   "skill-syntax.sh"
   "plugin-manifest.sh"
   "wiki-canonical.sh"
+  "memory-wiki.e2e.sh"
+  "migrate-wiki.e2e.sh"
   "state-layer.sh"
   "multi-host.sh"
   "gates.sh"

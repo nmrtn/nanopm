@@ -218,8 +218,8 @@ enum PhaseMapper {
         let file = (lower as NSString).lastPathComponent
 
         // vNext wiki layout (.nanopm/wiki/ + raw/) — now canonical (wiki-canonical
-        // writes). Overviews + entity pages map to their phase; index/log/_review and
-        // the raw/ source layer are machinery (hidden); NANOPM-WIKI.md is the schema
+        // writes). Overviews + entity pages map to their phase; index/log and the
+        // raw/ source layer are machinery (hidden); NANOPM-WIKI.md is the schema
         // (hidden). wiki/docs/ holds the migrated skill docs: prds/ -> Ship, the rest
         // fall through to the same filename matching the root docs used.
         if lower == "nanopm-wiki.md" { return nil }
@@ -230,7 +230,6 @@ enum PhaseMapper {
         if lower.hasPrefix("raw/") { return nil }
         if lower.hasPrefix("wiki/") {
             if file == "index.md" || file == "log.md" { return nil }
-            if lower.hasPrefix("wiki/_review/") { return nil }
             if lower == "wiki/overview/company.md" { return .define }
             if lower == "wiki/overview/current-work.md" { return .plan }
             if lower.hasPrefix("wiki/entities/personas/")

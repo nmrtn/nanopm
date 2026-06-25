@@ -3,11 +3,12 @@
 #
 # Proves the mechanical "fuel enters the engine" loop that the pm-personas ingest
 # subagent drives — WITHOUT an LLM. Simulates the deterministic steps the subagent
-# runs: scaffold -> citation-check (dedup) -> confidence-gate apply (gated write)
-# -> reindex -> log, plus the review-queue routing for low-confidence writes.
+# runs: scaffold -> citation-check (dedup) -> apply (direct locked write) -> reindex
+# -> log. There is no confidence gate (NANOPM-WIKI.md §11): writes apply directly and
+# quality is enforced after the fact by the judgment lint pass.
 #
-# Covers the bins shipped in #110 (nanopm-ingest-agent, nanopm-confidence-gate) and
-# the nanopm_wiki_ensure scaffold added in Phase 2.
+# Covers nanopm-ingest-agent (citation dedup / apply / reindex / log) and the
+# nanopm_wiki_ensure scaffold.
 #
 # Usage: bash test/memory-wiki.e2e.sh
 # Exit 0 = pass, exit 1 = fail
@@ -16,7 +17,6 @@ set -euo pipefail
 _REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 _TMPDIR=$(mktemp -d /tmp/nanopm-wiki-XXXXXX)
 _INGEST="$_REPO_ROOT/bin/nanopm-ingest-agent"
-_GATE="$_REPO_ROOT/bin/nanopm-confidence-gate"
 
 cleanup() { rm -rf "$_TMPDIR"; }
 trap cleanup EXIT
@@ -65,7 +65,7 @@ set -e
 [ "$_rc" = "1" ] && [ "$_out" = "NEW" ] || fail "citation-check (absent page): expected NEW/exit1, got '$_out'/exit$_rc"
 ok "citation-check: NEW when the page doesn't exist yet"
 
-# ── 3. confidence-gate apply (high confidence) -> auto-applies ────────────────
+# ── 3. apply (direct locked write) -> page lands, no review queue ─────────────
 cat > /tmp/nanopm-wiki-page.$$ <<MD
 ---
 id: theo
@@ -84,11 +84,12 @@ A solo founder who does product management in the same terminal as their code.
 ## Evidence
 - $_CIT
 MD
-_out=$("$_GATE" apply --target "$_PAGE" --confidence 8 < /tmp/nanopm-wiki-page.$$)
+_out=$("$_INGEST" apply --target "$_PAGE" < /tmp/nanopm-wiki-page.$$)
 rm -f /tmp/nanopm-wiki-page.$$
-case "$_out" in APPLIED*) ;; *) fail "gate apply (conf 8): expected APPLIED, got '$_out'";; esac
-[ -f ".nanopm/$_PAGE" ] || fail "gate apply: entity page not written to .nanopm/$_PAGE"
-ok "confidence-gate: high-confidence write auto-applies to the entity page"
+case "$_out" in APPLIED*) ;; *) fail "apply: expected APPLIED, got '$_out'";; esac
+[ -f ".nanopm/$_PAGE" ] || fail "apply: entity page not written to .nanopm/$_PAGE"
+[ ! -d ".nanopm/wiki/_review" ] || fail "apply: no confidence gate — there must be no _review queue"
+ok "apply: write lands directly on the entity page (no confidence gate, no _review)"
 
 # ── 4. reindex picks the page up by frontmatter ───────────────────────────────
 "$_INGEST" reindex >/dev/null || fail "reindex returned non-zero"
@@ -117,39 +118,22 @@ set -e
 [ "$_rc" = "1" ] && [ "$_out" = "NEW" ] || fail "citation-check (substring): 'terminal' must be NEW, got '$_out'/exit$_rc"
 ok "citation-check: short substring of an existing quote is NOT a false duplicate"
 
-# ── 7. low-confidence write is held for review, not applied ───────────────────
+# ── 7. apply has no confidence concept: every write lands; traversal refused ──
+# The gate is gone (NANOPM-WIKI.md §11): apply never holds a write for review.
 _newpage="wiki/entities/personas/dana.md"
-_out=$(printf '%s\n' '# Dana (shaky)' | "$_GATE" apply --target "$_newpage" --confidence 3 --reason "weak signal")
-case "$_out" in REVIEW*) ;; *) fail "gate apply (conf 3): expected REVIEW, got '$_out'";; esac
-[ ! -f ".nanopm/$_newpage" ] || fail "gate apply (conf 3): low-confidence write must NOT touch the page"
-_review_count=$(ls .nanopm/wiki/_review/*.json 2>/dev/null | wc -l | tr -d ' ')
-[ "$_review_count" = "1" ] || fail "gate: expected 1 held review, found $_review_count"
-"$_GATE" list | grep -q "$_newpage" || fail "gate list: held write not surfaced"
-ok "confidence-gate: low-confidence write held in _review/ (not applied), surfaced by list"
+_out=$(printf '%s\n' '# Dana' | "$_INGEST" apply --target "$_newpage")
+case "$_out" in APPLIED*) ;; *) fail "apply (second page): expected APPLIED, got '$_out'";; esac
+[ -f ".nanopm/$_newpage" ] || fail "apply: second write must land directly on the page"
+[ ! -d ".nanopm/wiki/_review" ] || fail "apply: still no _review queue after a second write"
+ok "apply: a second write also lands directly — there is no held-for-review state"
 
-# ── 8. queue drainer surfaces the held write (the preamble's job) ─────────────
-_out=$(nanopm_load_reviews)
-echo "$_out" | grep -q "WIKI_REVIEWS: 1" || fail "nanopm_load_reviews: expected 'WIKI_REVIEWS: 1', got '$_out'"
-echo "$_out" | grep -q "nanopm-confidence-gate list" || fail "nanopm_load_reviews: missing drain hint"
-ok "drainer: nanopm_load_reviews surfaces the held write + how to drain it"
-
-# approve round-trip: the gate's core value — a held write, once confirmed, lands
-# on the page with its content. (Reject is tested below; approve is tested here.)
-_eve="wiki/entities/personas/eve.md"
-printf '%s\n' '# Eve (held, then approved)' | "$_GATE" apply --target "$_eve" --confidence 4 >/dev/null
-[ ! -f ".nanopm/$_eve" ] || fail "approve setup: conf-4 write should be held, not applied"
-_eid=$(ls .nanopm/wiki/_review/*.json | xargs grep -l "$_eve" | head -1 | xargs basename | sed 's/\.json$//')
-"$_GATE" approve "$_eid" >/dev/null || fail "gate approve failed"
-[ -f ".nanopm/$_eve" ] || fail "approve: held write must land on the page after approval"
-grep -q "Eve (held, then approved)" ".nanopm/$_eve" || fail "approve: applied page missing the held content"
-ls .nanopm/wiki/_review/"$_eid".json >/dev/null 2>&1 && fail "approve: review record should be cleared after apply" || true
-ok "confidence-gate: approve applies a held write to the page and clears the review"
-
-# draining clears it: reject the OTHER held write (dana), drainer goes quiet
-_rid=$(ls .nanopm/wiki/_review/*.json | head -1 | xargs basename | sed 's/\.json$//')
-"$_GATE" reject "$_rid" >/dev/null || fail "gate reject failed"
-[ -z "$(nanopm_load_reviews)" ] || fail "nanopm_load_reviews: should be silent after the queue is drained"
-ok "drainer: silent once the queue is empty"
+# apply confines writes to .nanopm/ (no traversal escape)
+set +e
+printf 'x\n' | "$_INGEST" apply --target "../../../etc/nanopm-evil.md" >/dev/null 2>&1; _rc=$?
+set -e
+[ "$_rc" != "0" ] || fail "apply: a traversal target must be refused"
+[ ! -f "/etc/nanopm-evil.md" ] || fail "apply: traversal target escaped .nanopm/"
+ok "apply: refuses a path that escapes .nanopm/"
 
 # ── 9. lint sleep pass: runs once, then throttles ────────────────────────────
 nanopm_wiki_lint_check >/dev/null 2>&1 || fail "nanopm_wiki_lint_check returned non-zero"

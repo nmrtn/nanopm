@@ -67,14 +67,20 @@ This answer scopes everything that follows. Don't proceed with a vague answer �
 
 Ask as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if clearly answered by context.
 
-**Before Q1**, check for an existing persona definition:
+**Before Q1**, pull the primary persona through the **query primitive** — one read-side
+call that synthesizes the relevant wiki pages, instead of a bespoke per-doc read (the
+recipe pattern: query → reasoning → ingest). The raw page stays out of this run; you
+reason over the cited synthesis the query returns. Print the prompt and **dispatch it
+with the Agent tool** (one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-[ -f "$(nanopm_wiki_doc_path personas)" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+nanopm_query_prompt "For product discovery, who is the primary persona this product is built for — their job title, situation, and the job-to-be-done they hire the product for? Cite the source. If the wiki has no personas page, say so." none
 ```
 
-**If PERSONAS_EXISTS:** read `.nanopm/wiki/docs/personas.md` and use the primary persona to pre-fill Q1 — confirm it rather than asking cold: "The personas page says you're building for {primary persona}. Still the focus for this discovery, or are we exploring a different user?" (If no personas page exists and the discovery lands on a sharp user definition, recommend `/pm-personas` to formalize it at the end.)
+Reason over the returned synthesis:
+- **If a primary persona is named:** use it to pre-fill Q1 — confirm it rather than asking cold: "The personas page says you're building for {primary persona}. Still the focus for this discovery, or are we exploring a different user?"
+- **If the synthesis reports no personas page:** ask Q1 cold, and if the discovery lands on a sharp user definition, recommend `/pm-personas` to formalize it at the end.
 
 **Q1: Who is the user you're focused on?**
 "Describe the specific person you're trying to help. Not a category — a person.

@@ -47,14 +47,22 @@ Check for a prior wiki data page — if it exists, show a one-line summary of th
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 [ -f "$(nanopm_wiki_doc_path data)" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
-[ -f ".nanopm/wiki/docs/challenges.md" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-[ -f ".nanopm/wiki/docs/product.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 
-If CHALLENGES_EXISTS: scan for "biggest gap" or "question you're avoiding" — suggest turning those into data questions if the user hasn't specified one.
+Pull the upstream grounding through the **query primitive** — one read-side call that
+synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
+pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason
+over the cited synthesis the query returns. Print the prompt and **dispatch it with the
+Agent tool** (one subagent); on a host with no Agent tool, follow its steps inline.
 
-**If PRODUCT_EXISTS:** read `.nanopm/wiki/docs/product.md`. Use it to *ground which events and features the metrics refer to* — map the question's funnel steps and key events onto the real product surfaces and core workflow before querying, so the analysis measures the right behavior. This read is advisory — if it's absent, proceed without it. If the product page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept."
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_query_prompt "For a quantitative data analysis, synthesize from the wiki: the product map — its surfaces, core workflow, and which user events/features the metrics would refer to (and whether the product page is marked Completeness: draft); and the biggest gap or 'question you're avoiding' from the latest challenge session, plus the top-risk assumption from any discovery page. Cite each claim. Name anything missing rather than inventing." none
+```
+
+Reason over the returned synthesis:
+- **Ground which events and features the metrics refer to** — map the question's funnel steps and key events onto the product's real surfaces and core workflow before querying, so the analysis measures the right behavior. If the synthesis reports the product page header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept." If no product context exists, proceed without it.
+- **If a challenge session is present:** use its biggest gap or "question you're avoiding" to suggest turning those into data questions if the user hasn't specified one.
 
 ## Phase 1: Define the question
 
@@ -216,11 +224,11 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_ingest_prompt "$(nanopm_wiki_doc_path data)" "entities/personas (behavioral evidence) and entities/objectives (metrics)"
 ```
 
-The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
-`nanopm-confidence-gate` (high-confidence auto-applies; shaky matches and reversals are held for
-review — intended), then runs `nanopm-ingest-agent reindex` + `log`. On a host without an Agent
-tool it follows the same steps inline. Surface which entity pages changed and anything routed to
-review (`~/.nanopm/bin/nanopm-confidence-gate list`).
+The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes each page
+directly (single-writer-per-file) with `nanopm-ingest-agent apply`, then runs
+`nanopm-ingest-agent reindex` + `log`. On a host without an Agent tool it follows the same steps
+inline. Surface which entity pages changed; the once-daily judgment lint flags any contradiction
+after the fact — there is no pre-write review queue.
 
 ## Phase 6: Save context
 

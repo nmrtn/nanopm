@@ -35,32 +35,30 @@ nanopm_context_read pm-objectives
 
 If a prior entry exists, show: "Prior objectives found from {ts}. Reviewing current context."
 
-Key things to extract:
-- Challenge session findings (gap, recommended next skill, what you're building) — from the loaded overviews + CHALLENGES.md
+Key things to extract (from the Phase 1 synthesis + the plan overview loaded at startup):
+- Challenge session findings (gap, recommended next skill, what you're building)
 - Prior objectives (if any) — flag which ones were hit or missed
 
-## Phase 1: Context check
+## Phase 1: Context check (query the wiki)
+
+Read upstream context through the **query primitive** — one read-side call that
+synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
+pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason
+over the cited synthesis. Print the prompt and **dispatch it with the Agent tool**
+(one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
-_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/wiki/docs/personas.md"        ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
-[ -f ".nanopm/wiki/docs/feedback.md"                  ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
-[ -f ".nanopm/wiki/docs/vision-mission.md"  ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
-[ -f ".nanopm/wiki/docs/business-model.md"  ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_query_prompt "For setting objectives/OKRs, synthesize from the wiki: the latest challenge session (what we're building, who for, the biggest gap); the mission/vision; the business model and the metrics it says matter; the primary persona and their job-to-be-done; the top unaddressed user-feedback themes; and any prior objectives (noting which were hit or missed). Cite each claim." none
 ```
 
-**If CHALLENGES.md exists (or legacy AUDIT.md):** Read it. Extract sections 1-3 (what you're building, who for, biggest gap).
+Reason over the returned synthesis — every objective must:
+- **ladder up to the mission** — a measurable step toward the stated mission/vision; flag any objective that doesn't connect.
+- **move the business** — bias the KRs toward the metrics the business model says matter (revenue, activation, the core GTM motion), not vanity goals.
+- **serve the primary persona** — plausibly improve the primary persona's outcome toward their job-to-be-done. An objective that serves nobody (or only the anti-persona) is a vanity goal — challenge it before writing it.
+- **address the loudest signal** — at least one objective should target the highest-severity unaddressed feedback theme; surface this: "The top unaddressed signal is {theme}. Should a KR target it directly?"
 
-**If VISION_MISSION_EXISTS:** read `.nanopm/wiki/docs/vision-mission.md`. Objectives must *ladder up to the mission* — every objective should be a measurable step toward the stated mission/vision. Flag any objective that doesn't connect to it.
-
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. Objectives should target *what moves the business* — bias the KRs toward the metrics the business model says matter (revenue, activation, the core GTM motion), not vanity goals. Both reads are advisory — if a doc is absent, proceed without it.
-
-**If PERSONAS_EXISTS:** read `.nanopm/wiki/docs/personas.md`. Objectives exist to move the **primary persona** toward their job-to-be-done — every objective should plausibly improve that persona's outcome. If an objective serves nobody in personas.md (or only the anti-persona), that's a signal it's a vanity goal — challenge it before writing it.
-
-**If FEEDBACK.md exists:** Read it. Extract the top unaddressed themes. At least one objective should address the highest-severity unaddressed theme — surface this to the user: "FEEDBACK.md shows {theme} is the top unaddressed signal. Should a KR target it directly?"
-
-**If CHALLENGES.md missing:** Tell the user: "No challenge session found. Running /pm-objectives without one gives weaker output. Consider running /pm-challenge-me first. Continuing with what I know."
+If the synthesis surfaces no challenge session, tell the user: "No challenge session found. Running /pm-objectives without one gives weaker output. Consider running /pm-challenge-me first. Continuing with what I know."
 
 ## Phase 2: Clarifying questions
 
@@ -69,7 +67,7 @@ Ask these questions as SEPARATE sequential AskUserQuestion calls — one call pe
 **Before asking any question**, check these sources in order:
 1. Your prior run via `nanopm_context_read pm-objectives` (plus the plan overview loaded at startup) — look for a prior pm-objectives entry with a period
 2. The /pm-challenge-me Q5 answer in CONTEXT.md — often names the quarter or goals directly
-3. CHALLENGES.md Section 3 (biggest gap) — often implies the top goal
+3. The biggest gap from the Phase 1 synthesis (the challenge session) — often implies the top goal
 
 **Q1: Time horizon**
 - Check: Does CONTEXT.md Q5 reference a specific quarter or timeframe? If yes, state it and skip Q1: "Period: {X} (from CONTEXT.md Q5)."

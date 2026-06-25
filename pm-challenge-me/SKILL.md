@@ -74,50 +74,28 @@ If URL provided:
 If `_WEBSITE` already stored and `BROWSE_READY`: silently re-use stored URL (don't ask again).
 Offer re-fetch only if last run was >30 days ago: "Re-fetch from {url}? (y/N)"
 
-## Phase 2: Data collection
+## Phase 2: Context assembly (query the wiki)
 
-Check for DATA.md — if it exists, it contains quantitative analytics from /pm-data:
-
-```bash
-[ -f ".nanopm/wiki/docs/data.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
-```
-
-**If DATA_EXISTS:** read `.nanopm/wiki/docs/data.md`. Extract:
-- The most recent analysis question and its key insight
-- Metrics marked 🟢 high confidence — these are facts, not hypotheses
-- Any "biggest unknown" flagged — these are candidates for the challenges in Phase 5
-
-Store these for use in Phase 4 synthesis. Only 🟢 high-confidence findings should anchor conclusions.
-
-Check for PERSONAS.md — if it exists, it defines who you're building for (from /pm-personas):
+This skill is **evaluative**, not descriptive — so pull the upstream facts it builds on
+through the **query primitive**, one read-side call that synthesizes the relevant wiki
+pages, instead of bespoke per-doc reads (the recipe pattern: query → reasoning → ingest).
+The raw docs stay out of this run; you reason over the cited synthesis the query returns.
+Print the prompt and **dispatch it with the Agent tool** (one subagent); on a host with
+no Agent tool, follow its steps inline.
 
 ```bash
-[ -f ".nanopm/wiki/docs/personas.md" ] && echo "PERSONAS_EXISTS" || echo "PERSONAS_MISSING"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_query_prompt "For an adversarial product challenge, synthesize from the wiki: the most recent behavioral/quantitative data findings (the analysis question, its key insight, any metric marked high-confidence, and any 'biggest unknown' flagged); the primary persona and their job-to-be-done plus the explicit anti-persona; the product map and its Completeness/draft flag (the descriptive ground truth for what's being built); the mission/vision, the business model, and the org (so the gap can be named as the distance between stated direction and shipped reality); and the loudest unaddressed user-feedback signal plus the top feedback themes. Cite each claim, and name what's missing rather than inventing it." none
 ```
 
-**If PERSONAS_EXISTS:** read `.nanopm/wiki/docs/personas.md`. Use the primary persona to pre-fill Section 2 (who you're building for) — don't re-derive the user from scratch. Two checks worth making explicit: (1) if your honest assessment of the *real* user diverges from the primary persona, that divergence is a finding — surface it in Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming — and a strong candidate for the `users` challenge in Phase 5.
+Reason over the returned synthesis — do NOT re-derive these facts from scratch:
+- **Data findings** anchor the Phase 4 synthesis and seed the challenges in Phase 5. Only high-confidence metrics should anchor conclusions; a flagged "biggest unknown" is a strong challenge candidate.
+- **The primary persona** pre-fills Section 2 (who you're building for) — don't re-derive the user. Two checks: (1) if your honest read of the *real* user diverges from the primary persona, that divergence is a finding for Section 3 (the gap). (2) Is the product drifting toward the **anti-persona**? A product quietly serving the user it declared off-limits is a strategic leak worth naming — and a strong candidate for the `users` challenge in Phase 5.
+- **The product map** is the descriptive ground truth — use it to pre-fill Section 1 (what you're actually building) and the workflow/feature facts. This skill's job is to judge it: where does the shipped reality diverge from the stated direction. If the product context is marked `Completeness: draft`, emit a one-line non-blocking warning ("challenging against a draft product concept — findings are provisional") and proceed.
+- **The mission/vision, business model, and org** frame the gap (Section 3): it is most often the distance between the stated mission/business model and what's actually shipped — name it concretely from these, not by guessing intent.
+- **The feedback signal** pre-fills Q6 in Phase 3 and enriches the Phase 4 synthesis. The synthesis already carries feedback — do NOT re-fetch Dovetail or Notion; those sources are folded in. Note which themes are already addressed vs. which represent genuine gaps.
 
-Check for the Define-phase context docs — this skill is **evaluative**, not descriptive. Where these exist, build on them instead of re-establishing the basic facts:
-
-```bash
-for slug in product vision-mission business-model org; do
-  [ -f ".nanopm/wiki/docs/$slug.md" ] && echo "${slug}_EXISTS" || echo "${slug}_MISSING"
-done
-```
-
-**If product exists:** read `.nanopm/wiki/docs/product.md`. It is the descriptive ground truth — use it to pre-fill Section 1 (what you're actually building) and the workflow/feature facts. **Do NOT re-derive what the product does from scratch.** This skill's job is to judge it: where does the shipped reality diverge from the stated direction, and what's the biggest gap. If `product.md` is stamped `Completeness: draft`, emit a one-line non-blocking warning ("challenging against a draft product concept — findings are provisional") and proceed.
-
-**If vision-mission / business-model / org exist:** read them (`.nanopm/wiki/docs/vision-mission.md`, `.nanopm/wiki/docs/business-model.md`, `.nanopm/wiki/docs/org.md`). The gap (Section 3) is most often the distance between the stated mission/business model and what's actually shipped — name it concretely using these docs rather than guessing the intent.
-
-Check for FEEDBACK.md first — if it exists, it's the primary feedback source and supersedes direct connector fetching for Q6:
-
-```bash
-[ -f ".nanopm/wiki/docs/feedback.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
-```
-
-**If FEEDBACK_EXISTS:** read FEEDBACK.md. Extract the top unaddressed signal and top themes. These will pre-fill Q6 in Phase 3 and enrich the Phase 4 synthesis. Note: do not re-fetch Dovetail or Notion feedback — FEEDBACK.md already synthesizes those sources.
-
-**If FEEDBACK_MISSING:** fetch from connectors as below.
+If the synthesis surfaces no feedback signal at all, fetch from connectors as below; otherwise the connector fetch for Q6 is unnecessary.
 
 For each connector, check available tier and collect data:
 
@@ -261,7 +239,7 @@ Synthesize a first-pass understanding of:
 2. Who it's actually for (inferred, may differ from stated)
 3. The gap between stated goals (Q5) and what's been shipped (Q4)
 4. The most important feedback signal — use FEEDBACK.md top unaddressed signal if available, otherwise Q6 + connector data. If FEEDBACK.md exists, note which themes are already addressed vs. which represent genuine gaps.
-5. **If DATA_EXISTS:** fold in quantitative findings. For each 🟢 high-confidence metric: does it confirm or contradict the qualitative signal? Flag contradictions explicitly — e.g., "Users say onboarding is fine (FEEDBACK.md), but data shows 60% drop-off at step 2 (DATA.md 🟢)." Contradictions between quanti and quali are the most valuable findings.
+5. **If the Phase 2 synthesis carried data findings:** fold in the quantitative findings. For each 🟢 high-confidence metric: does it confirm or contradict the qualitative signal? Flag contradictions explicitly — e.g., "Users say onboarding is fine (feedback), but data shows 60% drop-off at step 2 (data 🟢)." Contradictions between quanti and quali are the most valuable findings.
 
 ## Phase 5: Adversarial gate — the three challenges
 

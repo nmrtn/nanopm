@@ -86,18 +86,21 @@ If LINEAR tier is MCP or API:
 - Fetch issues currently In Progress
 - Fetch any issues marked Blocked or flagged
 
-If LINEAR not available: read the wiki roadmap page (`$(nanopm_wiki_doc_path roadmap)`, i.e. `.nanopm/wiki/docs/roadmap.md`) and check for any manually updated status.
+If LINEAR not available: lean on the roadmap synthesis from the drift check below for any manually tracked status.
 
-**Roadmap drift check:**
+**Roadmap drift check (query the wiki):**
+
+Pull the current plan through the **query primitive** — one read-side call that synthesizes
+the roadmap's current items, instead of reading the page directly (the recipe pattern).
+You reason over the cited synthesis the query returns. Print the prompt and **dispatch it
+with the Agent tool** (one subagent); on a host with no Agent tool, follow its steps inline.
+
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"  # .nanopm/wiki/docs/roadmap.md
-[ -f "$_ROADMAP" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename names
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
+nanopm_query_prompt "For a daily standup, synthesize from the wiki: the roadmap's current items — anything marked 'this week' or in the current sprint/NOW — so they can be cross-referenced against today's commits to flag what has no recent progress, plus the single biggest gap from the latest challenge session to anchor today's priorities. Cite each claim, and name what's missing rather than inventing it." none
 ```
 
-If ROADMAP_EXISTS: scan for items marked as "this week" or current sprint. Cross-reference with GitHub commits — flag items with no recent commits across any repo.
+If the synthesis carries current roadmap items: cross-reference them with the GitHub commits from earlier in this phase — flag any item with no recent commits across any repo. If it surfaces no roadmap at all, skip the drift cross-reference silently.
 
 **Granola — recent meetings (last 48h):**
 

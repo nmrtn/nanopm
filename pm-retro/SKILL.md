@@ -30,23 +30,31 @@ _RETRO_FILE="$(nanopm_wiki_doc_path "retro-$(date +%F)")"
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_read pm-retro
-nanopm_context_all
 ```
 
 If prior retro found: "Prior retro from {ts}. This run covers commits since then."
 
-## Phase 1: Check for required artifacts
+## Phase 1: Context assembly (query the wiki) + git repo check
+
+The retro compares the **planned** work (the roadmap) against the **actual** work (git
+history). Pull the planned side through the **query primitive** — one read-side call that
+synthesizes the roadmap's current items, instead of reading the page directly (the recipe
+pattern). You reason over the cited synthesis the query returns. Print the prompt and
+**dispatch it with the Agent tool** (one subagent); on a host with no Agent tool, follow
+its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/wiki/docs/roadmap.md"  # legacy flat fallback
-[ -f "$_ROADMAP" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -d ".git" ]               && echo "GIT_REPO"        || echo "NOT_GIT_REPO"
+nanopm_query_prompt "For a PM retrospective, synthesize from the wiki: the current roadmap's NOW items and any planned/NEXT items (the planned work to compare against actual git history — list each item verbatim so it can be matched to commits and copied forward if unshipped), plus any latest challenge-session context that frames whether the plan is still the right plan. Cite each claim, and name what's missing rather than inventing it." none
 ```
 
-If ROADMAP_MISSING and CHALLENGES_MISSING: "No roadmap or challenges page found in the wiki (`.nanopm/wiki/docs/`). Run /pm-challenge-me and /pm-roadmap first to get full retro value. Continuing with git history only."
+This synthesis is the **planned** side of the retro — hold the NOW/NEXT items for Phase 4. If it surfaces neither a roadmap nor a challenge session: "No roadmap or challenges page found in the wiki (`.nanopm/wiki/docs/`). Run /pm-challenge-me and /pm-roadmap first to get full retro value. Continuing with git history only."
+
+Then confirm this is a git repo — the **actual** side of the comparison:
+
+```bash
+[ -d ".git" ] && echo "GIT_REPO" || echo "NOT_GIT_REPO"
+```
 
 If NOT_GIT_REPO: "This directory is not a git repo — can't read commit history. Run `git init` or navigate to your project root."
 
@@ -78,28 +86,16 @@ echo "$_COMMITS"
 
 Tell the user: "Reviewing {N} commits since roadmap was written {date or 'recently'}."
 
-## Phase 3: Extract roadmap items
+## Phase 3: Roadmap items (from the Phase 1 synthesis)
 
-If ROADMAP_EXISTS, extract the NOW items (planned work) from the wiki roadmap page:
-
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_ROADMAP="$(nanopm_wiki_doc_path roadmap)"; [ -f "$_ROADMAP" ] || _ROADMAP=".nanopm/wiki/docs/roadmap.md"
-grep -A 50 '## NOW' "$_ROADMAP" 2>/dev/null | \
-  grep -B 50 '## NEXT\|## LATER\|^---' | \
-  grep -v '^##\|^---' | grep -v '^$' | head -30
-```
-
-Also extract NEXT items (look for any that may have been pulled forward early):
-```bash
-grep -A 50 '## NEXT' "$_ROADMAP" 2>/dev/null | \
-  grep -B 50 '## LATER\|^---' | \
-  grep -v '^##\|^---' | grep -v '^$' | head -20
-```
+The planned work is already in hand — the Phase 1 query synthesis carries the roadmap's
+NOW items (and any NEXT items that may have been pulled forward early), each listed
+verbatim. Hold those for the comparison below; no second read of the roadmap page is
+needed.
 
 ## Phase 4: Synthesize — what shipped vs. what was planned
 
-Analyze the commit messages from Phase 2 against the roadmap items from Phase 3.
+Analyze the commit messages from Phase 2 against the roadmap items from Phase 1.
 
 For each roadmap NOW item, classify as:
 - ✅ **Shipped** — commits clearly cover this item

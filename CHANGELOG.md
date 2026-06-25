@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — Karpathy-faithful memory engine (engine + recipes)
+
+Trims the memory wiki back to the model that inspired it (Karpathy's LLM-wiki) and
+re-expresses every skill as a thin recipe over three primitives. Surfaced by Nico's
+review of #121; built on the wiki-canonical foundation from 0.21.0.
+
+**What's different for you**
+
+- **No more pre-write confidence gate.** `nanopm-confidence-gate` and the `wiki/_review/`
+  approval queue are gone. Writes apply directly (single-writer-per-file, locked, via a
+  new `nanopm-ingest-agent apply`); contradictions and reversals are surfaced *after the
+  fact* by the judgment lint — "write freely, lint surfaces, you curate." The 5 signal
+  skills no longer route through the gate.
+- **The judgment lint is now wired.** The structural lint is a cheap pre-filter; the
+  judgment pass (missing contradictions / gaps / drift) is dispatched once/day when the
+  preamble flags it due (`LINT_JUDGMENT_DUE`) and records findings in `wiki/log.md`.
+- **A `query` read primitive.** Skills read upstream context through a shared query (or,
+  for Define cross-doc gathering, retrieval) subagent — read the catalog, drill in,
+  synthesize with citations — instead of bespoke per-skill reads. Every `pm-*` skill is
+  now recipe-form: query → reasoning → ingest, all on the gate-free path.
+- **Cleaner upgrades.** A project with legacy flat docs auto-migrates into the wiki on
+  the first post-upgrade run (copy mode + a one-line banner); `nanopm-migrate-to-wiki
+  --finalize` now deletes a flat doc only when the wiki copy matches it — an edited flat
+  doc is kept, not lost. Opportunities `INDEX/LOG/SCHEMA` housekeeping files are skiplisted
+  from lint and the index.
+
+Regression-gated by `test/wiki-canonical.sh` (gate-absence + judgment-lint wiring) and
+the engine e2e tests, now part of `test/run-all.sh`.
+
 ## 0.21.0 — 2026-06-25
 
 ### Wiki-canonical: everything nanopm generates now lives in the wiki
