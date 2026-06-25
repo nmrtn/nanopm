@@ -8,9 +8,10 @@ halves:
      touch, how to phrase a claim) is done by an LLM subagent the main agent
      dispatches — see `nanopm_ingest_prompt` in lib/nanopm.sh.
   2. The DETERMINISTIC half (this script) is the bookkeeping that needs no LLM:
-     dedup a claim by its citation before writing, regenerate the index, and
-     append to the log. Page writes themselves go THROUGH nanopm-confidence-gate
-     so the confidence policy (NANOPM-WIKI.md §11) applies uniformly.
+     dedup a claim by its citation before writing, write the page directly (a
+     locked, single-writer-per-file write — `apply`), regenerate the index, and
+     append to the log. There is no pre-write confidence gate (NANOPM-WIKI.md §11):
+     quality is enforced after the fact by the judgment lint pass.
 
 Keeping the mechanics here (not in the subagent) is what makes ingest idempotent
 and host-agnostic: the same commands run on Claude / Vibe / Codex, and on a host
@@ -20,14 +21,16 @@ Subcommands:
   reindex          regenerate .nanopm/wiki/index.md from page frontmatter
   log              append a heartbeat line to .nanopm/wiki/log.md
   citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
+  apply            write a wiki page directly (locked, single-writer-per-file)
 
 Usage:
   nanopm-ingest-agent reindex [--project DIR]
   nanopm-ingest-agent log --op ingest --title "Theo interview 2026-06-23" [--project DIR]
   nanopm-ingest-agent citation-check --target wiki/entities/personas/theo.md \\
       --citation '"I live in the terminal" — interview, 2026-06-23' [--project DIR]
+  nanopm-ingest-agent apply --target wiki/entities/personas/theo.md [--project DIR] < content.md
 
-Exit codes: reindex/log -> 0 ok, 1 error. citation-check -> 0 DUPLICATE, 1 NEW, 2 error.
+Exit codes: reindex/log/apply -> 0 ok, 1 error. citation-check -> 0 DUPLICATE, 1 NEW, 2 error.
 """
 from __future__ import annotations
 
@@ -74,8 +77,8 @@ def wiki_lock(project: str):
     """Serialize mutations to the shared wiki files (index.md, log.md, pages) so
     concurrent ingest runs ("parallel waves", NANOPM-WIKI.md §11) can't tear the
     index or lose a log line. Advisory exclusive flock on .nanopm/wiki/.lock; a
-    no-op on non-POSIX hosts. All writers (here + nanopm-confidence-gate) take the
-    same lock, so a reindex never overlaps a log append or a page write."""
+    no-op on non-POSIX hosts. Every writer (reindex, log, and apply) takes the same
+    lock, so a reindex never overlaps a log append or a page write."""
     wiki = wiki_dir(project)
     wiki.mkdir(parents=True, exist_ok=True)
     if fcntl is None:
@@ -289,6 +292,38 @@ def _norm_citation(s: str) -> str:
     return " ".join(s.split())
 
 
+def resolve_target(project: str, target: str) -> Path | None:
+    """Resolve a wiki page path and confine it to .nanopm/ (no traversal escape).
+    Accepts both '.nanopm/wiki/...' and 'wiki/...' forms."""
+    nano = (Path(project) / ".nanopm").resolve()
+    rel = target[len(".nanopm/"):] if target.startswith(".nanopm/") else target
+    dest = (nano / rel).resolve()
+    try:
+        dest.relative_to(nano)
+    except ValueError:
+        return None
+    return dest
+
+
+def cmd_apply(args) -> int:
+    """Write a wiki page directly (content on stdin), under the same .nanopm/wiki/.lock
+    every other writer takes — so single-writer-per-file holds (NANOPM-WIKI.md §11).
+    This is the deterministic write the ingest/lint agents use now that there is no
+    confidence gate: content applies directly; contradictions are surfaced AFTER the
+    fact by the judgment lint pass (§9), not held in a pre-write review queue."""
+    content = sys.stdin.read()
+    if not content:
+        return err("no content on stdin")
+    dest = resolve_target(args.project, args.target)
+    if dest is None:
+        return err(f"target {args.target!r} escapes .nanopm/ — refused")
+    with wiki_lock(args.project):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8")
+    print(f"APPLIED {args.target}")
+    return 0
+
+
 def cmd_citation_check(args) -> int:
     """Dedup gate: is this citation already on the page? The citation IS the
     identity (NANOPM-WIKI.md §5). We match it against each existing citation LINE
@@ -335,6 +370,10 @@ def main() -> int:
     c.add_argument("--target", required=True, help="wiki page path (under .nanopm/)")
     c.add_argument("--citation", required=True, help="the verbatim citation string")
     c.set_defaults(func=cmd_citation_check)
+
+    a = sub.add_parser("apply", help="write a wiki page directly (content on stdin)")
+    a.add_argument("--target", required=True, help="wiki page path (under .nanopm/)")
+    a.set_defaults(func=cmd_apply)
 
     args = ap.parse_args()
     return args.func(args)

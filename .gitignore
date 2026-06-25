@@ -8,3 +8,7 @@ supabase/.temp/
 .env
 .env.local
 .env.*.local
+
+# Python bytecode cache
+__pycache__/
+*.pyc

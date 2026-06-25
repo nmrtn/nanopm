@@ -346,11 +346,11 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_ingest_prompt "$(nanopm_wiki_doc_path feedback)" "entities/opportunities and entities/personas"
 ```
 
-The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
-`nanopm-confidence-gate` (high-confidence auto-applies; shaky matches and reversals are held for
-review — intended), then runs `nanopm-ingest-agent reindex` + `log`. On a host without an Agent
-tool it follows the same steps inline. Surface which entity pages changed and anything routed to
-review (`~/.nanopm/bin/nanopm-confidence-gate list`).
+The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes each page
+directly (single-writer-per-file) with `nanopm-ingest-agent apply`, then runs
+`nanopm-ingest-agent reindex` + `log`. On a host without an Agent tool it follows the same steps
+inline. Surface which entity pages changed; the once-daily judgment lint flags any contradiction
+after the fact — there is no pre-write review queue.
 
 ## Phase 6: Save context
 

@@ -282,8 +282,10 @@ ok "lib/nanopm.sh and ETHOS.md installed"
 
 step "Installing state binaries"
 mkdir -p "$GLOBAL_CONFIG_DIR/bin"
-# Remove deprecated binaries from prior versions (v0.6.0 dropped telemetry)
-for _stale in nanopm-telemetry-log nanopm-telemetry-sync nanopm-analytics; do
+# Remove deprecated binaries from prior versions (v0.6.0 dropped telemetry; the
+# Karpathy-faithful engine dropped the confidence gate — quality is now enforced
+# after the fact by the judgment lint, see NANOPM-WIKI.md §11).
+for _stale in nanopm-telemetry-log nanopm-telemetry-sync nanopm-analytics nanopm-confidence-gate; do
   [ -e "$GLOBAL_CONFIG_DIR/bin/$_stale" ] && rm -f "$GLOBAL_CONFIG_DIR/bin/$_stale"
 done
 # Remove deprecated supabase config dir
@@ -295,7 +297,6 @@ _install_file "bin/nanopm-state-log" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 _install_file "bin/nanopm-state-read" "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
 _install_file "bin/nanopm-symphony-validate" "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
 _install_file "bin/nanopm-migrate-to-wiki" "$GLOBAL_CONFIG_DIR/bin/nanopm-migrate-to-wiki"
-_install_file "bin/nanopm-confidence-gate" "$GLOBAL_CONFIG_DIR/bin/nanopm-confidence-gate"
 _install_file "bin/nanopm-ingest-agent" "$GLOBAL_CONFIG_DIR/bin/nanopm-ingest-agent"
 _install_file "bin/nanopm-lint-agent" "$GLOBAL_CONFIG_DIR/bin/nanopm-lint-agent"
 _install_file "bin/nanopm-export" "$GLOBAL_CONFIG_DIR/bin/nanopm-export"
@@ -303,7 +304,6 @@ chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-log"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-state-read"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-symphony-validate"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-migrate-to-wiki"
-chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-confidence-gate"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-ingest-agent"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-lint-agent"
 chmod +x "$GLOBAL_CONFIG_DIR/bin/nanopm-export"

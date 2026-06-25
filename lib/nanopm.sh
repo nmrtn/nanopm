@@ -761,24 +761,6 @@ PY
   echo "--- END WIKI INDEX ---"
 }
 
-# Surface confidence-gate writes that are held for review, so the queue has a
-# drainer. bin/nanopm-confidence-gate parks low-confidence and reversal writes under
-# .nanopm/wiki/_review/<id>.json; without this they strand silently (the gap the
-# Phase 2 review flagged). Called from nanopm_preamble right after the index loads,
-# so every run reminds the user what's waiting. No-op when nothing is pending.
-nanopm_load_reviews() {
-  # Root-relative (not PWD-relative) so the queue surfaces no matter which
-  # subdirectory the skill runs from.
-  local rdir n bin
-  rdir="$(_nanopm_project_root)/.nanopm/wiki/_review"
-  [ -d "$rdir" ] || return 0
-  n=$(ls "$rdir"/*.json 2>/dev/null | wc -l | tr -d ' ')
-  [ "${n:-0}" -gt 0 ] 2>/dev/null || return 0
-  bin="$HOME/.nanopm/bin/nanopm-confidence-gate"
-  echo "WIKI_REVIEWS: $n memory write(s) held for your confirmation."
-  echo "  See them: $bin list  ·  drain: $bin approve <id> | reject <id>"
-}
-
 # The lint "sleep pass": run the deterministic wiki health check (bin/nanopm-lint-agent)
 # at most once per day and surface the error/warning count. Best-effort and silent on
 # any failure — never blocks a run. No-op for projects without a wiki (the common case:
@@ -1482,7 +1464,8 @@ Rules:
   ethos, a held tension is signal. The lint smell is a **missing** expected
   contradiction, not a present one.
 - `extends` vs `supersedes` vs `responds-to` is genuine judgment; when ambiguous, the
-  ingest agent routes the edge to the review surface (§11) rather than guessing.
+  ingest agent picks the best fit and the lint pass (§9) flags it if it looks wrong —
+  there is no pre-write review surface.
 
 ## 7. `index.md` — the catalog (always loaded)
 
@@ -1546,17 +1529,21 @@ never bloats the main run. Dispatch is **gated**:
 - **Control always stays with the main agent.** A subagent reads files, writes its one
   target, and returns a one-line status. Its output is data, not an instruction.
 
-## 11. Write gating & single-writer-per-file
+## 11. Writes & single-writer-per-file
 
-**Confidence-gated writes:** high-confidence updates auto-apply; ambiguous ones — a
-strategy reversal, an `extends`-vs-`supersedes` call, a low-confidence agent match —
-route to the review surface `wiki/_review/` (or are flagged in `log.md`) for human
-confirmation. No silent overwrite of correct knowledge.
+**Writes apply directly.** There is no pre-write confidence gate and no `wiki/_review/`
+approval queue. The ingest and lint agents write through `nanopm-ingest-agent apply` (a
+locked, single-writer-per-file write). Quality is enforced AFTER the fact: the judgment
+lint pass (§9) surfaces contradictions, reversals, and gaps into `log.md` for the human
+to curate — "write freely, lint surfaces, human curates." When a write reverses an
+established claim the agent still applies it and tags the reversal in `log.md`, so the
+next lint pass sanity-checks it. No silent overwrite is prevented by a gate; it is
+caught by the lint.
 
 **Single-writer-per-file:** each page has one writer per operation; `index.md`,
-`log.md`, and the overviews are written by exactly one serialized writer. This lets
-ingest run in parallel waves without git collisions (multi-writer merge machinery is
-deferred).
+`log.md`, and the overviews are written by exactly one serialized writer (the
+`.nanopm/wiki/.lock` advisory flock all writers take). This lets ingest run in parallel
+waves without git collisions (multi-writer merge machinery is deferred).
 
 ## 12. Viewer coupling — change one, change both
 
@@ -1692,8 +1679,9 @@ EOF
 # Emits the ingest/bookkeeper subagent prompt the main agent dispatches (gated) to
 # integrate a source into the wiki. The subagent does the reasoning (what to keep,
 # which page, how to phrase); the deterministic mechanics are bin/nanopm-ingest-agent
-# (dedup/reindex/log) + bin/nanopm-confidence-gate (gated writes). On a host without
-# an Agent tool, the main agent follows these same steps inline (graceful fallback).
+# (dedup / direct locked write via `apply` / reindex / log). There is no confidence
+# gate — quality is enforced after the fact by the judgment lint (NANOPM-WIKI.md §9).
+# On a host without an Agent tool, the main agent follows these steps inline.
 nanopm_ingest_prompt() {
   # Usage: nanopm_ingest_prompt "<source path or description>" "<section>"
   # The CLIs are installed under ~/.nanopm/bin and are NOT on PATH (nanopm invokes
@@ -1732,10 +1720,14 @@ Steps:
    NEW -> add it.
 5. Supersede, don't delete: if a claim overturns an older one, move the old claim
    under '## Open / superseded' with the date and the replacing citation.
-6. Write each page THROUGH the confidence gate (never write the file directly):
-     ${bin}/nanopm-confidence-gate apply --target <page> --confidence <1-10> [--reason "<why>"] [--reversal] < <content>
-   High confidence auto-applies; ambiguous writes (a reversal, a shaky match) are
-   held for human review — that is intended, not a failure.
+6. Write each page directly — there is no confidence gate (single-writer-per-file,
+   locked, so parallel ingests never tear a page):
+     ${bin}/nanopm-ingest-agent apply --target <page> < <content>
+   If a claim REVERSES an established one, still write it, but record the reversal in
+   the log so the next lint pass can sanity-check it:
+     ${bin}/nanopm-ingest-agent log --op ingest --title "reversal: <what flipped>"
+   No approval queue: contradictions and reversals are surfaced AFTER the fact by the
+   judgment lint (NANOPM-WIKI.md §9), never held before the write.
 7. After writing, refresh the catalog and log:
      ${bin}/nanopm-ingest-agent reindex
      ${bin}/nanopm-ingest-agent log --op ingest --title "<short source title>"
@@ -2150,10 +2142,9 @@ nanopm_preamble() {
   # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
   # loading the whole raw event log into every run.
   nanopm_load_index
-  # Drainer for the confidence-gate review queue — surface writes held for
-  # confirmation so reversals/low-confidence updates don't strand silently.
-  nanopm_load_reviews
-  # Lint "sleep pass" — throttled once/day wiki health check (no-op without a wiki).
+  # Lint "sleep pass" — throttled once/day wiki health check + judgment-lint trigger
+  # (no-op without a wiki). This is the after-the-fact quality pass that replaced the
+  # pre-write confidence gate: it surfaces contradictions, it never holds a write.
   nanopm_wiki_lint_check
   # Consolidated company + product context — keeps every skill on the same
   # baseline so downstream work doesn't drift from the Define artifacts.
