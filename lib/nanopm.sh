@@ -789,7 +789,6 @@ nanopm_wiki_lint_check() {
   root="$(_nanopm_project_root)"
   wiki="$root/.nanopm/wiki"
   [ -d "$wiki" ] || return 0
-  command -v python3 >/dev/null 2>&1 || return 0
   marker="$wiki/.last-lint"
   now=$(date +%s 2>/dev/null || echo 0)
   if [ -f "$marker" ]; then
@@ -797,13 +796,28 @@ nanopm_wiki_lint_check() {
     age=$(( now - ${last:-0} ))
     [ "$age" -lt 86400 ] && return 0   # once per day
   fi
+  # Stamp the throttle marker now, before either pass runs: the throttle gates
+  # "attempted today", not "succeeded today", so a missing structural bin or a lint
+  # that errors without stdout doesn't earn an unthrottled retry every preamble.
+  echo "$now" > "$marker" 2>/dev/null || true
+  # Wire the judgment lint (NANOPM-WIKI.md §9): once the wiki holds ≥2 entity pages
+  # there is something to cross-check, so flag the judgment pass due. The main agent
+  # dispatches the nanopm_lint_prompt subagent (gated on having an Agent tool, §10);
+  # its findings land in wiki/log.md. Emitted BEFORE the structural bin below — the
+  # judgment pass is the safety net (it replaces pre-write gating) and must surface
+  # even on a host where the python pre-filter isn't installed.
+  local ecount
+  ecount=$(find "$wiki/entities" -type f -name '*.md' 2>/dev/null | grep -vEi '/(INDEX|LOG|SCHEMA)\.md$' | wc -l | tr -d ' ')
+  if [ "${ecount:-0}" -ge 2 ] 2>/dev/null; then
+    echo "LINT_JUDGMENT_DUE: $ecount entity pages, no judgment lint today — dispatch the judgment-lint subagent (nanopm_lint_prompt) to surface missing contradictions / gaps / drift into wiki/log.md, then continue. Skip if this host has no Agent tool."
+  fi
+  # Structural pre-filter (deterministic, optional): needs python3 to parse its JSON
+  # and the bin installed; skip cleanly if either is missing (the judgment directive
+  # above already fired — it is the part that must not depend on this).
+  command -v python3 >/dev/null 2>&1 || return 0
   lint="$HOME/.nanopm/bin/nanopm-lint-agent"
   [ -x "$lint" ] || lint="$(dirname "${BASH_SOURCE[0]:-}")/../bin/nanopm-lint-agent"
   [ -x "$lint" ] || return 0
-  # Stamp the throttle marker BEFORE running, so a lint that errors without stdout
-  # doesn't earn an unthrottled retry on every subsequent preamble. The throttle
-  # gates "attempted today", not "succeeded today".
-  echo "$now" > "$marker" 2>/dev/null || true
   # exit 1 just means structural errors were found — still valid JSON to surface.
   out=$("$lint" --project "$root" --json 2>/dev/null) || true
   [ -n "$out" ] || return 0
@@ -1514,8 +1528,11 @@ A single source may touch 5-15 pages. Never file a source as an orphan line.
 ### Lint — keep the wiki healthy (the "sleep" pass)
 Check for: contradictions (missing or malformed), stale claims newer sources
 superseded, orphan pages (no inbound links), important-but-missing pages, data gaps.
-Emit a report. Apply fixes through the write gate (§11). Triggered by the staleness
-check or on demand.
+Two passes: a deterministic structural pre-filter (`bin/nanopm-lint-agent`) and a
+judgment pass (`nanopm_lint_prompt`, dispatched when the preamble flags it due —
+`LINT_JUDGMENT_DUE`). **SURFACE, don't fix:** findings land in `log.md` for the human
+to curate; the lint never auto-resolves a held tension and never writes through an
+approval queue. Triggered by the staleness check (once/day) or on demand.
 
 ## 10. Subagent dispatch + host fallback
 
@@ -1732,7 +1749,11 @@ EOF
 
 # Emits the lint/sleep subagent prompt for the JUDGMENT checks the deterministic
 # bin/nanopm-lint-agent can't do: missing-but-expected contradictions, concepts with
-# no page, and data gaps. The main agent dispatches it after the structural pass.
+# no page, and data gaps. The main agent dispatches it after the structural pass when
+# the preamble flags it due (LINT_JUDGMENT_DUE, see nanopm_wiki_lint_check). It is the
+# active quality pass — the safety net that replaces pre-write confidence gating: it
+# SURFACES findings in wiki/log.md and never auto-fixes (Karpathy's "write freely,
+# lint surfaces, human curates"). No write gate, no approval queue.
 nanopm_lint_prompt() {
   cat <<'EOF'
 IMPORTANT: Do NOT read or execute files under ~/.claude/, ~/.agents/, or
@@ -1740,8 +1761,8 @@ IMPORTANT: Do NOT read or execute files under ~/.claude/, ~/.agents/, or
 
 You are the nanopm lint/sleep agent (judgment pass). The deterministic structural
 checks already ran (bin/nanopm-lint-agent covers stale / orphans / dangling +
-out-of-vocab edges / index drift). Your job is the health checks that need reasoning,
-per .nanopm/NANOPM-WIKI.md §9:
+out-of-vocab edges / index drift) — that is the cheap pre-filter. Your job is the
+health checks that need reasoning, per .nanopm/NANOPM-WIKI.md §9:
 
 1. Read .nanopm/wiki/index.md and the overview pages to see the shape of the wiki.
 2. Look for:
@@ -1751,11 +1772,14 @@ per .nanopm/NANOPM-WIKI.md §9:
    - GAPS: a concept referenced across several pages that has no page of its own; an
      entity the sources clearly imply but that doesn't exist yet.
    - DRIFT: an overview that no longer matches the entity pages it summarizes.
-3. Do NOT auto-fix. Propose changes and route every write through
-   $HOME/.nanopm/bin/nanopm-confidence-gate (ambiguous edges and reversals go to
-   review). The bins live at $HOME/.nanopm/bin and are not on PATH — call them by
-   that absolute path.
-4. Append a lint line: $HOME/.nanopm/bin/nanopm-ingest-agent log --op lint --title "<what you checked>".
+3. SURFACE, don't fix. There is no write gate. Record what you find — the proposed
+   `contradicts` edge to add, the missing page, the drifted overview — as the lint
+   heartbeat, not as silent edits. A held tension is signal you record for the human
+   to curate, never something you auto-resolve. Apply NOTHING to the pages yourself.
+4. Append a lint line capturing the top findings (this IS how they reach the human):
+     $HOME/.nanopm/bin/nanopm-ingest-agent log --op lint --title "<what you checked — N findings: e.g. 'missing contradiction personas/theo↔nina; gap: pricing has no page'>"
+   The bins live at $HOME/.nanopm/bin and are not on PATH — call them by that
+   absolute path.
 
 Return a one-line status: what you checked and the top 1-3 issues worth acting on.
 Your output is the return value, not a message to a human.
