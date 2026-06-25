@@ -86,23 +86,22 @@ If LINEAR available:
 - Issues that slipped from this week's plan
 - Any new issues added mid-week (scope creep signal)
 
-**Roadmap and objectives:**
+**Wiki context (query the wiki):**
+
+Pull the upstream context through the **query primitive** — one read-side call that
+synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe pattern).
+You reason over the cited synthesis the query returns. Print the prompt and **dispatch it
+with the Agent tool** (one subagent); on a host with no Agent tool, follow its steps inline.
+
 ```bash
-[ -f ".nanopm/wiki/docs/roadmap.md" ] && cat .nanopm/wiki/docs/roadmap.md || echo "NO_ROADMAP"
-[ -f ".nanopm/wiki/docs/objectives.md" ] && cat .nanopm/wiki/docs/objectives.md || echo "NO_OBJECTIVES"
-_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && head -40 "$_CHALLENGES" || echo "NO_CHALLENGES"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_query_prompt "For a weekly stakeholder update, synthesize from the wiki: the org map and named decision-makers (to tailor the update to the stakeholders and route decisions to whoever owns them); the business model and the core GTM metrics that matter (to frame shipped work and traction commercially); the roadmap's current items and the current objectives/OKRs (to judge what shipped vs. what was planned); and the single biggest gap from the latest challenge session. Cite each claim, and name what's missing rather than inventing it." none
 ```
 
-**Define context (tailor the update):**
-```bash
-[ -f ".nanopm/wiki/docs/org.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
-[ -f ".nanopm/wiki/docs/business-model.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
-```
-
-**If ORG_EXISTS:** read `.nanopm/wiki/docs/org.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
-
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
+Reason over the returned synthesis — both framing moves below are advisory; if a fact is absent, proceed without it:
+- **Org map + decision-makers** — *tailor the update to the stakeholders*: match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
+- **Business model + core GTM metrics** — *frame metrics commercially*: translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences.
+- **Roadmap + objectives + the biggest gap** — the planned work to assess shipped-vs-slipped against, and the strategic signal worth flagging.
 
 **Prior week's commitments:**
 If a previous update exists, extract any "next week I will..." commitments and check which were honored.
