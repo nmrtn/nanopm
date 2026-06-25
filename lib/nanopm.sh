@@ -681,13 +681,9 @@ nanopm_load_context() {
   # -s, not -f: a zero-byte file (e.g. a failed regen) must not report "loaded".
   [ -s "$f" ] || { echo "CONTEXT_SUMMARY: none yet (generated after a Define skill runs)"; return 0; }
   echo "CONTEXT_SUMMARY_LOADED: $f"
-  # Surface the reasoning sidecars so every CLI run knows the "why" docs exist
-  # (paths only — their content is on-demand reading, never auto-loaded).
-  if [ -d .nanopm/reasoning ]; then
-    local _sidecars
-    _sidecars=$(ls .nanopm/reasoning/*.md 2>/dev/null | tr '\n' ' ')
-    [ -n "$_sidecars" ] && echo "REASONING_DOCS (the why behind each Define doc): $_sidecars"
-  fi
+  # The "why" no longer lives in a separate .nanopm/reasoning/ sidecar — under
+  # wiki-canonical writes it folds into each doc page's "## Provenance & assumptions"
+  # section (NANOPM-WIKI.md §4.3/§5), read on demand, never auto-loaded here.
   # The brief is synthesized from Define docs that can include fetched web/README
   # content. Wrap it as reference DATA so a planted instruction can't ride the
   # brief into every skill run. Char-safe bound (no mid-multibyte split; marks
@@ -1033,20 +1029,6 @@ nanopm_define_mode() {
   # Usage: nanopm_define_mode .nanopm/VISION-MISSION.md
   # Echoes "refine" if the target doc exists, else "create".
   [ -f "$1" ] && echo "refine" || echo "create"
-}
-
-nanopm_reasoning_path() {
-  # Usage: nanopm_reasoning_path .nanopm/VISION-MISSION.md
-  # Echoes the reasoning-sidecar path for a Define doc and creates the
-  # directory on demand. Each Define skill writes TWO files: the clean,
-  # share-ready doc (claims only) and this sidecar, which carries everything
-  # meta — Evidenced/Assumed calls, sources, and the "why" behind each
-  # decision. The viewer pairs the two by this path convention, so changing
-  # it here requires a matching change in viewer ArtifactScanner/Models.
-  local _doc_base
-  _doc_base=$(basename "$1")
-  mkdir -p .nanopm/reasoning
-  echo ".nanopm/reasoning/$_doc_base"
 }
 
 nanopm_retrieval_prompt() {
@@ -1591,7 +1573,7 @@ nanopm_wiki_ensure() {
   for t in personas competitors opportunities objectives features people; do
     mkdir -p "$wiki/entities/$t" 2>/dev/null
   done
-  for t in feedback intel data interviews git-activity; do
+  for t in feedback competitors data interviews git-activity; do
     mkdir -p "$raw/$t" 2>/dev/null
   done
   # Write the schema atomically (temp + rename, pid-suffixed) so two skills
@@ -1620,14 +1602,15 @@ nanopm_wiki_ensure() {
 # still flows through the ingest subagent (nanopm_ingest_prompt); these two helpers
 # cover the deterministic doc-view write every skill shares.
 #
-# These SUPERSEDE nanopm_reasoning_path, which is retained only so not-yet-routed
-# skills and the migrate tool keep working during the transition.
+# These replaced the old nanopm_reasoning_path sidecar helper (now removed): every
+# Define/Plan skill is routed to the wiki, and bin/nanopm-migrate-to-wiki folds any
+# legacy .nanopm/reasoning/ sidecars in by its own hardcoded path.
 
 nanopm_wiki_doc_path() {
   # Usage: nanopm_wiki_doc_path <slug>     e.g. vision-mission | strategy | roadmap
   #   ->   <root>/.nanopm/wiki/docs/<slug>.md   (docs/ created on demand)
-  # The wiki-canonical counterpart of nanopm_reasoning_path. Callers pass a bare
-  # section slug (not a path); the slug is normalized so a skill name or a doc
+  # The deterministic doc-view write every Define/Plan skill shares. Callers pass a
+  # bare section slug (not a path); the slug is normalized so a skill name or a doc
   # basename both resolve to the same canonical page.
   local root slug
   root="$(_nanopm_project_root)"
