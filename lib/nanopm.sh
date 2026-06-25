@@ -1600,6 +1600,49 @@ nanopm_wiki_ensure() {
   return 0
 }
 
+# ── Migration-on-upgrade (vNext) ─────────────────────────────────────────────
+#
+# A project that adopted the wiki but still carries legacy flat Define/Plan docs
+# (.nanopm/<DOC>.md) from before the cutover would otherwise have a skill read the
+# wiki path, find it missing, and rebuild over the existing flat doc (PR #121 review
+# item #1). Instead, on the first post-upgrade run we detect legacy flat docs whose
+# wiki equivalent (wiki/docs/<slug>.md) is missing and auto-run nanopm-migrate-to-wiki
+# once in COPY mode, reindex, and print a one-line banner. Naturally idempotent: once
+# copied, the wiki equivalents exist, so later runs detect nothing and no-op. The DOC
+# list mirrors DOC_NAMES in bin/nanopm-migrate-to-wiki (minus the dated WEEKLY_UPDATE
+# series, handled there as a folder) — change one, change both. The slug derivation
+# matches doc_page_name() in that tool for these names (lowercase; they carry no '_').
+nanopm_migrate_on_upgrade() {
+  local root nano d slug missing=0 mig ingest
+  root="$(_nanopm_project_root)"
+  nano="$root/.nanopm"
+  # Only reconcile once the wiki layout exists; a project with no wiki/ hasn't adopted
+  # it at all — nothing to migrate against.
+  [ -d "$nano/wiki" ] || return 0
+  for d in VISION-MISSION BUSINESS-MODEL ORG PRODUCT PERSONAS \
+           OBJECTIVES STRATEGY ROADMAP CHALLENGES AUDIT \
+           COMPETITORS FEEDBACK INTERVIEW DATA DISCOVERY; do
+    [ -f "$nano/$d.md" ] || continue
+    slug=$(printf '%s' "$d" | tr '[:upper:]' '[:lower:]')
+    [ -f "$nano/wiki/docs/$slug.md" ] || missing=$((missing + 1))
+  done
+  [ "$missing" -gt 0 ] || return 0
+  mig="$HOME/.nanopm/bin/nanopm-migrate-to-wiki"
+  [ -x "$mig" ] || mig="$(dirname "${BASH_SOURCE[0]:-}")/../bin/nanopm-migrate-to-wiki"
+  [ -x "$mig" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  # Copy mode (non-destructive): bring the legacy docs into the wiki. Quiet — we print
+  # our own one-line banner, not the migrator's per-file log. On any failure, leave the
+  # project untouched and stay silent (never block the skill).
+  "$mig" --project "$root" >/dev/null 2>&1 || return 0
+  # Refresh the catalog so the freshly-copied pages are visible to load_index below.
+  ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  [ -x "$ingest" ] || ingest="$(dirname "${BASH_SOURCE[0]:-}")/../bin/nanopm-ingest-agent"
+  # --project is a top-level arg (before the subcommand), not a reindex flag.
+  [ -x "$ingest" ] && "$ingest" --project "$root" reindex >/dev/null 2>&1
+  echo "nanopm: migrated $missing legacy doc(s) into wiki/ — the wiki is now canonical (flat copies kept; run nanopm-migrate-to-wiki --finalize to remove them)."
+}
+
 # ── Wiki doc-page write contract (vNext, Option A — wiki-canonical writes) ────
 #
 # Under wiki-canonical writes a Define/Plan skill files its output as a wiki DOC
@@ -2139,6 +2182,10 @@ nanopm_preamble() {
   # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
   # creates nothing that already exists, never overwrites a page or the schema.
   nanopm_wiki_ensure
+  # Migration-on-upgrade: bring any legacy flat Define/Plan docs into the wiki once
+  # (copy mode), so per-doc reads resolve the wiki path instead of "missing" →
+  # rebuild-over. No-op after the first post-upgrade run.
+  nanopm_migrate_on_upgrade
   # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
   # loading the whole raw event log into every run.
   nanopm_load_index
