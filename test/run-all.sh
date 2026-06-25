@@ -16,6 +16,7 @@ done
 _TESTS=(
   "skill-syntax.sh"
   "plugin-manifest.sh"
+  "wiki-canonical.sh"
   "state-layer.sh"
   "multi-host.sh"
   "gates.sh"

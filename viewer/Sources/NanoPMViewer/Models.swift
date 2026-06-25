@@ -27,10 +27,12 @@ enum Phase: String, CaseIterable, Identifiable, Sendable {
     var order: Int { Phase.allCases.firstIndex(of: self) ?? 0 }
 }
 
-/// Helpers for PRD artifacts (the `prds/` subfolder of .nanopm/).
+/// Helpers for PRD artifacts. Under wiki-canonical writes PRDs live at
+/// `wiki/docs/prds/`; the legacy `prds/` root path is kept for un-migrated projects.
 enum PRDFiles {
     static func isPRD(_ relativePath: String) -> Bool {
-        relativePath.hasPrefix("prds/") && relativePath.hasSuffix(".md")
+        (relativePath.hasPrefix("wiki/docs/prds/") || relativePath.hasPrefix("prds/"))
+            && relativePath.hasSuffix(".md")
     }
 
     /// Parses the PRD/pitch header for a display title and status.
@@ -53,21 +55,54 @@ enum PRDFiles {
     }
 }
 
-/// Helpers for reasoning sidecars (the `reasoning/` subfolder of .nanopm/).
-/// Each Define skill writes a clean, share-ready doc plus
-/// `reasoning/<same filename>` carrying the Evidenced/Assumed calls, sources,
-/// and rationale. The path convention mirrors `nanopm_reasoning_path` in
-/// lib/nanopm.sh — change one and you must change the other. Sidecars are
-/// never listed in the sidebar; they surface as a "Reasoning" pane on their
-/// clean doc's detail view.
+/// Helpers for a doc's reasoning surface. Under **wiki-canonical writes** each doc
+/// page carries its rationale inline in a `## Provenance & assumptions` section
+/// (schema §4.3/§5) — there is no separate `reasoning/` file. The viewer surfaces
+/// that section in a "Reasoning" window. The coupling that used to be
+/// `nanopm_reasoning_path` ↔ a sidecar file is now this section ↔ the page (NANOPM-WIKI
+/// §12). Legacy projects (pre-migration, or not-yet-routed skills like
+/// competitors-intel) still have a `reasoning/<doc>.md` sidecar; `isReasoning` /
+/// `sidecarPath` keep working for them as a fallback.
 enum ReasoningFiles {
+    /// The line-start heading that opens a page's inline provenance section.
+    static let provenanceHeading = "## Provenance & assumptions"
+
     static func isReasoning(_ relativePath: String) -> Bool {
         relativePath.hasPrefix("reasoning/")
     }
 
-    /// "VISION-MISSION.md" → "reasoning/VISION-MISSION.md"
+    /// "VISION-MISSION.md" → "reasoning/VISION-MISSION.md" (legacy sidecar fallback).
     static func sidecarPath(for relativePath: String) -> String {
         "reasoning/" + (relativePath as NSString).lastPathComponent
+    }
+
+    /// A line IS the provenance heading. Trailing-only trim so this matches exactly
+    /// the set `bin/nanopm-migrate-to-wiki`'s `has_provenance` (Python `rstrip()`)
+    /// accepts — the heading at column 0. Keep the two in lockstep (NANOPM-WIKI §12).
+    private static func isProvenanceHeading(_ line: String) -> Bool {
+        String(line.reversed().drop { $0 == " " || $0 == "\t" }.reversed()) == provenanceHeading
+    }
+
+    /// True if a doc page carries an inline provenance section (heading matched at
+    /// line start, so a mention in prose or a code fence can't false-positive).
+    static func hasProvenance(_ content: String) -> Bool {
+        content.components(separatedBy: "\n").contains(where: isProvenanceHeading)
+    }
+
+    /// Extract the provenance section — from its heading through the next top-level
+    /// `## ` heading or end of file — or nil if the page has none. Lets the Reasoning
+    /// window show just the rationale, not the whole clean doc.
+    static func extractProvenance(_ content: String) -> String? {
+        let lines = content.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(where: isProvenanceHeading) else { return nil }
+        var end = lines.count
+        var i = start + 1
+        while i < lines.count {
+            if lines[i].hasPrefix("## ") { end = i; break }
+            i += 1
+        }
+        return lines[start..<end].joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -138,10 +173,14 @@ func prettyDocName(_ relativePath: String) -> String {
 /// expandable "Opportunities" entry in Discover (INDEX is the landing), not
 /// listed as flat sidebar rows — mirroring how PRDs and Competitors collapse.
 enum OpportunityFiles {
-    static let dirPrefix = "opportunities/"
+    /// Canonical home under wiki-canonical writes (schema §2); the legacy root
+    /// `opportunities/` path is kept for un-migrated projects.
+    static let dirPrefix = "wiki/entities/opportunities/"
+    static let legacyPrefix = "opportunities/"
 
     static func isOpportunityFile(_ relativePath: String) -> Bool {
-        relativePath.lowercased().hasPrefix(dirPrefix)
+        let l = relativePath.lowercased()
+        return l.hasPrefix(dirPrefix) || l.hasPrefix(legacyPrefix)
     }
 
     private static func basename(_ relativePath: String) -> String {
@@ -178,17 +217,20 @@ enum PhaseMapper {
         let lower = relativePath.lowercased()
         let file = (lower as NSString).lastPathComponent
 
-        // vNext wiki layout (.nanopm/wiki/ + raw/). Overviews and entity pages are
-        // canonical here and map to their phase; index/log/_review and the raw/
-        // source layer are machinery (hidden); NANOPM-WIKI.md is the schema (hidden).
-        // wiki/docs/ holds not-yet-canonical copies of the root skill docs — skills
-        // still read/write the root files, so it stays hidden to avoid double-listing
-        // until skills migrate to write there.
+        // vNext wiki layout (.nanopm/wiki/ + raw/) — now canonical (wiki-canonical
+        // writes). Overviews + entity pages map to their phase; index/log/_review and
+        // the raw/ source layer are machinery (hidden); NANOPM-WIKI.md is the schema
+        // (hidden). wiki/docs/ holds the migrated skill docs: prds/ -> Ship, the rest
+        // fall through to the same filename matching the root docs used.
         if lower == "nanopm-wiki.md" { return nil }
+        // raw/ is the immutable source layer — hidden from the browser — EXCEPT the
+        // competitor intel (snapshots + dated INTEL reports), which the Competitors
+        // section reads from the store and groups on its own page.
+        if lower.hasPrefix("raw/competitors/") { return .discover }
         if lower.hasPrefix("raw/") { return nil }
         if lower.hasPrefix("wiki/") {
             if file == "index.md" || file == "log.md" { return nil }
-            if lower.hasPrefix("wiki/_review/") || lower.hasPrefix("wiki/docs/") { return nil }
+            if lower.hasPrefix("wiki/_review/") { return nil }
             if lower == "wiki/overview/company.md" { return .define }
             if lower == "wiki/overview/current-work.md" { return .plan }
             if lower.hasPrefix("wiki/entities/personas/")
@@ -197,7 +239,26 @@ enum PhaseMapper {
             if lower.hasPrefix("wiki/entities/competitors/")
                 || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
             if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
-            return lower.hasSuffix(".md") ? .other : nil
+            if lower.hasPrefix("wiki/docs/prds/") { return .ship }
+            // handoffs/ are the human-readable handoff (the shareable ticket list) —
+            // surfaced under Ship, as the root handoffs/ was.
+            if lower.hasPrefix("wiki/docs/handoffs/") { return .ship }
+            // tasks/ are pm-breakdown outputs bound for external trackers — relocated
+            // into the wiki for storage but kept hidden from the browser (as before).
+            if lower.hasPrefix("wiki/docs/tasks/") { return nil }
+            // Dated series folders (weekly updates, standups): one page per period,
+            // grouped under a "Weekly Updates" / "Standups" entry in Day to Day. Routed
+            // by folder prefix — the filenames are bare dates, so the name match below
+            // would otherwise miss them.
+            if lower.hasPrefix("wiki/docs/weekly-updates/")
+                || lower.hasPrefix("wiki/docs/standups/") { return .daily }
+            // wiki/docs/<skill>.md: a migrated doc — fall through to the filename
+            // matching below (vision/strategy/feedback/... -> phase). Any other wiki
+            // markdown lands in "Other".
+            if !lower.hasPrefix("wiki/docs/") {
+                return lower.hasSuffix(".md") ? .other : nil
+            }
+            // fall through for wiki/docs/ files
         }
 
         if lower.hasPrefix("prds/") { return .ship }

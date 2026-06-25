@@ -22,9 +22,13 @@ struct ProjectView: View {
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
     @State private var opportunitiesExpanded = false
+    @State private var weeklyUpdatesExpanded = false
+    @State private var standupsExpanded = false
     // Which phases have their "Entities" group expanded (entities appear in several
     // phases, so a single bool would toggle them all together).
     @State private var expandedEntityPhases: Set<Phase> = []
+    // Settings → "Display entities": hide the wiki entity groups from the nav when off.
+    @AppStorage(AppSettings.displayEntities) private var displayEntities = true
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -56,6 +60,7 @@ struct ProjectView: View {
                !selection.hasPrefix("page:"),
                !selection.hasPrefix(Self.runTagPrefix),
                !selection.hasPrefix(Self.competitorTagPrefix),
+               !selection.hasPrefix(NavRoute.seriesPrefix),
                !newValue.contains(where: { $0.id == selection }) {
                 self.selection = nil
             }
@@ -117,6 +122,33 @@ struct ProjectView: View {
         store.artifacts
             .filter { OpportunityFiles.isOpportunityFile($0.relativePath) && !OpportunityFiles.isReserved($0.relativePath) }
             .sorted { $0.relativePath.lowercased() < $1.relativePath.lowercased() }
+    }
+
+    /// Dated-series folders under wiki/docs/ (weekly-updates/, standups/) — one page
+    /// per period, each grouped under a single expandable entry in DAY TO DAY (newest
+    /// first) instead of a flat row per date. Detection is by folder prefix, the same
+    /// way PhaseMapper routes them — structural, not a filename heuristic.
+    private static let datedSeriesPrefixes = ["wiki/docs/weekly-updates/", "wiki/docs/standups/"]
+
+    private func isDatedSeriesDoc(_ relativePath: String) -> Bool {
+        let l = relativePath.lowercased()
+        return Self.datedSeriesPrefixes.contains { l.hasPrefix($0) }
+    }
+
+    /// Pages under one series folder, newest first (by the ISO date in the filename).
+    private func seriesArtifacts(prefix: String) -> [Artifact] {
+        store.artifacts
+            .filter { $0.relativePath.lowercased().hasPrefix(prefix) }
+            .sorted { (datedSuffix($0.relativePath) ?? "") > (datedSuffix($1.relativePath) ?? "") }
+    }
+
+    /// The ISO date a dated page carries in its filename (`…/2026-06-15.md` ->
+    /// `"2026-06-15"`) — a tidy child label and the newest-first sort key. Nil for an
+    /// undated file (which then sorts last).
+    private func datedSuffix(_ relativePath: String) -> String? {
+        let stem = ((relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+        guard let r = stem.range(of: #"\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) else { return nil }
+        return String(stem[r])
     }
 
     @ViewBuilder
@@ -254,15 +286,21 @@ struct ProjectView: View {
                 // Wiki entity pages collapse under a per-phase "Entities" group, not
                 // ~18 flat rows. They're the substrate behind the briefs.
                 && !artifact.relativePath.lowercased().hasPrefix("wiki/entities/")
+                // Dated-series pages (weekly updates, standups) collapse under one
+                // entry per series in DAY TO DAY (newest first), not a flat row per date.
+                && !isDatedSeriesDoc(artifact.relativePath)
         }
         let entities = entityArtifacts(for: phase)
+        // Settings → "Display entities" hides the entity groups from the nav (the
+        // entity pages stay out of the flat rows either way — they're the substrate).
+        let showEntities = displayEntities && !entities.isEmpty
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         // Brainstorm is an always-on interactive surface (not artifact-driven),
         // pinned at the top of DAY TO DAY so it's always reachable.
         let showBrainstorm = phase == .daily
-        if hasOverview || !items.isEmpty || !entities.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
+        if hasOverview || !items.isEmpty || showEntities || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
                 if showBrainstorm {
@@ -277,8 +315,22 @@ struct ProjectView: View {
                         .help(".nanopm/" + artifact.relativePath)
                         .listRowInsets(Self.childRowInsets)
                 }
-                if !entities.isEmpty {
+                if showEntities {
                     entitiesEntry(phase: phase, entities: entities).listRowInsets(Self.childRowInsets)
+                }
+                if phase == .daily {
+                    let weeklies = seriesArtifacts(prefix: "wiki/docs/weekly-updates/")
+                    if !weeklies.isEmpty {
+                        datedSeriesEntry(title: "Weekly Updates", icon: "envelope",
+                                         artifacts: weeklies, isExpanded: $weeklyUpdatesExpanded)
+                            .listRowInsets(Self.childRowInsets)
+                    }
+                    let standups = seriesArtifacts(prefix: "wiki/docs/standups/")
+                    if !standups.isEmpty {
+                        datedSeriesEntry(title: "Standups", icon: "sunrise",
+                                         artifacts: standups, isExpanded: $standupsExpanded)
+                            .listRowInsets(Self.childRowInsets)
+                    }
                 }
                 if showPRDs {
                     prdsEntry.listRowInsets(Self.childRowInsets)
@@ -406,6 +458,24 @@ struct ProjectView: View {
         }
     }
 
+    /// A dated-series folder (weekly updates, standups) collapses under one entry,
+    /// newest first, instead of a flat row per date. The label just toggles the list
+    /// (no landing page), like the per-phase "Entities" group.
+    @ViewBuilder
+    private func datedSeriesEntry(title: String, icon: String, artifacts: [Artifact],
+                                  isExpanded: Binding<Bool>) -> some View {
+        DisclosureGroup(isExpanded: isExpanded) {
+            ForEach(artifacts) { a in
+                Label(datedSuffix(a.relativePath) ?? a.displayName, systemImage: iconFor(a))
+                    .tag(a.id)
+                    .help(".nanopm/" + a.relativePath)
+            }
+        } label: {
+            Label(title, systemImage: icon)
+                .help("\(title) — most recent first")
+        }
+    }
+
     private func overviewPhase(_ id: String) -> Phase? {
         Phase.allCases.first { NavRoute.overview($0) == id }
     }
@@ -417,7 +487,7 @@ struct ProjectView: View {
                 phase: phase,
                 store: store,
                 onOpen: { route in
-                    self.selection = (route == "COMPETITORS.md" && showCompetitorsSection)
+                    self.selection = (CompetitorFiles.isLandscape(route) && showCompetitorsSection)
                         ? NavRoute.competitorsPage
                         : route
                 },
@@ -458,6 +528,16 @@ struct ProjectView: View {
                   !OpportunityFiles.isReserved(selection),
                   let opp = store.artifacts.first(where: { $0.id == selection }) {
             OpportunityDetailView(store: store, artifact: opp) { id in self.selection = id }
+        } else if let selection,
+                  selection.hasPrefix(NavRoute.seriesPrefix),
+                  let newest = seriesArtifacts(
+                      prefix: String(selection.dropFirst(NavRoute.seriesPrefix.count)).lowercased()
+                  ).first {
+            // A dated-series card ("N documents") opens the most recent page; the
+            // sidebar's series entry is where you browse the full list.
+            ArtifactDetailView(store: store, artifact: newest,
+                               onAnswer: { relPath in self.selection = Self.runTagPrefix + relPath },
+                               onOpenArtifact: { id in self.selection = id })
         } else {
             stateDetail
         }
@@ -521,11 +601,18 @@ struct ArtifactDetailView: View {
             .flatMap { $0.skillCommand == nil ? nil : $0 }
     }
 
-    /// The reasoning sidecar paired with this doc, when one exists on disk.
-    private var reasoningArtifact: Artifact? {
+    /// Where the "Reasoning" window reads from, as a path relative to .nanopm/.
+    /// Wiki-canonical: this doc page itself when its provenance is folded inline
+    /// (the window extracts the "## Provenance & assumptions" section). Legacy:
+    /// a separate `reasoning/<doc>.md` sidecar if one exists on disk. Nil when the
+    /// doc has neither, so the button doesn't show.
+    private var reasoningSourcePath: String? {
+        if let content, ReasoningFiles.hasProvenance(content) {
+            return artifact.relativePath
+        }
         guard !ReasoningFiles.isReasoning(artifact.relativePath) else { return nil }
         let sidecar = ReasoningFiles.sidecarPath(for: artifact.relativePath)
-        return store.artifacts.first { $0.relativePath == sidecar }
+        return store.artifacts.first { $0.relativePath == sidecar }?.relativePath
     }
 
     var body: some View {
@@ -542,7 +629,7 @@ struct ArtifactDetailView: View {
                             SkillRunButton(doc: runDoc, store: store,
                                            claudeAvailable: claudeAvailable, onAnswer: onAnswer)
                         }
-                        if let reasoning = reasoningArtifact {
+                        if let reasoningPath = reasoningSourcePath {
                             ActionButton(
                                 title: "Reasoning",
                                 systemImage: "macwindow.on.rectangle",
@@ -551,7 +638,7 @@ struct ArtifactDetailView: View {
                                 openWindow(
                                     id: NanoPMViewerApp.reasoningWindowID,
                                     value: ReasoningWindowContext(
-                                        absolutePath: store.project.nanopmPath + "/" + reasoning.relativePath,
+                                        absolutePath: store.project.nanopmPath + "/" + reasoningPath,
                                         docName: artifact.displayName
                                     )
                                 )

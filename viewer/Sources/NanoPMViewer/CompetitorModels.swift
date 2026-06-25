@@ -35,30 +35,38 @@ struct Competitor: Identifiable, Hashable, Codable, Sendable {
 }
 
 enum CompetitorFiles {
+    /// The competitor landscape report — the wiki-canonical page, with the legacy
+    /// flat path as a fallback for un-migrated projects. (pm-competitors-intel writes
+    /// wiki/docs/competitors.md under wiki-canonical writes.)
+    static let reportPaths = ["wiki/docs/competitors.md", "COMPETITORS.md"]
+    static func isLandscape(_ relativePath: String) -> Bool {
+        reportPaths.contains(relativePath)
+    }
+
     /// True for artifacts owned by the Competitors nav section (hidden from
     /// the generic phase lists when that section is visible).
     static func isCompetitorFile(_ relativePath: String) -> Bool {
-        relativePath == "COMPETITORS.md"
-            || relativePath == "competitors.json"
-            || relativePath.hasPrefix("intel/")
+        isLandscape(relativePath)
+            || relativePath == "raw/competitors/competitors.json" || relativePath == "competitors.json"
+            || relativePath.hasPrefix("raw/competitors/")
     }
 
     static func isReport(_ relativePath: String) -> Bool {
-        relativePath == "COMPETITORS.md"
-            || (relativePath.hasPrefix("intel/INTEL-") && relativePath.hasSuffix(".md"))
+        isLandscape(relativePath)
+            || (relativePath.hasPrefix("raw/competitors/INTEL-") && relativePath.hasSuffix(".md"))
     }
 
     static func reportTitle(_ relativePath: String) -> String {
-        if relativePath == "COMPETITORS.md" { return "Latest Report" }
+        if isLandscape(relativePath) { return "Latest Report" }
         let base = (((relativePath as NSString).lastPathComponent) as NSString).deletingPathExtension
         return base.replacingOccurrences(of: "INTEL-", with: "Report ")
     }
 
-    /// "intel/snapshots/<slug>/<page>.md" → page key, e.g. "changelog"
+    /// "raw/competitors/snapshots/<slug>/<page>.md" → page key, e.g. "changelog"
     static func snapshotPage(_ relativePath: String) -> String? {
         let parts = relativePath.split(separator: "/")
-        guard parts.count == 4, parts[0] == "intel", parts[1] == "snapshots" else { return nil }
-        return (String(parts[3]) as NSString).deletingPathExtension
+        guard parts.count == 5, parts[0] == "raw", parts[1] == "competitors", parts[2] == "snapshots" else { return nil }
+        return (String(parts[4]) as NSString).deletingPathExtension
     }
 
     static let pageOrder = ["changelog", "api_docs", "pricing", "other"]

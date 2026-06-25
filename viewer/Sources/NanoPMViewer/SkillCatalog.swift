@@ -8,6 +8,11 @@ enum NavRoute {
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
     static func overview(_ phase: Phase) -> String { "overview:" + phase.rawValue }
+    static let seriesPrefix = "series:"
+    /// A dated-series folder (weekly-updates/, standups/). The overview card's
+    /// "N documents" link carries this so ProjectView opens the newest page under
+    /// the prefix — the catalog can't name a specific dated file statically.
+    static func series(_ folderPrefix: String) -> String { seriesPrefix + folderPrefix }
 }
 
 /// One runnable skill in a phase overview: what it produces, where it lands,
@@ -43,23 +48,51 @@ struct SkillDoc: Identifiable {
 enum SkillCatalog {
     static func docs(for phase: Phase) -> [SkillDoc] { all.filter { $0.phase == phase } }
 
+    /// True if a `.file(output)` skill owns this artifact. Under wiki-canonical writes
+    /// a skill's output moved from the legacy flat `<DOC>.md` to its wiki page
+    /// `wiki/docs/<slug>.md`, where <slug> is the output basename lowercased with
+    /// '_'/' ' -> '-' (matching nanopm_wiki_doc_path). Dated docs (standup/retro)
+    /// match by `<slug>-` prefix, e.g. wiki/docs/standup-2026-06-24.md. The legacy
+    /// flat path still matches so un-migrated projects keep working.
+    static func fileMatches(output: String, artifact: String) -> Bool {
+        if output == artifact { return true }
+        guard artifact.hasPrefix("wiki/docs/") else { return false }
+        func stem(_ p: String) -> String {
+            let base = ((p as NSString).lastPathComponent as NSString).deletingPathExtension
+            return base.lowercased()
+                .replacingOccurrences(of: "_", with: "-")
+                .replacingOccurrences(of: " ", with: "-")
+        }
+        let o = stem(output), a = stem(artifact)
+        if a == o { return true }
+        // Dated docs only (standup-YYYY-MM-DD, retro-YYYY-MM-DD): the remainder after
+        // "<slug>-" must be an ISO date, so a future page slug like "org-chart" can't
+        // be silently claimed by the "org" skill.
+        guard a.hasPrefix(o + "-") else { return false }
+        let suffix = String(a.dropFirst(o.count + 1))
+        return suffix.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
+    }
+
     /// Icon for the skill that produces this artifact, so the sidebar matches
     /// the overview pages. Nil when no catalog skill owns the path.
     static func icon(forArtifact relativePath: String) -> String? {
         all.first { doc in
-            if case .file(let path) = doc.output { return path == relativePath }
-            return false
+            switch doc.output {
+            case .file(let path): return fileMatches(output: path, artifact: relativePath)
+            case .folder(let prefix, _): return relativePath.hasPrefix(prefix)
+            case .handoff: return false
+            }
         }?.icon
     }
 
     /// The skill whose output owns this artifact, so a document's own detail
     /// page can offer the same Run action as the phase overview. Matches a
-    /// `.file` output exactly or a `.folder` output by path prefix; returns nil
-    /// for artifacts no skill produces (e.g. reasoning sidecars).
+    /// `.file` output (legacy flat path or its wiki page) or a `.folder` output by
+    /// path prefix; returns nil for artifacts no skill produces.
     static func doc(forArtifact relativePath: String) -> SkillDoc? {
         all.first { doc in
             switch doc.output {
-            case .file(let path): return path == relativePath
+            case .file(let path): return fileMatches(output: path, artifact: relativePath)
             case .folder(let prefix, _): return relativePath.hasPrefix(prefix)
             case .handoff: return false
             }
@@ -160,15 +193,15 @@ enum SkillCatalog {
             blurb: "A ranked, agent-maintained database of user opportunities (Teresa Torres) — the problems behind what you build, not the solutions. bootstrap drafts the set from feedback + your assumptions + Nano's hypotheses; add captures one at a time.",
             icon: "lightbulb",
             skillCommand: "/pm-opportunities",
-            headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
-            phase: .discover, output: .file("opportunities/INDEX.md")
+            headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/wiki/entities/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
+            phase: .discover, output: .file("wiki/entities/opportunities/INDEX.md")
         ),
         SkillDoc(
             title: "Competitor Intel",
             blurb: "Competitor changelogs, docs, pricing and product updates — snapshotted, diffed against the last run, reported.",
             icon: "binoculars",
             skillCommand: "/pm-competitors-intel",
-            headlessArgs: "If .nanopm/competitors.json exists, default to running the intel check on all configured competitors without asking. If it is missing, set it up first by asking the user (via the interface contract) which competitors to monitor and which pages, then write the config and run the check.",
+            headlessArgs: "If .nanopm/raw/competitors/competitors.json exists, default to running the intel check on all configured competitors without asking. If it is missing, set it up first by asking the user (via the interface contract) which competitors to monitor and which pages, then write the config and run the check.",
             phase: .discover, output: .file("COMPETITORS.md")
         ),
 
@@ -205,7 +238,7 @@ enum SkillCatalog {
             icon: "doc.text.fill",
             skillCommand: "/pm-prd",
             headlessArgs: "Ask the user (via the interface contract) which feature to spec if it is not obvious from ROADMAP.md.",
-            phase: .ship, output: .folder(prefix: "prds/", opens: NavRoute.prdsPage)
+            phase: .ship, output: .folder(prefix: "wiki/docs/prds/", opens: NavRoute.prdsPage)
         ),
         SkillDoc(
             title: "Breakdown",
@@ -223,7 +256,7 @@ enum SkillCatalog {
             icon: "sunrise",
             skillCommand: "/pm-standup",
             headlessArgs: nil,
-            phase: .daily, output: .file("STANDUP.md")
+            phase: .daily, output: .folder(prefix: "wiki/docs/standups/", opens: NavRoute.series("wiki/docs/standups/"))
         ),
         SkillDoc(
             title: "Weekly Update",
@@ -231,7 +264,7 @@ enum SkillCatalog {
             icon: "envelope",
             skillCommand: "/pm-weekly-update",
             headlessArgs: "Ask the user (via the interface contract) which audience the update is for (manager, CEO, investors, team) if it is not obvious from prior context.",
-            phase: .daily, output: .file("WEEKLY_UPDATE.md")
+            phase: .daily, output: .folder(prefix: "wiki/docs/weekly-updates/", opens: NavRoute.series("wiki/docs/weekly-updates/"))
         ),
         SkillDoc(
             title: "Challenge Me",

@@ -46,14 +46,14 @@ Establishing Define context first is the **strong default, not a gate** — you 
 
 ```bash
 echo "=== Existing artifacts ==="
-[ -f ".nanopm/PRODUCT.md"    ] && echo "  PRODUCT.md    ✓" || echo "  PRODUCT.md    (will create)"
-[ -f ".nanopm/FEEDBACK.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
-[ -f ".nanopm/PERSONAS.md"   ] && echo "  PERSONAS.md   ✓" || echo "  PERSONAS.md   (will create)"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f ".nanopm/wiki/docs/product.md"    ] && echo "  PRODUCT.md    ✓" || echo "  PRODUCT.md    (will create)"
+[ -f ".nanopm/wiki/docs/feedback.md"   ] && echo "  FEEDBACK.md   ✓" || echo "  FEEDBACK.md   (will create)"
+[ -f ".nanopm/wiki/docs/personas.md"   ] && echo "  PERSONAS.md   ✓" || echo "  PERSONAS.md   (will create)"
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "  CHALLENGES.md ✓" || echo "  CHALLENGES.md (will create)"
-[ -f ".nanopm/OBJECTIVES.md" ] && echo "  OBJECTIVES.md ✓" || echo "  OBJECTIVES.md (will create)"
-[ -f ".nanopm/STRATEGY.md"   ] && echo "  STRATEGY.md   ✓" || echo "  STRATEGY.md   (will create)"
-[ -f ".nanopm/ROADMAP.md"    ] && echo "  ROADMAP.md    ✓" || echo "  ROADMAP.md    (will create)"
+[ -f ".nanopm/wiki/docs/objectives.md" ] && echo "  OBJECTIVES.md ✓" || echo "  OBJECTIVES.md (will create)"
+[ -f ".nanopm/wiki/docs/strategy.md"   ] && echo "  STRATEGY.md   ✓" || echo "  STRATEGY.md   (will create)"
+[ -f ".nanopm/wiki/docs/roadmap.md"    ] && echo "  ROADMAP.md    ✓" || echo "  ROADMAP.md    (will create)"
 echo "  PRD:          (will create for first roadmap item)"
 echo "========================="
 ```
@@ -174,13 +174,13 @@ Output a summary table:
 ```
 === nanopm pipeline complete ===
 
-  FEEDBACK.md   ✅  .nanopm/FEEDBACK.md
-  PERSONAS.md   ✅  .nanopm/PERSONAS.md
-  CHALLENGES.md ✅  .nanopm/CHALLENGES.md
-  OBJECTIVES.md ✅  .nanopm/OBJECTIVES.md
-  STRATEGY.md   ✅  .nanopm/STRATEGY.md
-  ROADMAP.md    ✅  .nanopm/ROADMAP.md
-  PRD           ✅  .nanopm/prds/{feature}.md
+  FEEDBACK.md   ✅  .nanopm/wiki/docs/feedback.md
+  PERSONAS.md   ✅  .nanopm/wiki/docs/personas.md
+  CHALLENGES.md ✅  .nanopm/wiki/docs/challenges.md
+  OBJECTIVES.md ✅  .nanopm/wiki/docs/objectives.md
+  STRATEGY.md   ✅  .nanopm/wiki/docs/strategy.md
+  ROADMAP.md    ✅  .nanopm/wiki/docs/roadmap.md
+  PRD           ✅  .nanopm/wiki/docs/prds/{feature}.md
 
 Key outputs:
   Top user signal: {top unaddressed theme from FEEDBACK.md}

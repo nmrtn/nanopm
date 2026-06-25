@@ -56,6 +56,7 @@ Data ingestion: MCP → API → browser → CONTEXT.md manual fallback.
 ```bash
 bash test/skill-syntax.sh          # tier 1: static validation (free)
 bash test/plugin-manifest.sh       # tier 1: plugin ⇄ setup parity (skills, version)
+bash test/wiki-canonical.sh        # tier 1: migrated Define/Plan skills write only the wiki, no flat docs
 bash test/adversarial.e2e.sh       # tier 2: release gate 1
 bash test/context-threading.e2e.sh # tier 2: release gate 2
 ```

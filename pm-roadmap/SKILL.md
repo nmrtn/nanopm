@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_ROADMAP_FILE=".nanopm/ROADMAP.md"
 _METHODOLOGY=$(nanopm_config_get "methodology")
 echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
 ```
@@ -47,22 +46,23 @@ nanopm_context_read pm-roadmap
 Read upstream artifacts:
 
 ```bash
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/OBJECTIVES.md" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
-[ -f ".nanopm/STRATEGY.md"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
-[ -f ".nanopm/PERSONAS.md"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
-[ -f ".nanopm/FEEDBACK.md"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
-[ -f ".nanopm/PRODUCT.md"    ] && echo "PRODUCT_EXISTS"    || echo "PRODUCT_MISSING"
+[ -f "$(nanopm_wiki_doc_path objectives)" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
+[ -f "$(nanopm_wiki_doc_path strategy)"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
+[ -f "$(nanopm_wiki_doc_path personas)"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
+[ -f "$(nanopm_wiki_doc_path feedback)"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
+[ -f "$(nanopm_wiki_doc_path product)"    ] && echo "PRODUCT_EXISTS"    || echo "PRODUCT_MISSING"
 ```
 
-Read any that exist. A roadmap without strategy is a to-do list. Warn if STRATEGY.md is missing.
+Read any that exist (wiki pages live under `.nanopm/wiki/docs/<slug>.md`). A roadmap without strategy is a to-do list. Warn if the strategy page is missing.
 
-**If PRODUCT.md exists:** read it. Sequence items *realistically against the current product* — what's already built dictates ordering, dependencies, and effort estimates, so anchor NOW/NEXT on real surfaces rather than greenfield assumptions. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
+**If the product page exists:** read it. Sequence items *realistically against the current product* — what's already built dictates ordering, dependencies, and effort estimates, so anchor NOW/NEXT on real surfaces rather than greenfield assumptions. This read is advisory — if it's absent, proceed without it. If the product page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
 
-**If PERSONAS.md exists:** read it. Every NOW/NEXT item should serve the **primary persona** — for each item, the implicit question is "which persona does this help, and how?" Items that only serve the anti-persona are prime candidates for LATER or for cutting. Flag any NOW item that doesn't map to a persona.
+**If the personas page exists:** read it. Every NOW/NEXT item should serve the **primary persona** — for each item, the implicit question is "which persona does this help, and how?" Items that only serve the anti-persona are prime candidates for LATER or for cutting. Flag any NOW item that doesn't map to a persona.
 
-**If FEEDBACK.md exists:** read the top themes and their roadmap-mapping (the "In Roadmap?" column). When writing the NOW/NEXT sections, mark items that directly address a high-severity unaddressed theme with a `📣 signal-backed` tag. Items without any feedback signal should not be deprioritized, but the signal-backed ones have validated demand.
+**If the feedback page exists:** read the top themes and their roadmap-mapping (the "In Roadmap?" column). When writing the NOW/NEXT sections, mark items that directly address a high-severity unaddressed theme with a `📣 signal-backed` tag. Items without any feedback signal should not be deprioritized, but the signal-backed ones have validated demand.
 
 ## Phase 2: Connector data pull
 
@@ -89,7 +89,7 @@ Extract:
 - Items currently in progress (→ NOW)
 - Prioritized backlog items (→ NEXT candidates)
 - Parked/someday items (→ LATER candidates)
-- Any items explicitly tied to the strategic bet from STRATEGY.md
+- Any items explicitly tied to the strategic bet from the strategy page (`.nanopm/wiki/docs/strategy.md`)
 
 ## Phase 3: Clarifying questions
 
@@ -105,13 +105,22 @@ Ask as SEPARATE sequential AskUserQuestion calls — one call per question, neve
 
 **All other methodologies (Kanban, hybrid, none, not set):**
 - Q1: Check CONTEXT.md Q8 for team size. For a solo project (1 person), default to 1 eng-week per month and skip Q1: "Assuming ~1 eng-week/month for solo project (from CONTEXT.md Q8). Correct this if your actual pace differs." Only ask Q1 if team size is unclear or multi-person.
-- Q2: Check STRATEGY.md "Cheapest test" — if it names a concrete action, surface it: "The strategy's cheapest test is: {action}. Is this the top NOW item, or is there something more important?" Only ask Q2 from scratch if STRATEGY.md has no cheapest test or the user wants something different.
+- Q2: Check the strategy page (`.nanopm/wiki/docs/strategy.md`) "Cheapest test" — if it names a concrete action, surface it: "The strategy's cheapest test is: {action}. Is this the top NOW item, or is there something more important?" Only ask Q2 from scratch if the strategy page has no cheapest test or the user wants something different.
 
 Stop after 2 questions. If both are answerable from context, skip Phase 3 entirely.
 
-## Phase 4: Write ROADMAP.md
+## Phase 4: Write the wiki Plan page
 
-Write `.nanopm/ROADMAP.md` using the format that matches `_METHODOLOGY`.
+Write the wiki Plan page using the format that matches `_METHODOLOGY`. Resolve the path and build the frontmatter inline (fresh-subshell hosts re-source the lib):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_ROADMAP_FILE="$(nanopm_wiki_doc_path roadmap)"
+nanopm_wiki_doc_frontmatter pm-roadmap user-stated "$(date +%Y-%m-%d)" "{sources}"
+echo "ROADMAP_PATH: $_ROADMAP_FILE"
+```
+
+Write the page to `$(nanopm_wiki_doc_path roadmap)` (i.e. `.nanopm/wiki/docs/roadmap.md`). The file begins with the frontmatter emitted by `nanopm_wiki_doc_frontmatter pm-roadmap user-stated "$(date +%Y-%m-%d)" "{sources}"` (substitute the real connectors/docs used for `{sources}`), immediately followed by the methodology-specific body below.
 
 ---
 
@@ -160,7 +169,7 @@ Cycle appetite: {6 weeks / 2 weeks — from Q1}
 
 ---
 
-*Sources: {connectors used, STRATEGY.md, OBJECTIVES.md, user answers}*
+*Sources: {connectors used, strategy page, objectives page, user answers}*
 ```
 
 ---
@@ -213,7 +222,7 @@ Sprint capacity: {from Q1}
 
 ---
 
-*Sources: {connectors used, STRATEGY.md, OBJECTIVES.md, user answers}*
+*Sources: {connectors used, strategy page, objectives page, user answers}*
 ```
 
 ---
@@ -268,15 +277,15 @@ Strategy: {one-line strategy bet from STRATEGY.md}
 
 ---
 
-*Sources: {connectors used, STRATEGY.md, OBJECTIVES.md, user answers}*
+*Sources: {connectors used, strategy page, objectives page, user answers}*
 ```
 
 ---
 
 **Rules for writing the roadmap (all formats):**
 - Committed items must be achievable given stated capacity/appetite. If not, say so and recommend cuts.
-- Every committed item must tie to at least one Objective or KR from OBJECTIVES.md.
-- If no OBJECTIVES.md exists, tie items to the strategic bet from STRATEGY.md.
+- Every committed item must tie to at least one Objective or KR from the objectives page (`.nanopm/wiki/docs/objectives.md`).
+- If no objectives page exists, tie items to the strategic bet from the strategy page (`.nanopm/wiki/docs/strategy.md`).
 - Every NOW item must have an outcome statement: "Ship X so {user} can {do Y}, measured by {metric}." A roadmap item without an outcome is a task, not a product decision.
 - "Not commitments" sections (cool-down, icebox, LATER) are not junk drawers — only items with clear future value.
 
@@ -288,7 +297,7 @@ The gate is two-layered: a strict reviewer subagent validates each item's outcom
 
 ### 4b.1. Extract committed items
 
-From the drafted ROADMAP.md, extract every committed item:
+From the drafted wiki Plan page (`.nanopm/wiki/docs/roadmap.md`), extract every committed item:
 - **NOW/NEXT/LATER format:** every row in the NOW table
 - **Shape Up:** every Bet (Bet 1, Bet 2, …)
 - **Scrum:** every row in "Current sprint focus"
@@ -342,7 +351,7 @@ Capture the structured output.
 ### 4b.3. Apply verdicts to the draft
 
 For each item:
-- **VERDICT: FAIL** → replace the original outcome statement in the draft ROADMAP.md with the REWRITE. Tag the row/section with `⚠ rewritten by gate` so the user can review.
+- **VERDICT: FAIL** → replace the original outcome statement in the draft wiki Plan page (`.nanopm/wiki/docs/roadmap.md`) with the REWRITE. Tag the row/section with `⚠ rewritten by gate` so the user can review.
 - **VERDICT: PASS** → keep the original outcome (the REWRITE is canonical for state but not forced into prose).
 
 ### 4b.4. State write per item (structural gate)
@@ -364,7 +373,7 @@ print(json.dumps({
 }))" | nanopm_state_log --type decision
 ```
 
-If any state write fails: show the user which item failed and the stderr reason. STOP. ROADMAP.md is not written until every committed item lands in `decision.jsonl`. Common causes: KEY contained spaces or punctuation; CONFIDENCE out of [1,10].
+If any state write fails: show the user which item failed and the stderr reason. STOP. The wiki Plan page (`.nanopm/wiki/docs/roadmap.md`) is not written until every committed item lands in `decision.jsonl`. Common causes: KEY contained spaces or punctuation; CONFIDENCE out of [1,10].
 
 ### 4b.5. Show gate summary
 
@@ -376,18 +385,19 @@ Adversarial gate results:
   Items recorded in state: {n+m}
 ```
 
-If `m > 0`, prompt: *"{m} item(s) were rewritten by the gate to be falsifiable. Review the `⚠ rewritten by gate` lines in ROADMAP.md and accept or edit before continuing."*
+If `m > 0`, prompt: *"{m} item(s) were rewritten by the gate to be falsifiable. Review the `⚠ rewritten by gate` lines in the wiki Plan page (`.nanopm/wiki/docs/roadmap.md`) and accept or edit before continuing."*
 
 ## Phase 5: Save context
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-roadmap\",\"outputs\":{\"now_count\":\"$(grep -c '^| ' .nanopm/ROADMAP.md | head -1)\",\"top_now_item\":\"$(grep -A2 '## NOW' .nanopm/ROADMAP.md | grep '^| ' | head -1 | cut -d'|' -f2 | xargs | tr '\"' \"'\")\",\"next\":\"pm-prd\"}}"
+_ROADMAP_FILE="$(nanopm_wiki_doc_path roadmap)"
+nanopm_context_append "{\"skill\":\"pm-roadmap\",\"outputs\":{\"now_count\":\"$(grep -c '^| ' "$_ROADMAP_FILE" | head -1)\",\"top_now_item\":\"$(grep -A2 '## NOW' "$_ROADMAP_FILE" | grep '^| ' | head -1 | cut -d'|' -f2 | xargs | tr '\"' \"'\")\",\"next\":\"pm-prd\"}}"
 ```
 
 ## Phase: Regenerate the plan brief
 
-After ROADMAP.md is written, refresh the consolidated current-work brief so every
+After the wiki Plan page is written, refresh the consolidated current-work brief so every
 downstream skill run carries the latest plan. Print the canonical prompt and dispatch
 it with the **Agent tool**:
 
@@ -396,15 +406,19 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_plan_brief_prompt
 ```
 
-The subagent reads whichever of OBJECTIVES/STRATEGY/ROADMAP exist and writes
-`.nanopm/PLAN-SUMMARY.md`, overwriting any previous version. This brief is loaded into
-every skill's preamble (`nanopm_load_plan`), so keeping it current is what stops
-downstream work from drifting from the live plan.
+Keep the security-preamble lines at the top of that prompt intact. The subagent reads
+the wiki Plan docs (`.nanopm/wiki/docs/{objectives,strategy,roadmap}.md`) and writes
+`.nanopm/wiki/overview/current-work.md` when the `.nanopm/wiki/` directory exists —
+prepending overview frontmatter (`type: overview`, `section: plan`, `generated: {date}`,
+`sources: [...]`) — otherwise it falls back to `.nanopm/PLAN-SUMMARY.md` (no frontmatter),
+overwriting any previous version. This brief is loaded into every skill's preamble
+(`nanopm_load_plan`), so keeping it current is what stops downstream work from drifting
+from the live plan.
 
 ## Completion
 
 Tell the user:
-- ROADMAP.md written to `.nanopm/ROADMAP.md`
+- Roadmap written to `.nanopm/wiki/docs/roadmap.md`
 - How many items are in NOW vs NEXT vs LATER
 - Any capacity warnings
 - Recommended next skill: `/pm-prd` to write a detailed spec for the top NOW item

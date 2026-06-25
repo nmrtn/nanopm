@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_UPDATE_FILE=".nanopm/WEEKLY_UPDATE.md"
 ```
 
 ## When to run this
@@ -43,7 +42,7 @@ nanopm_context_read pm-weekly-update
 
 Check for previous weekly updates to maintain continuity of tone and ongoing commitments:
 ```bash
-ls .nanopm/weekly-updates/ 2>/dev/null | sort | tail -3 || echo "NO_PRIOR_UPDATES"
+ls .nanopm/wiki/docs/weekly-updates/*.md 2>/dev/null | sort | tail -3 || echo "NO_PRIOR_UPDATES"
 ```
 
 ## Phase 1: Identify the audience
@@ -89,21 +88,21 @@ If LINEAR available:
 
 **Roadmap and objectives:**
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && cat .nanopm/ROADMAP.md || echo "NO_ROADMAP"
-[ -f ".nanopm/OBJECTIVES.md" ] && cat .nanopm/OBJECTIVES.md || echo "NO_OBJECTIVES"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+[ -f ".nanopm/wiki/docs/roadmap.md" ] && cat .nanopm/wiki/docs/roadmap.md || echo "NO_ROADMAP"
+[ -f ".nanopm/wiki/docs/objectives.md" ] && cat .nanopm/wiki/docs/objectives.md || echo "NO_OBJECTIVES"
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && head -40 "$_CHALLENGES" || echo "NO_CHALLENGES"
 ```
 
 **Define context (tailor the update):**
 ```bash
-[ -f ".nanopm/ORG.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
-[ -f ".nanopm/BUSINESS-MODEL.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
+[ -f ".nanopm/wiki/docs/org.md" ] && echo "ORG_EXISTS" || echo "ORG_MISSING"
+[ -f ".nanopm/wiki/docs/business-model.md" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
 ```
 
-**If ORG_EXISTS:** read `.nanopm/ORG.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
+**If ORG_EXISTS:** read `.nanopm/wiki/docs/org.md`. Use the org map and decision-makers to *tailor the update to the stakeholders* — match tone and detail to who the audience (from Phase 1) actually is, and flag decisions to the named decision-maker who owns them.
 
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/BUSINESS-MODEL.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
+**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. *Frame metrics commercially* — translate shipped work and traction into the language of the business model (revenue, the core GTM motion, the metrics that matter), especially for the investor/exec audiences. Both reads are advisory — if a doc is absent, proceed without it.
 
 **Prior week's commitments:**
 If a previous update exists, extract any "next week I will..." commitments and check which were honored.
@@ -189,15 +188,22 @@ NEXT MILESTONE
 - If "needs your input" is empty, omit the section entirely
 - Never use "we're making great progress" without a concrete data point
 
-## Phase 5: Save the update
+## Phase 5: Write the dated wiki Weekly Update page
 
-Write to `.nanopm/WEEKLY_UPDATE.md` (latest draft — overwrite).
+Write the update to a DATED wiki doc page — one per week, history preserved (same
+pattern as standup/retro). Each week is its own page in the `weekly-updates/` series
+folder (the prds/-style layout):
+`$(nanopm_wiki_series_path weekly-updates "$(date +%F)")` (i.e.
+`.nanopm/wiki/docs/weekly-updates/YYYY-MM-DD.md`). The file MUST start with frontmatter,
+then the update body:
 
-Also append to weekly history:
 ```bash
-mkdir -p .nanopm/weekly-updates
-cp .nanopm/WEEKLY_UPDATE.md ".nanopm/weekly-updates/$(date +%Y-%m-%d).md" 2>/dev/null || true
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_series_path weekly-updates "$(date +%F)"                                # the dated page to write
+nanopm_wiki_doc_frontmatter pm-weekly-update user-stated "$(date +%Y-%m-%d)" "{sources}"
 ```
+
+(Replace `{sources}` with the actual sources used — e.g. `git,linear,roadmap` — as a comma-separated list.) The body below the frontmatter is the update drafted in Phase 4. There is no separate "latest" file — each week is its own dated page in `weekly-updates/`.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -207,7 +213,7 @@ nanopm_context_append "{\"skill\":\"pm-weekly-update\",\"outputs\":{\"date\":\"$
 ## Completion
 
 Tell the user:
-- Draft written to `.nanopm/WEEKLY_UPDATE.md`
+- Draft written to `.nanopm/wiki/docs/weekly-updates/$(date +%F).md` (this week's dated page)
 - Remind them to check the "NEEDS YOUR INPUT" section before sending — that's the most actionable part
 - If anything slipped: "The slippage is in the update. Don't soften it — your stakeholders will respect the honesty more than the spin."
 

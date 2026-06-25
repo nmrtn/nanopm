@@ -1,7 +1,7 @@
 ---
 name: pm-interview
 version: 0.3.0
-description: "User interview guide based on Teresa Torres (story-based), Rob Fitzpatrick (Mom Test), Bob Moesta (JTBD Switch), and Cindy Alvarez (Lean Customer Dev). Prepares a hypothesis-driven guide, runs live or imports from Granola, extracts signal into FEEDBACK.md."
+description: "User interview guide based on Teresa Torres (story-based), Rob Fitzpatrick (Mom Test), Bob Moesta (JTBD Switch), and Cindy Alvarez (Lean Customer Dev). Prepares a hypothesis-driven guide, runs live or imports from Granola, extracts signal into the wiki Feedback page."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch, mcp__claude_ai_Granola__list_meetings, mcp__claude_ai_Granola__get_meeting_transcript, mcp__claude_ai_Granola__query_granola_meetings
 ---
 
@@ -22,9 +22,12 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_FEEDBACK_FILE=".nanopm/FEEDBACK.md"
-_INTERVIEW_FILE=".nanopm/INTERVIEW.md"
 ```
+
+This skill writes canonical wiki pages, not flat docs. The session summary goes to
+`$(nanopm_wiki_doc_path interview)` and feedback updates to `$(nanopm_wiki_doc_path feedback)`.
+Resolve each path inline per bash block (some hosts run each block in a fresh subshell, so
+exported vars don't survive).
 
 ## When to run this
 
@@ -58,14 +61,15 @@ If prior interview entries found: "Found {N} past sessions. This session builds 
 Read prior context to understand which assumptions have already been tested and what signal exists.
 
 ```bash
-[ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
+_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/FEEDBACK.md" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
-[ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
+[ -f "$(nanopm_wiki_doc_path feedback)" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
+[ -f "$(nanopm_wiki_doc_path product)" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 
-**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Ground the interview guide in *what exists* — anchor the story-anchor behavior and workaround questions on the product's real workflows and surfaces, so you probe how users actually experience it rather than a hypothetical. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: interviewing against a draft product concept."
+**If PRODUCT_EXISTS:** read the wiki Product page at `.nanopm/wiki/docs/product.md`. Ground the interview guide in *what exists* — anchor the story-anchor behavior and workaround questions on the product's real workflows and surfaces, so you probe how users actually experience it rather than a hypothetical. This read is advisory — if it's absent, proceed without it. If the Product page's frontmatter shows `provenance: nano-hypothesis` (a draft, unconfirmed concept), surface a one-line non-blocking warning: "Note: interviewing against a draft product concept."
 
 ## Phase 1: Set the focus
 
@@ -285,13 +289,29 @@ For each hypothesis tested:
 - 5 interviews: standard threshold (Teresa Torres / Nielsen Norman)
 - 8–12 interviews: sufficient for a full JTBD map (Moesta)
 
-## Phase 6: Write findings
+## Phase 6: Update the wiki Feedback page
 
-Append to `.nanopm/FEEDBACK.md` (create if missing):
+The feedback page is **cumulative** — each interview adds an entry, prior entries stay. Read the
+existing page first (if any), then write it back with this session's entry appended.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_path feedback   # -> .nanopm/wiki/docs/feedback.md
+```
+
+Read `.nanopm/wiki/docs/feedback.md` if it exists (to preserve prior entries), then **Write** the
+page back with a fresh frontmatter block followed by all prior entries plus the new one. Build the
+frontmatter from the lib helper (real `$(date)`, `{sources}` = the interviewee profile / Granola
+meeting id this entry was synthesized from):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_frontmatter pm-interview evidence-backed "$(date +%Y-%m-%d)" "{sources}"
+```
+
+Then the page body — the frontmatter block above, then the accumulated entries, the newest first:
 
 ```markdown
----
-
 ## Interview — {date} — {interviewee profile}
 
 **Focus:** {assumption or question tested}
@@ -327,14 +347,36 @@ Append to `.nanopm/FEEDBACK.md` (create if missing):
 ---
 ```
 
-Write session summary to `.nanopm/INTERVIEW.md` (overwrite — latest session only).
+(Prior entries follow below the new one, unchanged.)
+
+## Phase 6b: Write the wiki Interview page
+
+Write this session's summary to `.nanopm/wiki/docs/interview.md` (overwrite — latest session only).
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_path interview   # -> .nanopm/wiki/docs/interview.md
+```
+
+**Write** the page: a frontmatter block from the lib helper (real `$(date)`, `{sources}` = the
+interviewee profile / Granola meeting id), followed by the session summary body.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_doc_frontmatter pm-interview evidence-backed "$(date +%Y-%m-%d)" "{sources}"
+```
+
+Then the body (the latest session's summary — same content as the Feedback entry, scoped to this
+one call: focus, session type, key findings, best/other quotes, four forces, jobs, hypothesis
+verdicts, recommended next).
 
 ## Phase: Ingest into the memory wiki
 
 Feed this interview's signal into the **memory wiki** (the compounding-knowledge layer; schema in
 `.nanopm/NANOPM-WIKI.md`) so it refines the persona and opportunity pages over time instead of
 being re-derived each run. **Advisory and non-blocking** — if anything fails or the host can't
-dispatch a subagent, note it and finish normally; the findings are already in FEEDBACK.md.
+dispatch a subagent, note it and finish normally; the findings are already on the wiki Feedback
+page (`.nanopm/wiki/docs/feedback.md`).
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -345,7 +387,7 @@ If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Ag
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_ingest_prompt ".nanopm/INTERVIEW.md" "entities/personas and entities/opportunities"
+nanopm_ingest_prompt "$(nanopm_wiki_doc_path interview)" "entities/personas and entities/opportunities"
 ```
 
 The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
@@ -358,13 +400,14 @@ review (`~/.nanopm/bin/nanopm-confidence-gate list`).
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 .nanopm/INTERVIEW.md | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' .nanopm/INTERVIEW.md | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-challenge-me\"}}"
+_INTERVIEW_PAGE="$(nanopm_wiki_doc_path interview)"
+nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 "$_INTERVIEW_PAGE" | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' "$_INTERVIEW_PAGE" | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- FEEDBACK.md updated
+- Wiki Feedback page updated (`.nanopm/wiki/docs/feedback.md`)
 - Hypothesis verdicts summary (CONFIRMED / REFUTED / INCONCLUSIVE per hypothesis)
 - Current signal reliability level (N interviews done, how many more needed)
 - If any hypothesis was REFUTED: "This is valuable — a refuted assumption before you built saves weeks. Run /pm-discovery to reframe."

@@ -1,7 +1,7 @@
 ---
 name: pm-user-feedback
 version: 0.2.0
-description: "Aggregate user feedback from Dovetail, Productboard, Notion, Linear, and GitHub. Cluster into themes, surface the top unaddressed signal, map to current roadmap. Produces FEEDBACK.md — the primary input for all downstream PM skills."
+description: "Aggregate user feedback from Dovetail, Productboard, Notion, Linear, and GitHub. Cluster into themes, surface the top unaddressed signal, map to current roadmap. Produces the wiki Feedback page (.nanopm/wiki/docs/feedback.md) — the primary input for all downstream PM skills."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebFetch
 ---
 
@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_FEEDBACK_FILE=".nanopm/FEEDBACK.md"
 ```
 
 ## Phase 0: Prior context
@@ -61,9 +60,10 @@ echo "DOVETAIL: $_TIER_DOVETAIL | PRODUCTBOARD: $_TIER_PRODUCTBOARD | NOTION: $_
 
 List the sources that will be used (any tier 1-3). If all are tier 4: "No integrations detected — I'll ask you to describe your feedback manually."
 
-Also check for existing ROADMAP.md to enable "In Roadmap?" mapping:
+Also check for existing roadmap to enable "In Roadmap?" mapping:
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+[ -f "$(nanopm_wiki_doc_path roadmap)" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
 ```
 
 ## Phase 2: Fetch feedback data
@@ -254,17 +254,18 @@ Capture the clustering output.
 
 ## Phase 4: Map to roadmap
 
-If ROADMAP.md exists, read it. For each theme from Phase 3, check if any NOW or NEXT item addresses it:
+If the roadmap exists, read it. For each theme from Phase 3, check if any NOW or NEXT item addresses it:
 
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && cat ".nanopm/ROADMAP.md"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+[ -f "$(nanopm_wiki_doc_path roadmap)" ] && cat "$(nanopm_wiki_doc_path roadmap)"
 ```
 
 For each theme: mark as "✅ addressed by: {roadmap item}" or "❌ not addressed".
 
-## Phase 5: Write FEEDBACK.md
+## Phase 5: Write the wiki Feedback page
 
-Write `.nanopm/FEEDBACK.md`:
+Write `$(nanopm_wiki_doc_path feedback)` (i.e. `.nanopm/wiki/docs/feedback.md`). The file begins with the frontmatter emitted by `nanopm_wiki_doc_frontmatter pm-user-feedback evidence-backed "$(date +%Y-%m-%d)" "{sources — connectors used}"` (substitute the real connectors/sources used for `{sources}`), immediately followed by the body below.
 
 ```markdown
 # User Feedback
@@ -315,11 +316,11 @@ Pattern: {one sentence — the common thread across all data points in this them
 ## What This Changes
 
 {How does this feedback validate or challenge the current strategy?
-If STRATEGY.md exists: does the top unaddressed signal support or contradict the current bet?
-If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy should prioritize?
+If the strategy page (`.nanopm/wiki/docs/strategy.md`) exists: does the top unaddressed signal support or contradict the current bet?
+If it doesn't exist yet: what does this feedback suggest the strategy should prioritize?
 2-3 sentences.}
 
-**Action:** {one imperative — e.g., "Run /pm-challenge-me — FEEDBACK.md answers Q6 and will sharpen Section 3." or "Update STRATEGY.md 'The Bet' to address the top unaddressed signal before roadmapping."}
+**Action:** {one imperative — e.g., "Run /pm-challenge-me — the feedback page answers Q6 and will sharpen Section 3." or "Update the strategy page (`.nanopm/wiki/docs/strategy.md`) 'The Bet' to address the top unaddressed signal before roadmapping."}
 
 ---
 
@@ -331,7 +332,7 @@ If STRATEGY.md doesn't exist yet: what does this feedback suggest the strategy s
 Feed the synthesized feedback into the **memory wiki** (the compounding-knowledge layer; schema in
 `.nanopm/NANOPM-WIKI.md`) so themes refine the opportunity and persona pages over time instead of
 being re-derived each run. **Advisory and non-blocking** — if anything fails or the host can't
-dispatch a subagent, note it and finish normally; FEEDBACK.md is already written.
+dispatch a subagent, note it and finish normally; the feedback page is already written.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -342,7 +343,7 @@ If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Ag
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_ingest_prompt ".nanopm/FEEDBACK.md" "entities/opportunities and entities/personas"
+nanopm_ingest_prompt "$(nanopm_wiki_doc_path feedback)" "entities/opportunities and entities/personas"
 ```
 
 The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
@@ -355,17 +356,17 @@ review (`~/.nanopm/bin/nanopm-confidence-gate list`).
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_TOP_THEME=$(grep "## Top Unaddressed Signal" .nanopm/FEEDBACK.md -A2 2>/dev/null | tail -1 | xargs)
+_TOP_THEME=$(grep "## Top Unaddressed Signal" "$(nanopm_wiki_doc_path feedback)" -A2 2>/dev/null | tail -1 | xargs)
 nanopm_context_append "{\"skill\":\"pm-user-feedback\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"top_unaddressed\":\"$(echo $_TOP_THEME | head -c 100 | tr '\"' \"'\")\",\"sources\":\"${_SOURCES_USED:-manual}\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- FEEDBACK.md written to `.nanopm/FEEDBACK.md`
+- Feedback page written to `.nanopm/wiki/docs/feedback.md`
 - How many themes were identified and from which sources
 - The top unaddressed signal (one sentence)
 - Which themes are already addressed by the roadmap vs. which are gaps
-- Recommended next: "Run /pm-challenge-me — FEEDBACK.md will pre-fill Q6 and sharpen the synthesis."
+- Recommended next: "Run /pm-challenge-me — the feedback page will pre-fill Q6 and sharpen the synthesis."
 
 **STATUS: DONE**

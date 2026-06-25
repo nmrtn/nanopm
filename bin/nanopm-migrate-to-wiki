@@ -11,14 +11,19 @@ What it does (idempotent — safe to re-run):
   3. Seed      .nanopm/wiki/{index.md,log.md} with headers (if absent).
   4. Overviews CONTEXT-SUMMARY.md -> wiki/overview/company.md,
                PLAN-SUMMARY.md   -> wiki/overview/current-work.md (with frontmatter).
-  5. Docs      copy known Define/Plan docs -> wiki/docs/.
+  5. Docs      copy known Define/Plan docs -> wiki/docs/ (with doc frontmatter).
+  5b. Fold     fold .nanopm/reasoning/<DOC>.md sidecars into the wiki page's
+               "## Provenance & assumptions" section (idempotent; never folds twice).
   6. Events    repair + migrate ~/.nanopm/memory/{slug}.jsonl -> .nanopm/raw/events.jsonl
                (join newline-split records, drop exact-duplicate lines).
-  7. Opps      leave .nanopm/opportunities/ in place (already a conformant section).
+  7. Opps      copy .nanopm/opportunities/ -> wiki/entities/opportunities/ (its
+               canonical home, schema §2). prds/ -> wiki/docs/prds/. --finalize removes
+               the root copies once mirrored.
 
 By default it COPIES (non-destructive): the legacy files stay so the current
-preamble keeps working until the loader cutover (#104) lands. Pass --finalize to
-remove the legacy originals once loaders read the new paths.
+preamble keeps working until the loader cutover lands. Pass --finalize to remove the
+legacy originals — summaries, flat Define/Plan docs, and folded reasoning sidecars —
+once their wiki replacement exists (and, for sidecars, has been folded).
 
 Usage:
   nanopm-migrate-to-wiki [--dry-run] [--finalize] [--project DIR] [--slug NAME]
@@ -31,6 +36,7 @@ import argparse
 import datetime as _dt
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -41,15 +47,42 @@ from pathlib import Path
 DOC_NAMES = [
     "VISION-MISSION.md", "BUSINESS-MODEL.md", "ORG.md", "PRODUCT.md", "PERSONAS.md",
     "OBJECTIVES.md", "STRATEGY.md", "ROADMAP.md", "CHALLENGES.md", "AUDIT.md",
-    "COMPETITORS.md", "FEEDBACK.md", "DATA.md", "DISCOVERY.md", "WEEKLY_UPDATE.md",
+    "COMPETITORS.md", "FEEDBACK.md", "INTERVIEW.md", "DATA.md", "DISCOVERY.md",
+    "WEEKLY_UPDATE.md",
 ]
 # CONTEXT-SUMMARY / PLAN-SUMMARY are the overviews; handled separately, not as docs.
 OVERVIEWS = {
     "CONTEXT-SUMMARY.md": ("overview/company.md", "define"),
     "PLAN-SUMMARY.md": ("overview/current-work.md", "plan"),
 }
+# Legacy Define/Plan docs -> the skill that owns them, so a migrated page gets the
+# same doc frontmatter a freshly-written wiki-canonical page has (schema §4.3). Docs
+# not listed here (CHALLENGES, COMPETITORS, …) are copied verbatim.
+DOC_SKILL = {
+    "VISION-MISSION.md": "pm-vision-mission",
+    "BUSINESS-MODEL.md": "pm-business-model",
+    "ORG.md": "pm-org",
+    "PRODUCT.md": "pm-product",
+    "PERSONAS.md": "pm-personas",
+    "OBJECTIVES.md": "pm-objectives",
+    "STRATEGY.md": "pm-strategy",
+    "ROADMAP.md": "pm-roadmap",
+    # Discover / Daily-Ops (wiki-canonical Phase 2)
+    "CHALLENGES.md": "pm-challenge-me",
+    "COMPETITORS.md": "pm-competitors-intel",
+    "FEEDBACK.md": "pm-user-feedback",
+    "INTERVIEW.md": "pm-interview",
+    "DATA.md": "pm-data",
+    "DISCOVERY.md": "pm-discovery",
+    "WEEKLY_UPDATE.md": "pm-weekly-update",
+}
+# AUDIT.md (retired pm-audit) and SCAN.md (retired pm-scan) stay OUT of DOC_SKILL:
+# no live skill owns them, so --finalize must not treat them as migrated.
+# The section a folded reasoning sidecar lands under (schema §4.3 / §5). Its presence
+# on a page is also the fold's idempotency key — never fold twice.
+PROVENANCE_HEADING = "## Provenance & assumptions"
 ENTITY_TYPES = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
-RAW_SUBDIRS = ["feedback", "intel", "data", "interviews", "git-activity"]
+RAW_SUBDIRS = ["feedback", "competitors", "data", "interviews", "git-activity"]
 
 
 def log(msg: str) -> None:
@@ -169,6 +202,53 @@ def with_overview_frontmatter(text: str, section: str, generated: str) -> str:
     return fm + text
 
 
+def with_doc_frontmatter(text: str, skill: str, generated: str) -> str:
+    """Prepend schema §4.3 doc frontmatter unless the page already has frontmatter."""
+    if has_frontmatter(text):
+        return text
+    fm = (
+        "---\n"
+        "type: doc\n"
+        f"skill: {skill}\n"
+        "provenance: user-stated\n"
+        f"generated: {generated}\n"
+        "sources: []\n"
+        "---\n\n"
+    )
+    return fm + text
+
+
+def sidecar_body(text: str) -> str:
+    """Return a reasoning sidecar's body: strip a leading frontmatter block and the
+    first H1 (the sidecar's own title), so it nests cleanly under a page section."""
+    t = text
+    if t.lstrip().startswith("---"):
+        parts = t.split("---", 2)
+        if len(parts) == 3:
+            t = parts[2]
+    lines = t.strip().splitlines()
+    if lines and lines[0].lstrip().startswith("# "):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def doc_page_name(name: str) -> str:
+    """The wiki/docs/ page filename for a legacy doc name, matching the slug
+    nanopm_wiki_doc_path produces (lowercase, '_' and ' ' -> '-'). So WEEKLY_UPDATE.md
+    -> weekly-update.md, not weekly_update.md — the skill and the migrate tool must
+    land on the SAME page (change one, change both)."""
+    stem = name[:-3] if name.lower().endswith(".md") else name
+    slug = re.sub(r"[^a-z0-9-]", "", stem.lower().replace("_", "-").replace(" ", "-"))
+    return slug + ".md"
+
+
+def has_provenance(text: str) -> bool:
+    """True if the page already carries a Provenance & assumptions section. Matched at
+    line start (not a raw substring) so the heading quoted in prose or a code fence
+    can't false-positive the fold's idempotency key."""
+    return any(ln.rstrip() == PROVENANCE_HEADING for ln in text.splitlines())
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--dry-run", action="store_true", help="report only, write nothing")
@@ -244,24 +324,108 @@ def main() -> int:
             write(dest, with_overview_frontmatter(body, section, today), "overvw")
 
     # 5. Docs ----------------------------------------------------------------
+    # Track which wiki/docs pages exist OR will after this step, so the fold (5b) and
+    # finalize (8c) report faithfully under --dry-run (where step 5's copies don't
+    # physically land). Keyed by lowercase page filename.
+    docs_dir = wiki / "docs"
+    doc_will_exist: set[str] = {p.name for p in docs_dir.glob("*.md")} if docs_dir.is_dir() else set()
     for name in DOC_NAMES:
         src = nano / name
-        dest = wiki / "docs" / name.lower()
-        if src.is_file() and not dest.exists():
+        dest = docs_dir / doc_page_name(name)
+        if not src.is_file() or dest.exists():
+            continue
+        skill = DOC_SKILL.get(name)
+        if skill:
+            # A migrated Define/Plan page gets the same doc frontmatter a freshly
+            # written wiki-canonical page has, so old and new projects look identical.
+            body = src.read_text(encoding="utf-8", errors="replace")
+            write(dest, with_doc_frontmatter(body, skill, today), "doc")
+        else:
             did.append(f"doc    {dest.relative_to(project)}")
             if not dry:
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dest)
-    # prds/ subtree -> wiki/docs/prds/ (per-file, skip existing)
-    prds = nano / "prds"
-    if prds.is_dir():
-        dest_dir = wiki / "docs" / "prds"
-        for f in prds.glob("*.md"):
+        doc_will_exist.add(dest.name)
+
+    # 5b. Fold reasoning sidecars into provenance ----------------------------
+    # Each legacy .nanopm/reasoning/<DOC>.md folds into its wiki page under
+    # "## Provenance & assumptions" (schema §5). Idempotent: a page that already has
+    # that heading (freshly written, or folded on a prior run) is left untouched, so
+    # re-running never double-appends. Lossless: the sidecar stays on disk in copy
+    # mode; --finalize removes it only once it's been folded (tracked in `folded`).
+    folded: set[str] = set()
+    reasoning_dir = nano / "reasoning"
+    if reasoning_dir.is_dir():
+        for name in DOC_NAMES:
+            side = reasoning_dir / name
+            page = docs_dir / doc_page_name(name)
+            if not side.is_file() or doc_page_name(name) not in doc_will_exist:
+                continue
+            # On a real run the page is on disk; under --dry-run a just-"copied" page
+            # isn't — treat the would-be page (a legacy doc) as having no provenance yet.
+            page_text = page.read_text(encoding="utf-8", errors="replace") if page.is_file() else ""
+            if has_provenance(page_text):
+                continue  # already has provenance — don't fold a second time
+            body = sidecar_body(side.read_text(encoding="utf-8", errors="replace"))
+            if not body:
+                continue
+            folded.add(name)
+            if page.is_file():
+                write(page, page_text.rstrip() + f"\n\n{PROVENANCE_HEADING}\n\n" + body + "\n", "fold")
+            else:
+                did.append(f"fold   {page.relative_to(project)} (after copy)")  # dry-run preview
+
+    # prds/ and tasks/ subtrees -> wiki/docs/<name>/ (per-file, skip existing).
+    for sub in ("prds", "tasks", "handoffs"):
+        srcdir = nano / sub
+        if not srcdir.is_dir():
+            continue
+        dest_dir = wiki / "docs" / sub
+        for f in srcdir.glob("*.md"):
             dest = dest_dir / f.name
             if not dest.exists():
                 did.append(f"doc    {dest.relative_to(project)}")
                 if not dry:
                     dest_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
+
+    # Legacy root .nanopm/weekly-updates/<date>.md -> the wiki series folder
+    # wiki/docs/weekly-updates/<date>.md (the prds/-style layout; the skill writes the
+    # folder form directly now).
+    wkdir = nano / "weekly-updates"
+    if wkdir.is_dir():
+        for f in sorted(wkdir.glob("*.md")):
+            dest = (wiki / "docs" / "weekly-updates") / f.name
+            if not dest.exists():
+                did.append(f"doc    {dest.relative_to(project)}")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dest)
+
+    # Re-fold the FLAT dated series docs Phase 2 wrote into per-series folders:
+    # wiki/docs/weekly-update-<date>.md -> wiki/docs/weekly-updates/<date>.md, and
+    # standup-<date>.md -> wiki/docs/standups/<date>.md — matching prds/ and tasks/.
+    # The skills write the folder form directly now; this relocates any pre-existing
+    # flat pages. Idempotent (a page already in its folder is skipped) and MOVED, not
+    # copied, so the flat page can't linger as a duplicate the viewer would also show.
+    DATED_SERIES = (("weekly-update-", "weekly-updates"), ("standup-", "standups"))
+    if docs_dir.is_dir():
+        for f in sorted(docs_dir.glob("*.md")):
+            for prefix, folder in DATED_SERIES:
+                if not f.name.startswith(prefix):
+                    continue
+                rest = f.name[len(prefix):]   # expect a bare ISO date page: YYYY-MM-DD.md
+                if not (rest.endswith(".md") and len(rest) == 13
+                        and rest[4] == "-" and rest[7] == "-"):
+                    continue
+                dest = docs_dir / folder / rest
+                if dest.exists():
+                    break
+                did.append(f"move   {dest.relative_to(project)} (from docs/{f.name})")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(f), str(dest))
+                break
 
     # 6. Events: repair + migrate the raw log --------------------------------
     sl = slug_for(project, args.slug)
@@ -282,13 +446,48 @@ def main() -> int:
         else:
             log(f"events: no raw log at {src_log} (nothing to seed).")
 
-    # 7. Opportunities note --------------------------------------------------
-    if (nano / "opportunities").is_dir():
-        log("opportunities: left in place at .nanopm/opportunities/ "
-            "(already a conformant section; the entity-backfill task handles linking).")
+    # 7. Opportunities: relocate the legacy root section into the wiki -------
+    # .nanopm/opportunities/ is an entity section; its canonical home is
+    # wiki/entities/opportunities/ (schema §2). Copy per-file (skip existing), so
+    # --finalize can remove the root copy once it's mirrored.
+    legacy_opps = nano / "opportunities"
+    if legacy_opps.is_dir():
+        opp_dest = wiki / "entities" / "opportunities"
+        for f in legacy_opps.glob("*.md"):
+            dest = opp_dest / f.name
+            if not dest.exists():
+                did.append(f"opp    {dest.relative_to(project)}")
+                if not dry:
+                    opp_dest.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dest)
+
+    # 7b. Competitor intel: relocate the legacy .nanopm/intel/ tree + competitors.json
+    # into raw/competitors/ (the renamed raw subdir — "intel" was incoherent with the
+    # competitors entity type). Recursive: snapshots/ has per-competitor subdirs.
+    comp_raw = raw / "competitors"
+    legacy_intel = nano / "intel"
+    if legacy_intel.is_dir():
+        for src in legacy_intel.rglob("*"):
+            if src.is_dir() or src.name == ".DS_Store":
+                continue
+            dest = comp_raw / src.relative_to(legacy_intel)
+            if not dest.exists():
+                did.append(f"intel  {dest.relative_to(project)}")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dest)
+    legacy_cjson = nano / "competitors.json"
+    if legacy_cjson.is_file():
+        dest = comp_raw / "competitors.json"
+        if not dest.exists():
+            did.append(f"intel  {dest.relative_to(project)}")
+            if not dry:
+                comp_raw.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(legacy_cjson, dest)
 
     # Finalize ---------------------------------------------------------------
     if args.finalize:
+        # 8a. Overviews: remove the legacy summary once its wiki overview exists.
         for legacy, (dest_rel, _section) in OVERVIEWS.items():
             src = nano / legacy
             if not src.is_file():
@@ -302,10 +501,132 @@ def main() -> int:
                     src.unlink()
             else:
                 log(f"finalize: keeping {legacy} — {dest_rel} is missing/empty, not safe to delete")
-        log("finalize: legacy summary originals removed where a wiki overview exists.")
+        # 8b. Flat Define/Plan docs: remove once the wiki page exists and is non-empty.
+        # ONLY the migrated docs (DOC_SKILL) — those whose owning skill now writes the
+        # wiki and won't re-create the flat file. Other DOC_NAMES (COMPETITORS,
+        # CHALLENGES, …) belong to skills not yet routed: their flat doc is still the
+        # live source, so finalize must leave it (deleting it would just churn).
+        for name in DOC_SKILL:
+            src = nano / name
+            page = docs_dir / doc_page_name(name)
+            if not src.is_file() or src.is_symlink():
+                continue  # never written, or a company-share symlink — leave it
+            # Safety guard: only delete once the wiki page is present and non-empty.
+            # On a real run that's the on-disk page; under --dry-run a page step 5
+            # would copy this run isn't on disk yet, so consult doc_will_exist and the
+            # (non-empty) source we'd copy, so the preview matches the real plan.
+            if page.is_file():
+                page_ready = page.stat().st_size > 0
+            else:
+                page_ready = doc_page_name(name) in doc_will_exist and src.stat().st_size > 0
+            if page_ready:
+                did.append(f"rm     {src.relative_to(project)} (finalize)")
+                if not dry:
+                    src.unlink()
+            else:
+                log(f"finalize: keeping {name} — wiki/docs/{doc_page_name(name)} is missing/empty, not safe to delete")
+        # 8c. Reasoning sidecars: remove once the wiki page carries provenance —
+        # either folded this run (`folded`) or already present from a fresh
+        # wiki-canonical write. The latter is SUPERSEDE semantics (schema §5: "no
+        # separate reasoning sidecar"): a freshly written page's provenance is newer
+        # and authoritative, so dropping the stale legacy sidecar is intended, not loss.
+        if reasoning_dir.is_dir():
+            for name in DOC_SKILL:  # migrated docs only — leave e.g. reasoning/COMPETITORS.md
+                side = reasoning_dir / name
+                page = docs_dir / doc_page_name(name)
+                if not side.is_file():
+                    continue
+                page_has_prov = name in folded or (
+                    page.is_file() and has_provenance(page.read_text(encoding="utf-8", errors="replace"))
+                )
+                if page_has_prov:
+                    did.append(f"rm     {side.relative_to(project)} (finalize)")
+                    if not dry:
+                        side.unlink()
+                else:
+                    log(f"finalize: keeping reasoning/{name} — not yet folded into the wiki page")
+        # 8d. Relocated sections (prds, opportunities): remove the root copy once its
+        # file is mirrored under the wiki, then drop the emptied legacy dir. Steps 5/7
+        # copy these into the wiki BEFORE finalize, so on a real run the mirror always
+        # exists; under --dry-run those copies haven't landed, so treat a non-empty
+        # source as "would be mirrored" (matching 8b) for a faithful preview.
+        for legacy_rel, wiki_rel in (("prds", "docs/prds"), ("opportunities", "entities/opportunities"), ("tasks", "docs/tasks"), ("handoffs", "docs/handoffs")):
+            ldir = nano / legacy_rel
+            wdir = wiki / wiki_rel
+            if not ldir.is_dir():
+                continue
+            entries = list(ldir.iterdir())
+            md_files = sorted(p for p in entries if p.suffix == ".md")
+            removed = 0
+            for f in md_files:
+                mirror = wdir / f.name
+                mirror_ready = (mirror.is_file() and mirror.stat().st_size > 0) or (dry and f.stat().st_size > 0)
+                if mirror_ready:
+                    did.append(f"rm     {f.relative_to(project)} (finalize)")
+                    removed += 1
+                    if not dry:
+                        f.unlink()
+                else:
+                    log(f"finalize: keeping {f.relative_to(project)} — {wiki_rel}/{f.name} missing/empty")
+            # The dir is droppable only if every entry was a removed .md (no stray files).
+            non_md = [p for p in entries if p.suffix != ".md"]
+            if not non_md and removed > 0 and removed == len(md_files):
+                did.append(f"rmdir  {ldir.relative_to(project)} (finalize)")
+                if not dry:
+                    ldir.rmdir()
+        # 8e. legacy root weekly-updates/<date>.md -> mirrored in the series folder
+        # wiki/docs/weekly-updates/<date>.md (same-name now, but in a subfolder).
+        wkdir = nano / "weekly-updates"
+        if wkdir.is_dir():
+            entries = list(wkdir.iterdir())
+            md_files = sorted(p for p in entries if p.suffix == ".md")
+            removed = 0
+            for f in md_files:
+                mirror = (wiki / "docs" / "weekly-updates") / f.name
+                mirror_ready = (mirror.is_file() and mirror.stat().st_size > 0) or (dry and f.stat().st_size > 0)
+                if mirror_ready:
+                    did.append(f"rm     {f.relative_to(project)} (finalize)")
+                    removed += 1
+                    if not dry:
+                        f.unlink()
+                else:
+                    log(f"finalize: keeping {f.relative_to(project)} — docs/weekly-updates/{f.name} missing/empty")
+            non_md = [p for p in entries if p.suffix != ".md"]
+            if not non_md and removed > 0 and removed == len(md_files):
+                did.append(f"rmdir  {wkdir.relative_to(project)} (finalize)")
+                if not dry:
+                    wkdir.rmdir()
+        # 8f. Competitor intel: drop the legacy intel/ tree + competitors.json once every
+        # file is mirrored under raw/competitors/.
+        comp_raw = raw / "competitors"
+        legacy_intel = nano / "intel"
+        if legacy_intel.is_dir():
+            files = [p for p in legacy_intel.rglob("*") if p.is_file() and p.name != ".DS_Store"]
+            all_mirrored = all(
+                (comp_raw / p.relative_to(legacy_intel)).is_file() or (dry and p.stat().st_size >= 0)
+                for p in files
+            )
+            if files and all_mirrored:
+                did.append(f"rm     intel/ (tree, finalize)")
+                if not dry:
+                    shutil.rmtree(legacy_intel)
+            else:
+                log("finalize: keeping intel/ — not all files mirrored under raw/competitors/")
+        legacy_cjson = nano / "competitors.json"
+        if legacy_cjson.is_file():
+            mirror = comp_raw / "competitors.json"
+            if mirror.is_file() or (dry and legacy_cjson.stat().st_size >= 0):
+                did.append(f"rm     competitors.json (finalize)")
+                if not dry:
+                    legacy_cjson.unlink()
+            else:
+                log("finalize: keeping competitors.json — not yet mirrored under raw/competitors/")
+        log("finalize: legacy summaries, flat Define/Plan docs, folded sidecars, and the "
+            "relocated prds/ + tasks/ + opportunities/ + weekly-updates/ + intel/ root "
+            "copies removed where mirrored in the wiki.")
     else:
-        log("note: legacy CONTEXT-SUMMARY/PLAN-SUMMARY kept (copy mode). "
-            "Re-run with --finalize after the loader cutover (#104).")
+        log("note: legacy flat docs / summaries / reasoning sidecars kept (copy mode). "
+            "Re-run with --finalize once the wiki pages are confirmed.")
 
     # Report -----------------------------------------------------------------
     log("")

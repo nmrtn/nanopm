@@ -22,7 +22,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_PRD_DIR=".nanopm/prds"
+_PRD_DIR=".nanopm/wiki/docs/prds"
 mkdir -p "$_PRD_DIR"
 _METHODOLOGY=$(nanopm_config_get "methodology")
 echo "METHODOLOGY: ${_METHODOLOGY:-not set}"
@@ -42,7 +42,7 @@ If found: "Prior PRD found from {ts}. Starting a new PRD."
 Check if there's a specific feature to write about:
 
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
+[ -f ".nanopm/wiki/docs/roadmap.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
 ```
 
 If ROADMAP.md exists: read the NOW section and list the top 3 items.
@@ -66,7 +66,7 @@ plus the CONTEXT-SUMMARY already in your preamble.
 
 ```bash
 for d in PERSONAS DATA PRODUCT BUSINESS-MODEL FEEDBACK; do
-  [ -f ".nanopm/$d.md" ] && echo "PRESENT: $d" || echo "ABSENT: $d"
+  { [ -f ".nanopm/wiki/docs/$(echo "$d" | tr 'A-Z' 'a-z' | tr '_' '-').md" ] || [ -f ".nanopm/$d.md" ]; } && echo "PRESENT: $d" || echo "ABSENT: $d"
 done
 ```
 
@@ -81,27 +81,27 @@ followed by a bounded digest. (Substitute the real feature name if your shell di
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 # PERSONAS — who the feature is for, plus the anti-persona gate flag
-nanopm_prd_retrieval_prompt ".nanopm/PERSONAS.md" "$_FEATURE" \
+nanopm_prd_retrieval_prompt ".nanopm/wiki/docs/personas.md" "$_FEATURE" \
   "which persona this feature serves and their job-to-be-done, the workaround and its cost, and 1-2 verbatim quotes; decide whether it primarily serves the anti-persona" \
   "FEATURE_SERVES: primary|secondary|anti|unclear — which persona group \"$_FEATURE\" mainly serves"
 
 # DATA — quantified problem size, high-confidence only
-nanopm_prd_retrieval_prompt ".nanopm/DATA.md" "$_FEATURE" \
+nanopm_prd_retrieval_prompt ".nanopm/wiki/docs/data.md" "$_FEATURE" \
   "funnel drop-off / retention / usage metrics relevant to this feature; quantify the problem size and any baseline targets, each metric kept with its confidence marker" \
   "DATA_CONFIDENCE: tag each cited metric 🟢 high | 🟡 med | 🔴 low — only 🟢 may be stated as fact in the PRD"
 
 # PRODUCT — reusable surfaces + completeness
-nanopm_prd_retrieval_prompt ".nanopm/PRODUCT.md" "$_FEATURE" \
+nanopm_prd_retrieval_prompt ".nanopm/wiki/docs/product.md" "$_FEATURE" \
   "existing surfaces and workflows this feature should reuse rather than reinvent, and the feature's dependencies on real product capabilities" \
   "PRODUCT_COMPLETENESS: draft|partial|complete — read from the PRODUCT.md header"
 
 # BUSINESS-MODEL — pricing/packaging coherence
-nanopm_prd_retrieval_prompt ".nanopm/BUSINESS-MODEL.md" "$_FEATURE" \
+nanopm_prd_retrieval_prompt ".nanopm/wiki/docs/business-model.md" "$_FEATURE" \
   "which tier/plan this feature belongs in and whether it affects the GTM motion, so the spec stays commercially coherent" \
   "TIER: which plan/tier \"$_FEATURE\" belongs in, or 'n/a'"
 
 # FEEDBACK — verbatim user signal (pre-synthesized; aggregates Dovetail, Productboard, etc.)
-nanopm_prd_retrieval_prompt ".nanopm/FEEDBACK.md" "$_FEATURE" \
+nanopm_prd_retrieval_prompt ".nanopm/wiki/docs/feedback.md" "$_FEATURE" \
   "themes and verbatim user quotes relevant to this feature, for the Problem Statement and User Stories" \
   "FEEDBACK_THEMES: 1-3 theme labels relevant to \"$_FEATURE\", or 'none'"
 ```
@@ -160,7 +160,7 @@ Stop after 3 questions or when context is sufficient.
 
 Derive a slug: `_SLUG_FEATURE=$(echo "$_FEATURE" | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]//g')`
 
-Write to `.nanopm/prds/{slug-feature}.md` using the format that matches `_METHODOLOGY`.
+Write to `.nanopm/wiki/docs/prds/{slug-feature}.md` using the format that matches `_METHODOLOGY`.
 
 ---
 
@@ -364,7 +364,7 @@ This phase enforces ETHOS principles 4 and 6: *"Evidence Before Conviction"* and
 
 ### 4b.1. Extract the Falsification paragraph
 
-Read the drafted `.nanopm/prds/${_SLUG_FEATURE}.md`. Pull the text under the `## Falsification` heading into `_FALSIF_TEXT`.
+Read the drafted `.nanopm/wiki/docs/prds/${_SLUG_FEATURE}.md`. Pull the text under the `## Falsification` heading into `_FALSIF_TEXT`.
 
 If the section is missing or empty, STOP and tell the user: *"PRD has no Falsification section. The template requires one. Add a paragraph stating what evidence would prove this bet wrong, then re-run."* Exit non-zero.
 
@@ -517,7 +517,7 @@ nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $
 ## Completion
 
 Tell the user:
-- PRD written to `.nanopm/prds/{feature}.md`
+- PRD written to `.nanopm/wiki/docs/prds/{feature}.md`
 - Open questions that need answers before implementation
 - The success criteria — ask if they look right
 - Suggested next step: hand this PRD to your engineering team or run `/pm-breakdown` to create tickets, or `/pm-retro` after shipping to compare plan vs reality

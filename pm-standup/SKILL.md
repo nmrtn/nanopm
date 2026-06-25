@@ -22,7 +22,9 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_STANDUP_FILE=".nanopm/STANDUP.md"
+# Standup briefings are DATED wiki docs — one page per day, history preserved
+# (never overwritten). Today's page resolves inline:
+_STANDUP_FILE="$(nanopm_wiki_series_path standups "$(date +%F)")"  # .nanopm/wiki/docs/standups/YYYY-MM-DD.md
 ```
 
 ## When to run this
@@ -84,12 +86,14 @@ If LINEAR tier is MCP or API:
 - Fetch issues currently In Progress
 - Fetch any issues marked Blocked or flagged
 
-If LINEAR not available: read `.nanopm/ROADMAP.md` and check for any manually updated status.
+If LINEAR not available: read the wiki roadmap page (`$(nanopm_wiki_doc_path roadmap)`, i.e. `.nanopm/wiki/docs/roadmap.md`) and check for any manually updated status.
 
 **Roadmap drift check:**
 ```bash
-[ -f ".nanopm/ROADMAP.md" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_ROADMAP="$(nanopm_wiki_doc_path roadmap)"  # .nanopm/wiki/docs/roadmap.md
+[ -f "$_ROADMAP" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
+_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename names
 [ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
 ```
 
@@ -171,13 +175,28 @@ DRIFT
 - If a meeting looks like a user interview (title keywords: user, customer, interview, call, discovery) → append "📋 run /pm-interview after"
 - If no meetings today: show "No meetings today"
 
-## Phase 4: Save and write
+## Phase 4: Write the dated wiki Standup page
 
-Write the briefing to `.nanopm/STANDUP.md` (overwrite — always the latest).
+Resolve today's page with the helper and write the briefing there. Each run writes a
+**dated** wiki doc — `.nanopm/wiki/docs/standups/YYYY-MM-DD.md`, one page per day in the
+`standups/` series folder (the prds/-style layout) — so standup history is preserved
+rather than overwritten. Yesterday's standup stays on disk; today gets its own page.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-standup\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"drift\":\"$(grep -c 'DRIFT' .nanopm/STANDUP.md 2>/dev/null || echo 0)\"}}"
+_STANDUP_FILE="$(nanopm_wiki_series_path standups "$(date +%F)")"  # .nanopm/wiki/docs/standups/YYYY-MM-DD.md
+nanopm_wiki_doc_frontmatter pm-standup evidence-backed "$(date +%Y-%m-%d)" "{sources}"
+```
+
+Write the file at `$(nanopm_wiki_series_path standups "$(date +%F)")` as: (a) the frontmatter
+block emitted by `nanopm_wiki_doc_frontmatter` above (substitute `{sources}` with the real
+comma-separated connectors/docs used — e.g. `github,linear,calendar,granola,roadmap`), then
+(b) the SAME briefing body rendered in Phase 3. Do not overwrite any prior day's page.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_STANDUP_FILE="$(nanopm_wiki_doc_path "standup-$(date +%F)")"
+nanopm_context_append "{\"skill\":\"pm-standup\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"drift\":\"$(grep -c 'DRIFT' "$_STANDUP_FILE" 2>/dev/null || echo 0)\"}}"
 ```
 
 Do NOT ask the user anything. Do NOT wait for input. Generate and display the briefing immediately.

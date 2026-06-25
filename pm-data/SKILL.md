@@ -1,7 +1,7 @@
 ---
 name: pm-data
 version: 0.1.0
-description: "Quantitative data analysis for PMs. Answers a specific product question using PostHog or Amplitude — trends, funnels, retention, paths. Writes findings to DATA.md, consumed by /pm-challenge-me and /pm-prd."
+description: "Quantitative data analysis for PMs. Answers a specific product question using PostHog or Amplitude — trends, funnels, retention, paths. Writes findings to the wiki data page at .nanopm/wiki/docs/data.md, consumed by /pm-challenge-me and /pm-prd."
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, mcp__claude_ai_PostHog__query-trends, mcp__claude_ai_PostHog__query-funnel, mcp__claude_ai_PostHog__query-retention, mcp__claude_ai_PostHog__query-paths, mcp__claude_ai_PostHog__query-stickiness, mcp__claude_ai_PostHog__insight-query, mcp__claude_ai_PostHog__projects-get, mcp__claude_ai_PostHog__event-definitions-list, mcp__claude_ai_PostHog__persons-list
 ---
 
@@ -22,7 +22,6 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-_DATA_FILE=".nanopm/DATA.md"
 ```
 
 ## When to run this
@@ -43,19 +42,19 @@ nanopm_context_read pm-data
 nanopm_context_read pm-data
 ```
 
-Check for prior DATA.md — if it exists, show a one-line summary of the last analysis and its date. Don't repeat the same analysis unless explicitly requested.
+Check for a prior wiki data page — if it exists, show a one-line summary of the last analysis and its date. Don't repeat the same analysis unless explicitly requested.
 
 ```bash
-[ -f ".nanopm/DATA.md" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
-_CHALLENGES=".nanopm/CHALLENGES.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f ".nanopm/DISCOVERY.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-[ -f ".nanopm/PRODUCT.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+[ -f "$(nanopm_wiki_doc_path data)" ] && echo "DATA_EXISTS" || echo "DATA_MISSING"
+[ -f ".nanopm/wiki/docs/challenges.md" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
+[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
+[ -f ".nanopm/wiki/docs/product.md" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
 ```
 
 If CHALLENGES_EXISTS: scan for "biggest gap" or "question you're avoiding" — suggest turning those into data questions if the user hasn't specified one.
 
-**If PRODUCT_EXISTS:** read `.nanopm/PRODUCT.md`. Use it to *ground which events and features the metrics refer to* — map the question's funnel steps and key events onto the real product surfaces and core workflow before querying, so the analysis measures the right behavior. This read is advisory — if it's absent, proceed without it. If `PRODUCT.md`'s header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept."
+**If PRODUCT_EXISTS:** read `.nanopm/wiki/docs/product.md`. Use it to *ground which events and features the metrics refer to* — map the question's funnel steps and key events onto the real product surfaces and core workflow before querying, so the analysis measures the right behavior. This read is advisory — if it's absent, proceed without it. If the product page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: analyzing against a draft product concept."
 
 ## Phase 1: Define the question
 
@@ -149,9 +148,16 @@ Do not just dump numbers. Interpret every metric:
 
 **Triangulation:** If FEEDBACK.md exists, check for qualitative signal that confirms or contradicts the quantitative findings. A quantitative drop-off confirmed by user interview quotes is a strong signal. A number with no qualitative backing is a hypothesis, not a finding.
 
-## Phase 5: Write DATA.md
+## Phase 5: Write the wiki Data page
 
-Write to `.nanopm/DATA.md` (append if file exists — preserve prior analyses):
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_DATA_PATH="$(nanopm_wiki_doc_path data)"
+nanopm_wiki_doc_frontmatter pm-data evidence-backed "$(date +%Y-%m-%d)" "{sources}"
+echo "WRITE_TO: $_DATA_PATH"
+```
+
+Write the file at `$(nanopm_wiki_doc_path data)` as: (a) the frontmatter block emitted by `nanopm_wiki_doc_frontmatter` above (substitute `{sources}` with the real comma-separated sources, e.g. `posthog`, `amplitude`), then (b) the body below. Append a new analysis section if the file already exists — preserve prior analyses, keep the confidence markers (🟢🟡🔴) inline in the body:
 
 ```markdown
 ---
@@ -195,8 +201,8 @@ Usually answered by qualitative research — flag it for /pm-interview if releva
 Feed this analysis into the **memory wiki** (the compounding-knowledge layer; schema in
 `.nanopm/NANOPM-WIKI.md`) so behavioral evidence refines the persona pages and metrics refine the
 objective pages over time instead of being re-derived each run. **Advisory and non-blocking** —
-if anything fails or the host can't dispatch a subagent, note it and finish normally; DATA.md is
-already written.
+if anything fails or the host can't dispatch a subagent, note it and finish normally; the wiki data
+page is already written.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
@@ -207,7 +213,7 @@ If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Ag
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_ingest_prompt ".nanopm/DATA.md" "entities/personas (behavioral evidence) and entities/objectives (metrics)"
+nanopm_ingest_prompt "$(nanopm_wiki_doc_path data)" "entities/personas (behavioral evidence) and entities/objectives (metrics)"
 ```
 
 The subagent dedups each citation (`nanopm-ingest-agent citation-check`), writes through
@@ -220,13 +226,14 @@ review (`~/.nanopm/bin/nanopm-confidence-gate list`).
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -10 .nanopm/DATA.md | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-challenge-me\"}}"
+_DATA_PATH="$(nanopm_wiki_doc_path data)"
+nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -20 "$_DATA_PATH" | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-challenge-me\"}}"
 ```
 
 ## Completion
 
 Tell the user:
-- DATA.md updated
+- The wiki data page (`.nanopm/wiki/docs/data.md`) updated
 - The single most important finding in one sentence
 - The confidence level and what would increase it
 - Whether this data suggests running more interviews (/pm-interview) or moving to planning (/pm-challenge-me)

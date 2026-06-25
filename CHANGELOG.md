@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.21.0 — 2026-06-25
+
+### Wiki-canonical: everything nanopm generates now lives in the wiki
+
+0.19.0–0.20.0 built the memory wiki and wired the ingest loop, but skills still wrote
+flat `.nanopm/<X>.md` docs as their primary output and only *copied* a view into the
+wiki — a double-write that drifts. This release finishes the migration: the wiki is the
+single source of truth for everything nanopm produces, and a project's `.nanopm/` is now
+exactly the three-layer model the schema describes: `NANOPM-WIKI.md` (the contract) +
+`raw/` (immutable sources) + `wiki/` (all generated content).
+
+**What's different for you**
+
+- **Every skill writes the wiki, nothing else.** The 5 Define + 3 Plan skills, plus the
+  9 Discover/Daily-Ops skills (challenge-me, competitors-intel, user-feedback, interview,
+  data, discovery, weekly-update, standup, retro), write only into `.nanopm/wiki/docs/`
+  (and entity pages). No flat top-level docs, no `reasoning/` sidecars — the
+  Evidenced/Assumed rationale folds inline into each page's `## Provenance & assumptions`.
+  standup/retro/weekly-update write dated pages so history is kept.
+- **And they read it too.** Cross-skill context reads (pm-prd pulling personas/data,
+  pm-objectives reading challenges/feedback, pm-run/pm-retro, the Define mode-detection
+  scans) now resolve the wiki pages, with a legacy flat fallback for un-migrated projects.
+- **Tools and data are where they belong.** PRDs → `wiki/docs/prds/`, breakdown tasks →
+  `wiki/docs/tasks/`, handoffs → `wiki/docs/handoffs/`, the opportunity DB →
+  `wiki/entities/opportunities/`. Competitor intel (snapshots + reports + config) moved
+  from the incoherent `intel/` to `raw/competitors/`, matching the `competitors` entity.
+- **New `nanopm-export <section>`.** Renders a wiki section (company, current-work, a doc)
+  to one shareable markdown file on demand — generated output, never an edit surface — so
+  retiring the flat docs doesn't cost you "send me the brief."
+- **The macOS viewer follows.** It surfaces the migrated `wiki/docs/` pages under their
+  phases, reads provenance per-page instead of a sidecar file, recognizes PRDs/competitors
+  at their wiki paths, and the Run button works on the new locations.
+
+**Migration + safety**
+
+- `nanopm-migrate-to-wiki` relocates the whole tree (docs, sidecars→provenance, prds,
+  tasks, handoffs, opportunities, weekly-updates, competitor intel) and `--finalize`
+  removes the legacy copies only once mirrored — idempotent, dry-run-faithful, and scoped
+  to migrated docs so it never deletes a not-yet-routed skill's output.
+- New tier-1 `test/wiki-canonical.sh` is the regression gate: it fails the moment a
+  migrated skill regrows a flat write.
+
+**Follow-ups landed in this release**
+
+- **Dated series get their own folders.** Weekly updates and standups move from flat
+  `wiki/docs/weekly-update-<date>.md` to per-series folders `wiki/docs/weekly-updates/<date>.md`
+  and `standups/<date>.md` — the same layout as `prds/` and `tasks/`. A new
+  `nanopm_wiki_series_path <series> <date>` helper writes them, `nanopm-migrate-to-wiki`
+  relocates pre-existing flat pages, and the viewer groups each series under one
+  newest-first entry in Day to Day (structural, by folder prefix, not a filename guess).
+- **The index stays bounded.** `reindex` now emits one `## Collections` pointer line per
+  `docs/` subfolder (prds, tasks, weekly-updates, standups: title · N pages · latest date)
+  instead of listing every page — so a daily standup can't grow the always-loaded catalog
+  unboundedly. The `ingest → confidence-gate → reindex → log` loop is otherwise untouched
+  (these are doc-view writes, never gated entity writes).
+- **Fixes.** `nanopm_wiki_ensure` now scaffolds `raw/competitors/` (it lagged the
+  `intel/`→`competitors/` rename, leaving a stray empty `raw/intel/` each run); the dead
+  `nanopm_reasoning_path` helper and the retired-sidecar surfacing in the preamble are gone.
+- **Viewer Settings.** A native macOS Settings window (⌘,) with a "Display entities" toggle
+  to hide the wiki entity groups from the sidebar.
+
 ## 0.20.0 — 2026-06-24
 
 ### Memory wiki, phase 2: the ingest loop is wired and verified

@@ -68,7 +68,12 @@ struct ReasoningWindowView: View {
 
     private func load() async {
         do {
-            content = try await ShellRunner.runAsync("cat \(ShellRunner.quote(context.absolutePath))")
+            let raw = try await ShellRunner.runAsync("cat \(ShellRunner.quote(context.absolutePath))")
+            // Wiki-canonical: the source is the doc page — show just its
+            // "## Provenance & assumptions" section. Legacy sidecar (no such heading):
+            // show the whole file. Either way the window reads the rationale, not the
+            // clean body twice.
+            content = ReasoningFiles.extractProvenance(raw) ?? raw
             loadError = nil
         } catch {
             content = nil
