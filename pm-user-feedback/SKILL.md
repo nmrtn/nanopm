@@ -60,11 +60,19 @@ echo "DOVETAIL: $_TIER_DOVETAIL | PRODUCTBOARD: $_TIER_PRODUCTBOARD | NOTION: $_
 
 List the sources that will be used (any tier 1-3). If all are tier 4: "No integrations detected — I'll ask you to describe your feedback manually."
 
-Also check for existing roadmap to enable "In Roadmap?" mapping:
+Also pull the current roadmap through the **query primitive** to enable "In Roadmap?"
+mapping — one read-side call that synthesizes the relevant wiki page instead of a
+bespoke per-doc read (the recipe pattern: query → reasoning → ingest). The raw page
+stays out of this run; you reason over the cited synthesis the query returns. Print the
+prompt and **dispatch it with the Agent tool** (one subagent); on a host with no Agent
+tool, follow its steps inline.
+
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-[ -f "$(nanopm_wiki_doc_path roadmap)" ] && echo "ROADMAP_EXISTS" || echo "ROADMAP_MISSING"
+nanopm_query_prompt "For mapping user feedback against the plan, list the current roadmap's NOW and NEXT items — each item's name and the user need it addresses — so each feedback theme can be marked addressed or not. Cite the source. If there is no roadmap page yet, say so." none
 ```
+
+Hold the returned synthesis for the Phase 4 mapping. If the synthesis reports no roadmap page exists, every theme will be marked "❌ not addressed" there.
 
 ## Phase 2: Fetch feedback data
 
@@ -254,14 +262,7 @@ Capture the clustering output.
 
 ## Phase 4: Map to roadmap
 
-If the roadmap exists, read it. For each theme from Phase 3, check if any NOW or NEXT item addresses it:
-
-```bash
-source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-[ -f "$(nanopm_wiki_doc_path roadmap)" ] && cat "$(nanopm_wiki_doc_path roadmap)"
-```
-
-For each theme: mark as "✅ addressed by: {roadmap item}" or "❌ not addressed".
+Using the roadmap synthesis returned in Phase 1, for each theme from Phase 3 check whether any NOW or NEXT item addresses it. For each theme: mark as "✅ addressed by: {roadmap item}" or "❌ not addressed". If the Phase 1 synthesis reported no roadmap page, mark every theme "❌ not addressed".
 
 ## Phase 5: Write the wiki Feedback page
 

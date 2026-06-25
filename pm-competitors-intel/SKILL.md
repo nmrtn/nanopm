@@ -48,21 +48,22 @@ nanopm_context_read pm-competitors-intel
 
 If a prior entry exists, show: "Last intel run: {ts}. Checking for changes since then."
 
-Check for the Define context docs (now canonical wiki pages) — they let the report compare us-vs-them on *real* positioning instead of a guess:
+Pull the Define/Plan context through the **query primitive** so the report compares
+us-vs-them on *real* positioning instead of a guess — one read-side call that
+synthesizes the relevant wiki pages instead of bespoke per-doc reads (the recipe
+pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason over
+the cited synthesis the query returns. Print the prompt and **dispatch it with the Agent
+tool** (one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-[ -f "$(nanopm_wiki_doc_path business-model)" ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
-[ -f "$(nanopm_wiki_doc_path product)"        ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
-[ -f "$(nanopm_wiki_doc_path strategy)"       ] && echo "STRATEGY_EXISTS"       || echo "STRATEGY_MISSING"
-[ -f ".nanopm/CONTEXT-SUMMARY.md" ] && echo "CONTEXT_EXISTS"       || echo "CONTEXT_MISSING"
+nanopm_query_prompt "For a competitive-intelligence report on our own product, synthesize from the wiki: our business model — pricing, packaging, and GTM motion; our real product surface — what we actually ship today, its features and API (and whether the product page is marked Completeness: draft); and our strategic bets and the positioning axes we actually compete on. Cite each claim. Name anything missing rather than inventing." none
 ```
 
-**If BUSINESS_MODEL_EXISTS:** read `$(nanopm_wiki_doc_path business-model)`. Frame competitor pricing/packaging changes against *our own* model and GTM motion in the Strategic implications, not in the abstract. In `analyze` mode it also seeds the positioning-matrix dimensions (pricing/packaging axes).
-
-**If PRODUCT_EXISTS:** read `$(nanopm_wiki_doc_path product)`. Compare competitor feature/API moves against *what we actually ship* so "closes the gap" / "opens the gap" calls are grounded in our real product surface. If the product page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: comparing against a draft product concept." In `analyze` mode this is the baseline the Analysis subagent scores each competitor against.
-
-**If STRATEGY_EXISTS:** read `$(nanopm_wiki_doc_path strategy)`. In `analyze` mode, draw the positioning-matrix dimensions from the strategic bets here (the axes you actually compete on). All reads are advisory — if a doc is absent, proceed without it (the Analysis/Positioning subagents degrade and say so).
+Reason over the returned synthesis (all of it advisory — if a piece is missing, proceed without it; the Analysis/Positioning subagents degrade and say so):
+- **Business model & GTM:** frame competitor pricing/packaging changes against *our own* model and GTM motion in the Strategic implications, not in the abstract. In `analyze` mode it also seeds the positioning-matrix dimensions (pricing/packaging axes).
+- **Product surface:** compare competitor feature/API moves against *what we actually ship* so "closes the gap" / "opens the gap" calls are grounded in our real product surface. If the synthesis reports the product page header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: comparing against a draft product concept." In `analyze` mode this is the baseline the Analysis subagent scores each competitor against.
+- **Strategic bets:** in `analyze` mode, draw the positioning-matrix dimensions from the strategic bets (the axes you actually compete on).
 
 ## Phase 1: Load or create competitors config
 

@@ -58,18 +58,21 @@ nanopm_context_read pm-interview
 
 If prior interview entries found: "Found {N} past sessions. This session builds on them — prior verdicts will inform the guide."
 
-Read prior context to understand which assumptions have already been tested and what signal exists.
+Read prior context to understand which assumptions have already been tested and what signal exists — through the **query primitive**, one read-side call that synthesizes the
+relevant wiki pages instead of bespoke per-doc reads (the recipe pattern: query →
+reasoning → ingest). The raw pages stay out of this run; you reason over the cited
+synthesis the query returns. Print the prompt and **dispatch it with the Agent tool**
+(one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-[ -f ".nanopm/wiki/docs/discovery.md" ] && echo "DISCOVERY_EXISTS" || echo "DISCOVERY_MISSING"
-_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f "$(nanopm_wiki_doc_path feedback)" ] && echo "FEEDBACK_EXISTS" || echo "FEEDBACK_MISSING"
-[ -f "$(nanopm_wiki_doc_path product)" ] && echo "PRODUCT_EXISTS" || echo "PRODUCT_MISSING"
+nanopm_query_prompt "To prepare a user interview, synthesize from the wiki: the product's real workflows and surfaces (and whether the product page is a draft — provenance nano-hypothesis); the single highest-risk or top-priority assumption from the latest discovery and/or challenge session; and which assumptions have already been tested plus what signal already exists in the feedback page. Cite each claim. Name anything missing rather than inventing." none
 ```
 
-**If PRODUCT_EXISTS:** read the wiki Product page at `.nanopm/wiki/docs/product.md`. Ground the interview guide in *what exists* — anchor the story-anchor behavior and workaround questions on the product's real workflows and surfaces, so you probe how users actually experience it rather than a hypothetical. This read is advisory — if it's absent, proceed without it. If the Product page's frontmatter shows `provenance: nano-hypothesis` (a draft, unconfirmed concept), surface a one-line non-blocking warning: "Note: interviewing against a draft product concept."
+Reason over the returned synthesis:
+- **Ground the guide in *what exists*** — anchor the story-anchor behavior and workaround questions on the product's real workflows and surfaces, so you probe how users actually experience it rather than a hypothetical. If no product context exists, proceed without it. If the synthesis reports the Product page is a draft (`provenance: nano-hypothesis`), surface a one-line non-blocking warning: "Note: interviewing against a draft product concept."
+- **Carry the top-risk assumption forward** — if discovery or a challenge session surfaced one, it becomes the suggested default focus in Phase 1.
+- **Note what's already tested** — use prior verdicts and existing feedback signal to avoid re-testing settled assumptions.
 
 ## Phase 1: Set the focus
 
@@ -88,9 +91,9 @@ Bad examples (too vague):
 - 'What users think of the product'
 - 'General feedback'
 
-If you have DISCOVERY.md or CHALLENGES.md open, I'll suggest the highest-risk assumption as a default."
+If a discovery or challenge session exists, I'll suggest the highest-risk assumption as a default."
 
-If DISCOVERY_EXISTS or CHALLENGES_EXISTS: extract the top-risk assumption and suggest it. Let the user confirm or override.
+If the Phase 0 synthesis surfaced a top-risk assumption (from discovery or a challenge session), suggest it. Let the user confirm or override.
 
 From the focus, extract or infer:
 - The **specific behavior** to anchor the story on (e.g., "the last time they chose what to watch")
@@ -109,7 +112,7 @@ Ask via AskUserQuestion:
 
 If you don't have someone yet, I can write a recruitment message."
 
-**If no subject yet:** write a 3-sentence recruitment message (LinkedIn or Slack) targeting the ideal profile from DISCOVERY.md/CHALLENGES.md context. Include: who you're looking for, what you want to talk about (problem, not your solution), and a clear ask (30-min call).
+**If no subject yet:** write a 3-sentence recruitment message (LinkedIn or Slack) targeting the ideal profile from the Phase 0 synthesis (discovery / challenge context). Include: who you're looking for, what you want to talk about (problem, not your solution), and a clear ask (30-min call).
 
 **Interview type detection:** Based on the relationship to the problem, classify the session:
 - **Current user** → use story-based (Torres) + JTBD ongoing use questions
