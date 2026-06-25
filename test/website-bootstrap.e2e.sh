@@ -109,11 +109,14 @@ fi
 # ── Scenario C: No URL provided ───────────────────────────────────────────────
 section "C: No URL provided (user skips)"
 
-# Reset state
-rm -f "$_TMPDIR/.nanopm/config" 2>/dev/null || true
-
 # Re-source
 source "$_REPO_ROOT/lib/nanopm.sh"
+
+# Reset state: clear the per-project config the earlier scenarios wrote. The
+# company_website key does NOT live at $_TMPDIR/.nanopm/config — nanopm_config_set
+# stores it at the path nanopm_config_file_for resolves — so resolve that real path
+# and remove it, otherwise Scenario B's beta.example.com leaks into this skip case.
+rm -f "$(_nanopm_config_file_for company_website 2>/dev/null)" 2>/dev/null || true
 
 # Simulate user skipping — nothing written to config
 # Verify nothing is in config

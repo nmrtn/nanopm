@@ -110,6 +110,88 @@ else
   fail "nanopm_plan_brief_prompt does not read .nanopm/wiki/docs/ (still flat?)"
 fi
 
+echo
+echo "  Confidence gate removed (engine refactor)"
+# The Karpathy-faithful engine retired the pre-write confidence gate: writes apply
+# directly and quality is enforced after the fact by the judgment lint (NANOPM-WIKI.md
+# §11). This section is the regression gate — if the gate ever comes back, it fails red.
+if [ -e "$_REPO_ROOT/bin/nanopm-confidence-gate" ]; then
+  fail "bin/nanopm-confidence-gate still present (must be retired)"
+else
+  ok "bin/nanopm-confidence-gate retired"
+fi
+# No live invocation of the gate binary anywhere in lib / bins / skills.
+_gate_calls=$(grep -rnE "nanopm-confidence-gate" "$_LIB" "$_REPO_ROOT/bin" "$_REPO_ROOT"/pm-*/SKILL.md 2>/dev/null || true)
+if [ -n "$_gate_calls" ]; then
+  fail "live nanopm-confidence-gate references remain:"
+  printf '%s\n' "$_gate_calls" | head -5 | sed 's/^/        /'
+else
+  ok "no nanopm-confidence-gate references in lib, bins, or skills"
+fi
+# The drainer for the old review queue is gone (function + preamble call).
+if grep -qE "^nanopm_load_reviews\(\)" "$_LIB"; then
+  fail "nanopm_load_reviews() still defined in lib (review queue not removed)"
+elif awk '/^nanopm_preamble\(\)/{f=1} f{print} f&&/^}/{exit}' "$_LIB" | grep -q "nanopm_load_reviews"; then
+  fail "nanopm_preamble still calls nanopm_load_reviews (review surfacing not removed)"
+else
+  ok "nanopm_load_reviews removed (function + preamble call)"
+fi
+# The locked write the gate provided now lives in nanopm-ingest-agent `apply`.
+if grep -qE "add_parser\(\"apply\"" "$_REPO_ROOT/bin/nanopm-ingest-agent"; then
+  ok "nanopm-ingest-agent has an 'apply' subcommand (direct locked write)"
+else
+  fail "nanopm-ingest-agent missing 'apply' subcommand (gate's locked write not preserved)"
+fi
+# The ingest prompt writes via apply, not the gate.
+if awk '/^nanopm_ingest_prompt\(\)/{f=1} f{print} f&&/^}/{exit}' "$_LIB" | grep -q "nanopm-ingest-agent apply"; then
+  ok "nanopm_ingest_prompt writes via 'nanopm-ingest-agent apply' (gate-free)"
+else
+  fail "nanopm_ingest_prompt does not use 'nanopm-ingest-agent apply'"
+fi
+
+echo
+echo "  Judgment lint wired (engine refactor)"
+# The query primitive (read side of the recipe) exists.
+if grep -qE "^nanopm_query_prompt\(\)" "$_LIB"; then
+  ok "nanopm_query_prompt() defined in lib (the recipe read primitive)"
+else
+  fail "nanopm_query_prompt() missing from lib"
+fi
+# The judgment-lint prompt is gate-free and surfaces findings to the log.
+_lint_body=$(awk '/^nanopm_lint_prompt\(\)/{f=1} f{print} f&&/^}/{exit}' "$_LIB")
+if printf '%s' "$_lint_body" | grep -q "nanopm-confidence-gate"; then
+  fail "nanopm_lint_prompt still routes through the confidence gate"
+elif printf '%s' "$_lint_body" | grep -q "log --op lint"; then
+  ok "nanopm_lint_prompt is gate-free and surfaces findings via 'log --op lint'"
+else
+  fail "nanopm_lint_prompt does not surface findings to log.md (log --op lint missing)"
+fi
+# The dispatch trigger is wired into the throttled preamble check.
+if awk '/^nanopm_wiki_lint_check\(\)/{f=1} f{print} f&&/^}/{exit}' "$_LIB" | grep -q "LINT_JUDGMENT_DUE"; then
+  ok "nanopm_wiki_lint_check emits LINT_JUDGMENT_DUE (judgment-lint dispatch trigger)"
+else
+  fail "nanopm_wiki_lint_check does not emit LINT_JUDGMENT_DUE (judgment lint not wired)"
+fi
+# Behavioral: a wiki with a seeded cross-page contradiction (2 entity pages) fires the
+# dispatch trigger that would surface it. Run in a child bash with an empty HOME so the
+# trigger proves it fires independent of the structural pre-filter bin being installed.
+_TMPL=$(mktemp -d)
+mkdir -p "$_TMPL/home" "$_TMPL/.nanopm/wiki/entities/personas"
+printf '%s\n' '# Wiki Index' > "$_TMPL/.nanopm/wiki/index.md"
+printf -- '---\nid: theo\ntype: persona\ntitle: "Theo"\n---\n## Summary\nLives in the terminal; never touches a GUI.\n' > "$_TMPL/.nanopm/wiki/entities/personas/theo.md"
+printf -- '---\nid: nina\ntype: persona\ntitle: "Nina"\n---\n## Summary\nRefuses the terminal; only uses the GUI.\n' > "$_TMPL/.nanopm/wiki/entities/personas/nina.md"
+_LINT_OUT=$(HOME="$_TMPL/home" bash -c '
+  source "'"$_LIB"'"
+  _nanopm_project_root() { echo "'"$_TMPL"'"; }
+  nanopm_wiki_lint_check 2>/dev/null
+' 2>/dev/null || true)
+rm -rf "$_TMPL"
+if printf '%s' "$_LINT_OUT" | grep -q "LINT_JUDGMENT_DUE"; then
+  ok "seeded 2-page contradiction triggers the LINT_JUDGMENT_DUE dispatch"
+else
+  fail "seeded contradiction did NOT trigger LINT_JUDGMENT_DUE (judgment lint would not run)"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "  ─────────────────────────────"
