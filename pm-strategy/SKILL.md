@@ -35,46 +35,38 @@ nanopm_context_read pm-strategy
 
 If found: "Prior strategy found from {ts}. This run will produce a revised strategy."
 
-## Phase 1: Context assembly
+## Phase 1: Context assembly (query the wiki)
 
-Read upstream artifacts if they exist:
+Read upstream context through the **query primitive** — one read-side call that
+synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
+pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason
+over the cited synthesis the query returns. Print the prompt and **dispatch it with
+the Agent tool** (one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f "$(nanopm_wiki_doc_path objectives)"      ] && echo "OBJECTIVES_EXISTS"     || echo "OBJECTIVES_MISSING"
-[ -f "$(nanopm_wiki_doc_path personas)"        ] && echo "PERSONAS_EXISTS"       || echo "PERSONAS_MISSING"
-[ -f ".nanopm/wiki/docs/feedback.md"                     ] && echo "FEEDBACK_EXISTS"       || echo "FEEDBACK_MISSING"
-[ -f "$(nanopm_wiki_doc_path vision-mission)"  ] && echo "VISION_MISSION_EXISTS" || echo "VISION_MISSION_MISSING"
-[ -f "$(nanopm_wiki_doc_path business-model)"  ] && echo "BUSINESS_MODEL_EXISTS" || echo "BUSINESS_MODEL_MISSING"
-[ -f "$(nanopm_wiki_doc_path product)"         ] && echo "PRODUCT_EXISTS"        || echo "PRODUCT_MISSING"
+nanopm_query_prompt "For product strategy, synthesize from the wiki: the mission/vision; the business model, pricing, and GTM motion; the current product map and its completeness; the primary persona and their job-to-be-done; the loudest unaddressed user feedback; the current objectives/OKRs; and the top gaps from the latest challenge session. Cite each claim." none
 ```
 
-**If VISION_MISSION_EXISTS:** read `.nanopm/wiki/docs/vision-mission.md`. The strategy must *serve the mission* — the bet should be a credible step toward the stated mission/vision, not a detour from it. If the bet pulls away from the mission, name that tension explicitly.
+Reason over the returned synthesis — the bet must:
+- **serve the mission** — a credible step toward the stated mission/vision, not a detour; name any tension explicitly.
+- **win commercially** — pressure-test against the business model, pricing, and GTM motion. A bet that grows usage but doesn't move the business is incomplete; say how it pays off.
+- **fit the current product** — ground the position and "How we win" in the real product map, not an imagined one. If the product context is marked `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
+- **win for the primary persona** — name which persona the strategy is built around; flag any drift to the anti-persona or a quiet broadening to "everyone."
+- **address the loudest user signal** — the top unaddressed feedback theme — or explicitly explain why it doesn't.
 
-**If BUSINESS_MODEL_EXISTS:** read `.nanopm/wiki/docs/business-model.md`. The strategy must *win commercially* — pressure-test the bet against the business model, pricing, and GTM motion. A bet that grows usage but doesn't move the business is incomplete; say how it pays off.
-
-**If PRODUCT_EXISTS:** read `.nanopm/wiki/docs/product.md`. The strategy must *fit what exists* — ground the position and "How we win" in the current product map, not an imagined product. If the page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept." All three reads are advisory — if a doc is absent, proceed without it.
-
-**If FEEDBACK.md exists:** read it before drafting strategy. The top unaddressed signal is the most grounded input you have — the bet should either address it directly or explicitly explain why it doesn't. A strategy that ignores the loudest user signal is a strategy with a named gap.
-
-**If PERSONAS.md exists:** read it. The bet must win for the **primary persona** — name which persona the strategy is built around. A strategy that wins for the anti-persona, or that quietly broadens to "everyone," is off-target. If the strategy deliberately shifts the target user, say so explicitly and explain why.
-
-Read any that exist. The richer the context, the better the strategy.
-
-If both are missing: warn the user — "Strategy without a challenge session or objectives is guesswork. Consider running /pm-challenge-me and /pm-objectives first. Continuing with available context."
+If the synthesis surfaces neither objectives nor a challenge session, warn the user: "Strategy without a challenge session or objectives is guesswork. Consider running /pm-challenge-me and /pm-objectives first. Continuing with available context."
 
 ## Phase 2: One clarifying question (only if needed)
 
-**Before asking**, derive the bet by cross-referencing:
-1. OBJECTIVES.md Objective 1 — the primary objective often names a directional choice
-2. CHALLENGES.md Section 3 (biggest gap) — the gap implies the bet needed to close it
-3. CHALLENGES.md Section 4, Challenge 1 (the question you're avoiding) — the bet is often the answer to that question
+**Before asking**, derive the bet by cross-referencing the Phase 1 synthesis:
+1. the primary objective — it often names a directional choice
+2. the biggest gap from the challenge session — the gap implies the bet needed to close it
+3. the question you're avoiding (the top challenge) — the bet is often its answer
 
 If a clear, falsifiable directional hypothesis emerges from this cross-reference, state it and skip Phase 2: "Derived bet: {hypothesis}. Proceeding with strategy."
 
-Only ask if the bet is genuinely ambiguous after reading all three sources:
+Only ask if the bet is genuinely ambiguous after weighing all three:
 
 **"What is your primary strategic bet for this period — the one decision that, if right, changes everything? (e.g., 'go enterprise before SMB', 'API-first over UI', 'vertical niche X before expanding')"**
 

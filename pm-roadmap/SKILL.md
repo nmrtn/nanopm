@@ -41,28 +41,23 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_context_read pm-roadmap
 ```
 
-## Phase 1: Context assembly
+## Phase 1: Context assembly (query the wiki)
 
-Read upstream artifacts:
+Read upstream context through the **query primitive** — one read-side call that
+synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
+pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason
+over the cited synthesis. Print the prompt and **dispatch it with the Agent tool**
+(one subagent); on a host with no Agent tool, follow its steps inline.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_CHALLENGES="$(nanopm_wiki_doc_path challenges)"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/wiki/docs/challenges.md"; [ -f "$_CHALLENGES" ] || _CHALLENGES=".nanopm/AUDIT.md"  # legacy pre-rename name
-[ -f "$_CHALLENGES" ] && echo "CHALLENGES_EXISTS" || echo "CHALLENGES_MISSING"
-[ -f "$(nanopm_wiki_doc_path objectives)" ] && echo "OBJECTIVES_EXISTS" || echo "OBJECTIVES_MISSING"
-[ -f "$(nanopm_wiki_doc_path strategy)"   ] && echo "STRATEGY_EXISTS"   || echo "STRATEGY_MISSING"
-[ -f "$(nanopm_wiki_doc_path personas)"   ] && echo "PERSONAS_EXISTS"   || echo "PERSONAS_MISSING"
-[ -f "$(nanopm_wiki_doc_path feedback)"   ] && echo "FEEDBACK_EXISTS"   || echo "FEEDBACK_MISSING"
-[ -f "$(nanopm_wiki_doc_path product)"    ] && echo "PRODUCT_EXISTS"    || echo "PRODUCT_MISSING"
+nanopm_query_prompt "For a product roadmap, synthesize from the wiki: the current strategy, its bet, and its cheapest test; the objectives and their key results; the current product map and its completeness; the primary persona and their job-to-be-done; the top user-feedback themes and whether each is already on the roadmap; and the top gaps from the latest challenge session. Cite each claim." none
 ```
 
-Read any that exist (wiki pages live under `.nanopm/wiki/docs/<slug>.md`). A roadmap without strategy is a to-do list. Warn if the strategy page is missing.
-
-**If the product page exists:** read it. Sequence items *realistically against the current product* — what's already built dictates ordering, dependencies, and effort estimates, so anchor NOW/NEXT on real surfaces rather than greenfield assumptions. This read is advisory — if it's absent, proceed without it. If the product page's header shows `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
-
-**If the personas page exists:** read it. Every NOW/NEXT item should serve the **primary persona** — for each item, the implicit question is "which persona does this help, and how?" Items that only serve the anti-persona are prime candidates for LATER or for cutting. Flag any NOW item that doesn't map to a persona.
-
-**If the feedback page exists:** read the top themes and their roadmap-mapping (the "In Roadmap?" column). When writing the NOW/NEXT sections, mark items that directly address a high-severity unaddressed theme with a `📣 signal-backed` tag. Items without any feedback signal should not be deprioritized, but the signal-backed ones have validated demand.
+Reason over the returned synthesis. A roadmap without a strategy is a to-do list — if the synthesis surfaces no strategy/bet, warn the user before continuing. Then:
+- **Sequence realistically against the current product** — what's already built dictates ordering, dependencies, and effort, so anchor NOW/NEXT on real surfaces, not greenfield assumptions. If the product context is marked `Completeness: draft`, surface a one-line non-blocking warning: "Note: planning on a draft product concept."
+- **Serve the primary persona** — every NOW/NEXT item should answer "which persona does this help, and how?" Items that only serve the anti-persona are candidates for LATER or cutting; flag any NOW item that maps to no persona.
+- **Tag signal-backed items** — mark NOW/NEXT items that directly address a high-severity unaddressed feedback theme with a `📣 signal-backed` tag. Items without a feedback signal aren't deprioritized, but signal-backed ones have validated demand.
 
 ## Phase 2: Connector data pull
 
@@ -105,7 +100,7 @@ Ask as SEPARATE sequential AskUserQuestion calls — one call per question, neve
 
 **All other methodologies (Kanban, hybrid, none, not set):**
 - Q1: Check CONTEXT.md Q8 for team size. For a solo project (1 person), default to 1 eng-week per month and skip Q1: "Assuming ~1 eng-week/month for solo project (from CONTEXT.md Q8). Correct this if your actual pace differs." Only ask Q1 if team size is unclear or multi-person.
-- Q2: Check the strategy page (`.nanopm/wiki/docs/strategy.md`) "Cheapest test" — if it names a concrete action, surface it: "The strategy's cheapest test is: {action}. Is this the top NOW item, or is there something more important?" Only ask Q2 from scratch if the strategy page has no cheapest test or the user wants something different.
+- Q2: From the Phase 1 synthesis, the strategy's "Cheapest test" — if it names a concrete action, surface it: "The strategy's cheapest test is: {action}. Is this the top NOW item, or is there something more important?" Only ask Q2 from scratch if the synthesis has no cheapest test or the user wants something different.
 
 Stop after 2 questions. If both are answerable from context, skip Phase 3 entirely.
 
@@ -284,8 +279,8 @@ Strategy: {one-line strategy bet from STRATEGY.md}
 
 **Rules for writing the roadmap (all formats):**
 - Committed items must be achievable given stated capacity/appetite. If not, say so and recommend cuts.
-- Every committed item must tie to at least one Objective or KR from the objectives page (`.nanopm/wiki/docs/objectives.md`).
-- If no objectives page exists, tie items to the strategic bet from the strategy page (`.nanopm/wiki/docs/strategy.md`).
+- Every committed item must tie to at least one Objective or KR from the synthesis (the objectives page).
+- If the synthesis surfaced no objectives, tie items to the strategic bet from the strategy instead.
 - Every NOW item must have an outcome statement: "Ship X so {user} can {do Y}, measured by {metric}." A roadmap item without an outcome is a task, not a product decision.
 - "Not commitments" sections (cool-down, icebox, LATER) are not junk drawers — only items with clear future value.
 
