@@ -27,6 +27,8 @@ struct ProjectView: View {
     // Which phases have their "Entities" group expanded (entities appear in several
     // phases, so a single bool would toggle them all together).
     @State private var expandedEntityPhases: Set<Phase> = []
+    // Settings → "Display entities": hide the wiki entity groups from the nav when off.
+    @AppStorage(AppSettings.displayEntities) private var displayEntities = true
 
     private var activeRunCount: Int {
         runManager.runs.filter(\.isActive).count
@@ -289,13 +291,16 @@ struct ProjectView: View {
                 && !isDatedSeriesDoc(artifact.relativePath)
         }
         let entities = entityArtifacts(for: phase)
+        // Settings → "Display entities" hides the entity groups from the nav (the
+        // entity pages stay out of the flat rows either way — they're the substrate).
+        let showEntities = displayEntities && !entities.isEmpty
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         // Brainstorm is an always-on interactive surface (not artifact-driven),
         // pinned at the top of DAY TO DAY so it's always reachable.
         let showBrainstorm = phase == .daily
-        if hasOverview || !items.isEmpty || !entities.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
+        if hasOverview || !items.isEmpty || showEntities || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
                 if showBrainstorm {
@@ -310,7 +315,7 @@ struct ProjectView: View {
                         .help(".nanopm/" + artifact.relativePath)
                         .listRowInsets(Self.childRowInsets)
                 }
-                if !entities.isEmpty {
+                if showEntities {
                     entitiesEntry(phase: phase, entities: entities).listRowInsets(Self.childRowInsets)
                 }
                 if phase == .daily {

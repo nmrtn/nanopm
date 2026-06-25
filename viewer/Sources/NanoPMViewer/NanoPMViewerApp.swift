@@ -38,6 +38,11 @@ struct NanoPMViewerApp: App {
             }
         }
         .defaultSize(width: 620, height: 760)
+
+        // Native macOS Settings window (⌘, , under the NanoPM Viewer menu).
+        Settings {
+            SettingsView()
+        }
     }
 
     static let activityWindowID = "activity-monitor"
