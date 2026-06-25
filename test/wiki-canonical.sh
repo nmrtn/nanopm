@@ -77,10 +77,13 @@ for i in "${!_SKILLS[@]}"; do
   skill="${_SKILLS[$i]}"
   f="$_REPO_ROOT/$skill/SKILL.md"
   [ -f "$f" ] || continue
-  if grep -q "nanopm_wiki_doc_path" "$f"; then
-    ok "$skill — routes to nanopm_wiki_doc_path"
+  # Most skills write a singleton doc page (nanopm_wiki_doc_path); the dated series
+  # skills (pm-weekly-update, pm-standup) write into a per-series folder via
+  # nanopm_wiki_series_path. Either counts as "routed to the wiki".
+  if grep -qE "nanopm_wiki_doc_path|nanopm_wiki_series_path" "$f"; then
+    ok "$skill — routes to a wiki write helper"
   else
-    fail "$skill — never calls nanopm_wiki_doc_path (not routed to the wiki)"
+    fail "$skill — never calls nanopm_wiki_doc_path / _series_path (not routed to the wiki)"
   fi
 done
 
@@ -93,7 +96,7 @@ if awk '/^nanopm_preamble\(\)/{f=1} f{print} f&&/^}/{exit}' "$_LIB" | grep -q "n
 else
   fail "nanopm_preamble does not call nanopm_wiki_ensure (R4 — wiki not guaranteed)"
 fi
-for fn in nanopm_wiki_doc_path nanopm_wiki_doc_frontmatter nanopm_wiki_ensure; do
+for fn in nanopm_wiki_doc_path nanopm_wiki_series_path nanopm_wiki_doc_frontmatter nanopm_wiki_ensure; do
   if grep -q "^$fn()" "$_LIB"; then
     ok "$fn() defined in lib"
   else

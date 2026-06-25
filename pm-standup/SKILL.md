@@ -24,7 +24,7 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
 nanopm_preamble
 # Standup briefings are DATED wiki docs — one page per day, history preserved
 # (never overwritten). Today's page resolves inline:
-_STANDUP_FILE="$(nanopm_wiki_doc_path "standup-$(date +%F)")"  # .nanopm/wiki/docs/standup-YYYY-MM-DD.md
+_STANDUP_FILE="$(nanopm_wiki_series_path standups "$(date +%F)")"  # .nanopm/wiki/docs/standups/YYYY-MM-DD.md
 ```
 
 ## When to run this
@@ -178,17 +178,17 @@ DRIFT
 ## Phase 4: Write the dated wiki Standup page
 
 Resolve today's page with the helper and write the briefing there. Each run writes a
-**dated** wiki doc — `.nanopm/wiki/docs/standup-YYYY-MM-DD.md`, one page per day — so
-standup history is preserved rather than overwritten. Yesterday's standup stays on disk;
-today gets its own page.
+**dated** wiki doc — `.nanopm/wiki/docs/standups/YYYY-MM-DD.md`, one page per day in the
+`standups/` series folder (the prds/-style layout) — so standup history is preserved
+rather than overwritten. Yesterday's standup stays on disk; today gets its own page.
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-_STANDUP_FILE="$(nanopm_wiki_doc_path "standup-$(date +%F)")"  # .nanopm/wiki/docs/standup-YYYY-MM-DD.md
+_STANDUP_FILE="$(nanopm_wiki_series_path standups "$(date +%F)")"  # .nanopm/wiki/docs/standups/YYYY-MM-DD.md
 nanopm_wiki_doc_frontmatter pm-standup evidence-backed "$(date +%Y-%m-%d)" "{sources}"
 ```
 
-Write the file at `$(nanopm_wiki_doc_path "standup-$(date +%F)")` as: (a) the frontmatter
+Write the file at `$(nanopm_wiki_series_path standups "$(date +%F)")` as: (a) the frontmatter
 block emitted by `nanopm_wiki_doc_frontmatter` above (substitute `{sources}` with the real
 comma-separated connectors/docs used — e.g. `github,linear,calendar,granola,roadmap`), then
 (b) the SAME briefing body rendered in Phase 3. Do not overwrite any prior day's page.

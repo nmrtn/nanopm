@@ -8,6 +8,11 @@ enum NavRoute {
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
     static func overview(_ phase: Phase) -> String { "overview:" + phase.rawValue }
+    static let seriesPrefix = "series:"
+    /// A dated-series folder (weekly-updates/, standups/). The overview card's
+    /// "N documents" link carries this so ProjectView opens the newest page under
+    /// the prefix — the catalog can't name a specific dated file statically.
+    static func series(_ folderPrefix: String) -> String { seriesPrefix + folderPrefix }
 }
 
 /// One runnable skill in a phase overview: what it produces, where it lands,
@@ -72,8 +77,11 @@ enum SkillCatalog {
     /// the overview pages. Nil when no catalog skill owns the path.
     static func icon(forArtifact relativePath: String) -> String? {
         all.first { doc in
-            if case .file(let path) = doc.output { return fileMatches(output: path, artifact: relativePath) }
-            return false
+            switch doc.output {
+            case .file(let path): return fileMatches(output: path, artifact: relativePath)
+            case .folder(let prefix, _): return relativePath.hasPrefix(prefix)
+            case .handoff: return false
+            }
         }?.icon
     }
 
@@ -248,7 +256,7 @@ enum SkillCatalog {
             icon: "sunrise",
             skillCommand: "/pm-standup",
             headlessArgs: nil,
-            phase: .daily, output: .file("STANDUP.md")
+            phase: .daily, output: .folder(prefix: "wiki/docs/standups/", opens: NavRoute.series("wiki/docs/standups/"))
         ),
         SkillDoc(
             title: "Weekly Update",
@@ -256,7 +264,7 @@ enum SkillCatalog {
             icon: "envelope",
             skillCommand: "/pm-weekly-update",
             headlessArgs: "Ask the user (via the interface contract) which audience the update is for (manager, CEO, investors, team) if it is not obvious from prior context.",
-            phase: .daily, output: .file("WEEKLY_UPDATE.md")
+            phase: .daily, output: .folder(prefix: "wiki/docs/weekly-updates/", opens: NavRoute.series("wiki/docs/weekly-updates/"))
         ),
         SkillDoc(
             title: "Challenge Me",

@@ -1477,6 +1477,12 @@ drills in. This replaces loading the raw log and avoids embedding-based search a
 current scale. Grouped by section -> entity type. One line per page:
 `**[title](relative/path.md)** · <type> · <provenance> · <last_updated> — <one-line summary>`
 
+Foldered `docs/` collections (prds/, tasks/, weekly-updates/, standups/, …) are NOT
+listed page-by-page — that would let a dated series grow the always-loaded catalog
+unboundedly. Each gets ONE bounded pointer line under a `## Collections` group
+(`**[Title](docs/<folder>/)** · <N> pages · latest <date> — collection; read the
+folder for individual pages`); the agent drills into the folder for the entries.
+
 ## 8. `log.md` — the heartbeat (append-only)
 
 One line per operation, greppable by a consistent prefix:
@@ -1621,6 +1627,26 @@ nanopm_wiki_doc_path() {
   slug=$(printf '%s' "$1" | sed 's#.*/##; s#\.md$##' | tr '[:upper:]' '[:lower:]' | tr ' _' '--' | sed 's/^pm-//; s/[^a-z0-9-]//g')
   mkdir -p "$root/.nanopm/wiki/docs" 2>/dev/null
   printf '%s\n' "$root/.nanopm/wiki/docs/${slug}.md"
+}
+
+nanopm_wiki_series_path() {
+  # Usage: nanopm_wiki_series_path <series> <date>
+  #   e.g. nanopm_wiki_series_path weekly-updates 2026-06-15
+  #   ->   <root>/.nanopm/wiki/docs/weekly-updates/2026-06-15.md   (folder on demand)
+  # For DATED doc SERIES that accumulate one page per period (weekly updates,
+  # standups) — the folder counterpart of nanopm_wiki_doc_path's flat singletons,
+  # mirroring the prds/ and tasks/ subfolders. The viewer routes the whole folder to
+  # its phase by prefix (PhaseMapper), so the series groups structurally instead of by
+  # a date-suffix heuristic. <series> and <date> are sanitized to one safe path segment
+  # (lowercased, hyphenated, no slashes) so a caller can't escape docs/.
+  local root series date
+  root="$(_nanopm_project_root)"
+  series=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr ' _' '--' | sed 's#[^a-z0-9-]##g')
+  date=$(printf '%s' "$2" | sed 's#[^0-9-]##g')
+  [ -n "$series" ] || return 1
+  [ -n "$date" ] || date="undated"
+  mkdir -p "$root/.nanopm/wiki/docs/$series" 2>/dev/null
+  printf '%s\n' "$root/.nanopm/wiki/docs/$series/${date}.md"
 }
 
 nanopm_wiki_doc_frontmatter() {

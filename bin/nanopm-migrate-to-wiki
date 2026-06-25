@@ -389,17 +389,43 @@ def main() -> int:
                     dest_dir.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
 
-    # weekly-updates/<date>.md -> wiki/docs/weekly-update-<date>.md (dated docs, same
-    # pattern as standup/retro; the skill writes these directly now).
+    # Legacy root .nanopm/weekly-updates/<date>.md -> the wiki series folder
+    # wiki/docs/weekly-updates/<date>.md (the prds/-style layout; the skill writes the
+    # folder form directly now).
     wkdir = nano / "weekly-updates"
     if wkdir.is_dir():
         for f in sorted(wkdir.glob("*.md")):
-            dest = (wiki / "docs") / f"weekly-update-{f.name}"
+            dest = (wiki / "docs" / "weekly-updates") / f.name
             if not dest.exists():
                 did.append(f"doc    {dest.relative_to(project)}")
                 if not dry:
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
+
+    # Re-fold the FLAT dated series docs Phase 2 wrote into per-series folders:
+    # wiki/docs/weekly-update-<date>.md -> wiki/docs/weekly-updates/<date>.md, and
+    # standup-<date>.md -> wiki/docs/standups/<date>.md — matching prds/ and tasks/.
+    # The skills write the folder form directly now; this relocates any pre-existing
+    # flat pages. Idempotent (a page already in its folder is skipped) and MOVED, not
+    # copied, so the flat page can't linger as a duplicate the viewer would also show.
+    DATED_SERIES = (("weekly-update-", "weekly-updates"), ("standup-", "standups"))
+    if docs_dir.is_dir():
+        for f in sorted(docs_dir.glob("*.md")):
+            for prefix, folder in DATED_SERIES:
+                if not f.name.startswith(prefix):
+                    continue
+                rest = f.name[len(prefix):]   # expect a bare ISO date page: YYYY-MM-DD.md
+                if not (rest.endswith(".md") and len(rest) == 13
+                        and rest[4] == "-" and rest[7] == "-"):
+                    continue
+                dest = docs_dir / folder / rest
+                if dest.exists():
+                    break
+                did.append(f"move   {dest.relative_to(project)} (from docs/{f.name})")
+                if not dry:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(f), str(dest))
+                break
 
     # 6. Events: repair + migrate the raw log --------------------------------
     sl = slug_for(project, args.slug)
@@ -548,15 +574,15 @@ def main() -> int:
                 did.append(f"rmdir  {ldir.relative_to(project)} (finalize)")
                 if not dry:
                     ldir.rmdir()
-        # 8e. weekly-updates/<date>.md -> mirrored as wiki/docs/weekly-update-<date>.md
-        # (renamed, so it can't share 8d's same-name logic).
+        # 8e. legacy root weekly-updates/<date>.md -> mirrored in the series folder
+        # wiki/docs/weekly-updates/<date>.md (same-name now, but in a subfolder).
         wkdir = nano / "weekly-updates"
         if wkdir.is_dir():
             entries = list(wkdir.iterdir())
             md_files = sorted(p for p in entries if p.suffix == ".md")
             removed = 0
             for f in md_files:
-                mirror = (wiki / "docs") / f"weekly-update-{f.name}"
+                mirror = (wiki / "docs" / "weekly-updates") / f.name
                 mirror_ready = (mirror.is_file() and mirror.stat().st_size > 0) or (dry and f.stat().st_size > 0)
                 if mirror_ready:
                     did.append(f"rm     {f.relative_to(project)} (finalize)")
@@ -564,7 +590,7 @@ def main() -> int:
                     if not dry:
                         f.unlink()
                 else:
-                    log(f"finalize: keeping {f.relative_to(project)} — docs/weekly-update-{f.name} missing/empty")
+                    log(f"finalize: keeping {f.relative_to(project)} — docs/weekly-updates/{f.name} missing/empty")
             non_md = [p for p in entries if p.suffix != ".md"]
             if not non_md and removed > 0 and removed == len(md_files):
                 did.append(f"rmdir  {wkdir.relative_to(project)} (finalize)")

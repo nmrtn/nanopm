@@ -46,6 +46,13 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
 # dir name; overview and docs are their own groups.
 ENTITY_ORDER = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
 
+# Pretty titles for docs/ subfolder collections (prds, tasks, …). Anything not
+# listed falls back to a hyphen->space title-case of the folder name.
+COLLECTION_TITLES = {
+    "prds": "PRDs", "tasks": "Tasks", "handoffs": "Handoffs",
+    "weekly-updates": "Weekly Updates", "standups": "Standups",
+}
+
 
 def err(msg: str) -> int:
     print(f"ERROR: {msg}", file=sys.stderr)
@@ -149,6 +156,40 @@ def collect_pages(wiki: Path) -> dict[str, list[dict]]:
     return groups
 
 
+def collect_collections(wiki: Path) -> list[dict]:
+    """One bounded entry per docs/ SUBFOLDER collection (prds, tasks, handoffs,
+    weekly-updates, standups, …). The flat per-page index (collect_pages) is
+    non-recursive on purpose, so dated series can't grow the always-loaded catalog
+    unboundedly (NANOPM-WIKI.md §7). This adds a single pointer line per collection
+    so an agent still knows the series exists and where to drill in. Generic: any
+    docs/ subfolder with markdown is covered, including future series."""
+    docs = wiki / "docs"
+    if not docs.is_dir():
+        return []
+    out: list[dict] = []
+    for sub in sorted(p for p in docs.iterdir() if p.is_dir()):
+        files = sorted(sub.glob("*.md"))
+        if not files:
+            continue
+        latest = ""
+        for f in files:
+            stem = f.stem
+            if len(stem) == 10 and stem[4] == "-" and stem[7] == "-":
+                d = stem          # dated-series page: the filename IS the period date
+            else:                 # slug-named page (prds/tasks): fall back to frontmatter
+                fm, _ = parse_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
+                d = fm.get("last_updated") or fm.get("generated") or ""
+            if d > latest:
+                latest = d
+        out.append({
+            "title": COLLECTION_TITLES.get(sub.name, sub.name.replace("-", " ").title()),
+            "path": sub.relative_to(wiki).as_posix() + "/",
+            "count": len(files),
+            "latest": latest,
+        })
+    return out
+
+
 def cmd_reindex(args) -> int:
     wiki = wiki_dir(args.project)
     if not wiki.is_dir():
@@ -180,6 +221,19 @@ def cmd_reindex(args) -> int:
             total += 1
         out.append("")
 
+    # Foldered collections (prds/, tasks/, weekly-updates/, standups/, …): one bounded
+    # pointer line each, so the catalog surfaces the series without listing every page.
+    collections = collect_collections(wiki)
+    if collections:
+        out.append("## Collections")
+        for c in collections:
+            n = c["count"]
+            bits = [f"**[{c['title']}]({c['path']})**", f"{n} page" + ("" if n == 1 else "s")]
+            if c["latest"]:
+                bits.append(f"latest {c['latest']}")
+            out.append("- " + " · ".join(bits) + " — collection; read the folder for individual pages")
+        out.append("")
+
     # Cross-link the opportunities DB if it lives at the legacy path (pre-backfill).
     opp_index = Path(args.project) / ".nanopm" / "opportunities" / "INDEX.md"
     if opp_index.is_file() and not any((wiki / "entities" / "opportunities").glob("*.md")):
@@ -191,8 +245,10 @@ def cmd_reindex(args) -> int:
     if not args.dry_run:
         with wiki_lock(args.project):
             (wiki / "index.md").write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
-    print(f"reindex: {total} page(s) across {sum(1 for g in order if groups.get(g))} group(s)"
-          + (" (dry-run)" if args.dry_run else " -> wiki/index.md"))
+    msg = f"reindex: {total} page(s) across {sum(1 for g in order if groups.get(g))} group(s)"
+    if collections:
+        msg += f" + {len(collections)} collection(s)"
+    print(msg + (" (dry-run)" if args.dry_run else " -> wiki/index.md"))
     return 0
 
 

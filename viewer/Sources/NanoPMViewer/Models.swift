@@ -246,6 +246,12 @@ enum PhaseMapper {
             // tasks/ are pm-breakdown outputs bound for external trackers — relocated
             // into the wiki for storage but kept hidden from the browser (as before).
             if lower.hasPrefix("wiki/docs/tasks/") { return nil }
+            // Dated series folders (weekly updates, standups): one page per period,
+            // grouped under a "Weekly Updates" / "Standups" entry in Day to Day. Routed
+            // by folder prefix — the filenames are bare dates, so the name match below
+            // would otherwise miss them.
+            if lower.hasPrefix("wiki/docs/weekly-updates/")
+                || lower.hasPrefix("wiki/docs/standups/") { return .daily }
             // wiki/docs/<skill>.md: a migrated doc — fall through to the filename
             // matching below (vision/strategy/feedback/... -> phase). Any other wiki
             // markdown lands in "Other".
