@@ -1033,6 +1033,9 @@ nanopm_retrieval_prompt() {
   # Define skills. The subagent judges relevance itself (no per-skill shortlist),
   # reads the WIKI (vNext, wiki-canonical), and returns a bounded digest + page
   # pointers. <doc-being-written> is the wiki doc page the skill is (re)writing.
+  # This is the read-side recipe primitive for Define cross-doc gathering — the
+  # digest-shaped sibling of nanopm_query_prompt (the recipe's READ step). Shared
+  # across the Define skills, not bespoke per-skill read logic.
   local skill="$1" doc="$2" sections="$3"
   cat <<EOF
 IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, or
@@ -1828,6 +1831,14 @@ EOF
 # skill's "read upstream artifacts" phase IS — so recipe-form skills call query for
 # reading instead of re-implementing bespoke read logic. On a host without an Agent
 # tool, the main agent follows these same steps inline (graceful fallback).
+#
+# The recipe's READ step has two shapes, both shared (never bespoke per-skill):
+#   - nanopm_query_prompt   — answer a specific question; optional file-back.
+#   - nanopm_retrieval_prompt — a bounded cross-doc DIGEST for a doc being (re)written
+#     (the Define skills' Phase 1b). Same engine (read index → drill → cited synthesis),
+#     digest-shaped output to protect the main agent's context.
+# Every reading skill calls one of these; none keep per-skill read plumbing. Reading a
+# skill's OWN prior output to refine it (refine mode) is a separate, legitimate read.
 nanopm_query_prompt() {
   # Usage: nanopm_query_prompt "<question>" ["<file-back slug>" | "none"]
   # The CLIs are installed under ~/.nanopm/bin and are NOT on PATH — emit absolute
