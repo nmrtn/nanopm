@@ -14,8 +14,17 @@ cp icon/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
 cp -R .build/release/NanoPMViewer_NanoPMViewer.bundle "$APP_DIR/Contents/Resources/"
 
 # App accent color (bleu nuit) — compiled asset catalog referenced by NSAccentColorName.
-xcrun actool assets/Accent.xcassets --compile "$APP_DIR/Contents/Resources" \
-  --platform macosx --minimum-deployment-target 14.0 > /dev/null
+# OPTIONAL: actool ships only with full Xcode. With just Command Line Tools it's
+# absent, so guard it — otherwise `set -e` aborts the build BEFORE Info.plist is
+# written, producing a bundle macOS rejects as "executable is missing". The app
+# runs fine without the accent (system tint).
+if xcrun --find actool >/dev/null 2>&1; then
+  xcrun actool assets/Accent.xcassets --compile "$APP_DIR/Contents/Resources" \
+    --platform macosx --minimum-deployment-target 14.0 > /dev/null \
+    || echo "NOTE: actool failed — skipping accent color (app still works, system tint)."
+else
+  echo "NOTE: actool not found (no full Xcode) — skipping accent color (app still works, system tint)."
+fi
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
