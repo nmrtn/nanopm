@@ -172,11 +172,11 @@ nanopm remembers across sessions, so each run builds on the last instead of star
 - **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated when their phase changes and reloaded into every run — so all work shares one baseline instead of drifting.
 - **Entity pages that compound.** Personas, competitors, opportunities, objectives, features, and people each get a page that many sources refine over time, with citations — new evidence supersedes old claims (keeping the history) instead of stacking duplicate notes.
 - **Just files + git.** No database, no server. A project's `.nanopm/` is two layers: `raw/` (immutable sources — connector pulls, the typed event log, page snapshots) and `wiki/` (all generated content — the briefs, skill outputs, compounding entity pages). Plain Markdown you can read, diff, and edit.
-- **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions (and warns when a `challenges`/`strategy` page drifts past 20 commits); an ingest pass dedupes by citation; a confidence gate holds ambiguous writes for your confirmation.
+- **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions (and warns when a `challenges`/`strategy` page drifts past 20 commits); an ingest pass dedupes by citation. Writes apply directly — there's no pre-write approval queue; quality is kept honest *after the fact* by the judgment lint (write freely, lint surfaces, you curate).
 
 Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — typed `bet`, `target`, `question`, `scope-out`… records, each carrying confidence (1–10) and provenance. Every write goes through a validator that enforces the schema and fails loud on bad input — no silent appends. Re-run `/pm-challenge-me` six months later and it reads the prior decisions before asking anything new.
 
-> **Status:** the always-loaded briefs and the maintenance loop are wired; the signal skills dispatch the ingest bookkeeper through the confidence gate after each run, and the lint health pass runs daily. Still maturing — ingest quality compounds as you feed it real interviews, feedback, and data, and not every skill writes entity pages yet.
+> **Status:** the always-loaded briefs and the maintenance loop are wired; the signal skills dispatch the ingest bookkeeper to write entity pages directly after each run, and the lint health pass (structural + judgment) runs daily. Still maturing — ingest quality compounds as you feed it real interviews, feedback, and data, and not every skill writes entity pages yet.
 
 ---
 
