@@ -42,6 +42,25 @@ exactly the three-layer model the schema describes: `NANOPM-WIKI.md` (the contra
 - New tier-1 `test/wiki-canonical.sh` is the regression gate: it fails the moment a
   migrated skill regrows a flat write.
 
+**Follow-ups landed in this release**
+
+- **Dated series get their own folders.** Weekly updates and standups move from flat
+  `wiki/docs/weekly-update-<date>.md` to per-series folders `wiki/docs/weekly-updates/<date>.md`
+  and `standups/<date>.md` — the same layout as `prds/` and `tasks/`. A new
+  `nanopm_wiki_series_path <series> <date>` helper writes them, `nanopm-migrate-to-wiki`
+  relocates pre-existing flat pages, and the viewer groups each series under one
+  newest-first entry in Day to Day (structural, by folder prefix, not a filename guess).
+- **The index stays bounded.** `reindex` now emits one `## Collections` pointer line per
+  `docs/` subfolder (prds, tasks, weekly-updates, standups: title · N pages · latest date)
+  instead of listing every page — so a daily standup can't grow the always-loaded catalog
+  unboundedly. The `ingest → confidence-gate → reindex → log` loop is otherwise untouched
+  (these are doc-view writes, never gated entity writes).
+- **Fixes.** `nanopm_wiki_ensure` now scaffolds `raw/competitors/` (it lagged the
+  `intel/`→`competitors/` rename, leaving a stray empty `raw/intel/` each run); the dead
+  `nanopm_reasoning_path` helper and the retired-sidecar surfacing in the preamble are gone.
+- **Viewer Settings.** A native macOS Settings window (⌘,) with a "Display entities" toggle
+  to hide the wiki entity groups from the sidebar.
+
 ## 0.20.0 — 2026-06-24
 
 ### Memory wiki, phase 2: the ingest loop is wired and verified
