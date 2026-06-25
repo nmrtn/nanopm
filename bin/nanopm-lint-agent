@@ -32,6 +32,10 @@ ALLOWED_RELS = {"contradicts", "supports", "extends", "supersedes", "responds-to
 REQUIRED_ENTITY_FM = ["id", "type", "title"]
 DEFAULT_STALE_DAYS = 120
 _LINK_RE = re.compile(r"\]\(([^)]+\.md)\)")
+# Entity-section housekeeping files (the opportunities DB's INDEX/LOG/SCHEMA) are not
+# entity pages — they carry no entity frontmatter and must not be lint-checked or
+# indexed. Same skiplist the opportunities dedup/reindex uses (lib/nanopm.sh).
+HOUSEKEEPING = {"INDEX.md", "LOG.md", "SCHEMA.md"}
 
 
 def wiki_dir(project: str) -> Path:
@@ -84,7 +88,8 @@ def entity_pages(wiki: Path) -> list[Path]:
     ent = wiki / "entities"
     if not ent.is_dir():
         return []
-    return sorted(p for sub in ent.iterdir() if sub.is_dir() for p in sub.glob("*.md"))
+    return sorted(p for sub in ent.iterdir() if sub.is_dir()
+                  for p in sub.glob("*.md") if p.name not in HOUSEKEEPING)
 
 
 def edge_target_exists(wiki: Path, target: str) -> bool:

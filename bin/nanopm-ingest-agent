@@ -46,6 +46,12 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
 # dir name; overview and docs are their own groups.
 ENTITY_ORDER = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
 
+# Entity-section housekeeping files (the opportunities DB's INDEX/LOG/SCHEMA) are not
+# entity pages: they carry no page frontmatter and must stay OUT of the always-loaded
+# catalog (LOG.md in particular must never enter index.md). Same skiplist the
+# opportunities dedup/reindex uses (lib/nanopm.sh).
+HOUSEKEEPING = {"INDEX.md", "LOG.md", "SCHEMA.md"}
+
 # Pretty titles for docs/ subfolder collections (prds, tasks, …). Anything not
 # listed falls back to a hyphen->space title-case of the folder name.
 COLLECTION_TITLES = {
@@ -150,6 +156,8 @@ def collect_pages(wiki: Path) -> dict[str, list[dict]]:
     if ent.is_dir():
         for sub in sorted(p for p in ent.iterdir() if p.is_dir()):
             for f in sorted(sub.glob("*.md")):
+                if f.name in HOUSEKEEPING:
+                    continue
                 add(sub.name, f)
     for f in sorted((wiki / "docs").glob("*.md")):
         add("docs", f)
