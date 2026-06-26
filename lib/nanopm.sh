@@ -1786,8 +1786,9 @@ Steps:
 1. Read .nanopm/NANOPM-WIKI.md and .nanopm/wiki/index.md to see what already exists.
 2. Read the source. Extract the durable claims (facts, signals, quotes) — not
    everything, only what should persist.
-3. For each claim, decide the entity page it belongs on (entities/<type>/<slug>.md).
-   Prefer UPDATING an existing page over creating a near-duplicate.
+3. For each claim, decide the entity page it belongs on
+   (wiki/entities/<type>/<slug>.md — always wiki/-prefixed; a bare entities/… path
+   writes outside the wiki). Prefer UPDATING an existing page over a near-duplicate.
 4. Dedup by citation BEFORE writing. For each claim's citation, run:
      ${bin}/nanopm-ingest-agent citation-check --target <page> --citation '<verbatim> — <source>, <date>'
    Pass the EXACT citation line you will write to the page (the same

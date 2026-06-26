@@ -24,6 +24,7 @@ _TESTS=(
   "gates.sh"
   "update-check.sh"
   "brief-stale.sh"
+  "ingest-path.sh"
   "headers.sh"
   "symphony-validator.sh"
   "context-threading.e2e.sh"
