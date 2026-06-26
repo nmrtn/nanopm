@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.23.0 — The discover→plan loop is closed
+
+The ranked opportunity database (the headline compounding artifact) was written by several
+skills but read by virtually none downstream — planning asked `query` for "feedback themes,"
+not "the opportunities." This completes the loop (no change to Guillaume's wiki model — it
+just sharpens the read questions, the way the read primitive is meant to be used).
+
+- **The "decide what to build" skills now read the ranked opportunities.** `pm-objectives`,
+  `pm-strategy`, `pm-roadmap`, and `pm-discovery` query for the top-ranked open opportunities
+  (and whether each is already addressed), alongside feedback themes. `pm-discovery`'s query
+  was widened from persona-only to also pull opportunities + feedback + product surface.
+- **The freshest signal reaches the always-loaded baseline.** `nanopm_plan_brief_prompt` now
+  reads `wiki/entities/opportunities/INDEX.md` and carries a "Top open opportunities" section,
+  and `/pm-opportunities` regenerates the plan brief at the end — so every run sees what we're
+  hearing, not just what we're doing.
+- Regression-gated by `test/opportunity-loop.sh`.
+
 ## 0.22.1 — Entity pages always land inside the wiki
 
 Fixes a path bug where ingest skills (e.g. `/pm-personas`) wrote entity pages to

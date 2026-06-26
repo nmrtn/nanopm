@@ -865,7 +865,9 @@ You maintain the Plan overview .nanopm/wiki/overview/current-work.md — the sin
 current-work brief a PM keeps in mind at all times (the plan counterpart to the
 Define overview .nanopm/wiki/overview/company.md). Read every one of these wiki Plan
 pages that exists: .nanopm/wiki/docs/objectives.md, .nanopm/wiki/docs/strategy.md,
-.nanopm/wiki/docs/roadmap.md. Synthesize them into ONE concise brief (~1 page, no fluff) and
+.nanopm/wiki/docs/roadmap.md, and the ranked opportunity list
+.nanopm/wiki/entities/opportunities/INDEX.md (the freshest "what we're hearing"
+signal). Synthesize them into ONE concise brief (~1 page, no fluff) and
 WRITE it to .nanopm/wiki/overview/current-work.md if the .nanopm/wiki/ directory
 exists (the canonical overview the loaders and viewer read) — when writing there,
 prepend an overview frontmatter block before the first heading (type: overview,
@@ -889,6 +891,11 @@ _More detail: `.nanopm/wiki/docs/objectives.md`_
 {Roadmap NOW items; a glance at NEXT.}
 _More detail: `.nanopm/wiki/docs/roadmap.md`_
 
+## Top open opportunities
+{The top 3-5 ranked open opportunities (problems worth solving) NOT yet on the roadmap,
+from the opportunity DB — the freshest signal the next plan should weigh.}
+_More detail: `.nanopm/wiki/entities/opportunities/INDEX.md`_
+
 ## What we're saying no to
 {Anti-goals from OBJECTIVES / STRATEGY — the no-list the agent must carry.}
 
@@ -897,11 +904,12 @@ _More detail: `.nanopm/wiki/docs/roadmap.md`_
 ```
 
 Rules: only state what the source docs support; mark inferences as `(assumed)`. End
-each of the first three sections with its italic "More detail" pointer — but only
-when that doc actually exists; drop the pointer otherwise. If a source doc is
-missing, name it under "Not yet planned" rather than inventing its content. Keep
-each section tight. No preamble in your reply — just write the file and report the
-path.
+each detail-backed section with its italic "More detail" pointer — but only when that
+page actually exists; drop the pointer otherwise. Drop the "Top open opportunities"
+section entirely if the opportunity DB (.nanopm/wiki/entities/opportunities/INDEX.md)
+doesn't exist. If a source doc is missing, name it under "Not yet planned" rather than
+inventing its content. Keep each section tight. No preamble in your reply — just write
+the file and report the path.
 EOF
 }
 

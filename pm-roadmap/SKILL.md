@@ -51,7 +51,7 @@ over the cited synthesis. Print the prompt and **dispatch it with the Agent tool
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_query_prompt "For a product roadmap, synthesize from the wiki: the current strategy, its bet, and its cheapest test; the objectives and their key results; the current product map and its completeness; the primary persona and their job-to-be-done; the top user-feedback themes and whether each is already on the roadmap; and the top gaps from the latest challenge session. Cite each claim." none
+nanopm_query_prompt "For a product roadmap, synthesize from the wiki: the current strategy, its bet, and its cheapest test; the objectives and their key results; the current product map and its completeness; the primary persona and their job-to-be-done; the top user-feedback themes and whether each is already on the roadmap; the top-ranked open opportunities from the opportunity database (wiki/entities/opportunities/, by rank) and whether each is already on the roadmap; and the top gaps from the latest challenge session. Cite each claim." none
 ```
 
 Reason over the returned synthesis. A roadmap without a strategy is a to-do list — if the synthesis surfaces no strategy/bet, warn the user before continuing. Then:
