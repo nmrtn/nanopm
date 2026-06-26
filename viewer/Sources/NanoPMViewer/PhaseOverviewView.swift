@@ -272,7 +272,7 @@ struct PhaseOverviewView: View {
     private func outputStatus(_ doc: SkillDoc) -> some View {
         switch doc.output {
         case .file(let path):
-            if let artifact = store.artifacts.first(where: { $0.relativePath == path }) {
+            if let artifact = store.artifacts.first(where: { SkillCatalog.fileMatches(output: path, artifact: $0.relativePath) }) {
                 openLink(artifact.fileName, route: artifact.id,
                          subtitle: "updated \(artifact.modifiedAt.formatted(.relative(presentation: .named)))")
             } else {
