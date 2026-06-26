@@ -60,6 +60,35 @@ echo "========================="
 
 If any artifacts already exist, tell the user: "Existing artifacts found — this run will refresh them. Prior context is preserved in memory and will inform the new outputs."
 
+## Phase 0c: Warm the briefs (self-heal after migration)
+
+The pipeline reads two always-loaded briefs — the **company brief**
+(`.nanopm/wiki/overview/company.md`) and the **plan brief**
+(`.nanopm/wiki/overview/current-work.md`). A just-migrated project can have the
+underlying wiki docs but **empty briefs**, so the run would start cold. Detect that and
+regenerate the missing brief(s) **up front**, before the pipeline reads context:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_brief_stale_check
+```
+
+- **If it prints `BRIEF_STALE company`:** dispatch a subagent (Agent tool) using the exact
+  context-brief regeneration prompt carried inline by `$(nanopm_skill_path pm-vision-mission)`
+  (its "refresh the consolidated PM context brief" step) — it writes
+  `.nanopm/wiki/overview/company.md` from whatever Define docs exist.
+- **If it prints `BRIEF_STALE current-work`:** emit the canonical plan-brief prompt and pass
+  it verbatim to a subagent (Agent tool) — it writes `.nanopm/wiki/overview/current-work.md`
+  from the existing objectives/strategy/roadmap:
+  ```bash
+  source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+  nanopm_plan_brief_prompt
+  ```
+- **If nothing is printed:** the briefs are warm — skip this phase silently (no cost).
+
+This runs once, so the rest of the pipeline reads real context instead of starting from
+scratch. After regenerating: "✅ Briefs warmed — pipeline will run with full context."
+
 ## Phase 0b: Establish Define context (advisory)
 
 The **Define** phase establishes the ground truth the rest of the pipeline reads — the company
