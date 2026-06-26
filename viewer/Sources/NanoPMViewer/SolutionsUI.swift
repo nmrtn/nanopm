@@ -12,7 +12,7 @@ struct Solution: Identifiable {
     let title: String
     let opportunity: String   // parent opportunity slug
     let lens: String          // eng | design | business | ""
-    let appetite: String      // small bet | big bet | ""
+    let appetite: String      // small-bet | big-bet | ""
     let impact: String        // high | med | low | ""
     let status: String        // proposed | shortlisted | chosen | speccing | ""
     let summary: String       // first line of the pitch / problem section
@@ -107,12 +107,17 @@ func parentOpportunityArtifactID(forSlug slug: String, in artifacts: [Artifact])
     }?.id
 }
 
-/// A solution's `opportunity` slug rendered as a human-friendly title (the
-/// parent opportunity's title when it's on disk, else the prettified slug).
-func parentOpportunityTitle(forSlug slug: String, in artifacts: [Artifact]) -> String {
+/// A solution's `opportunity` slug rendered as a human-friendly label by
+/// humanizing the slug (`payment-retries` → `Payment Retries`). Display only —
+/// navigation uses `parentOpportunityArtifactID`. We don't read the parent's
+/// authored title here because that needs an async content load the synchronous
+/// table rows don't have; the humanized slug is the honest cheap approximation.
+func parentOpportunityTitle(forSlug slug: String) -> String {
     let s = slug.lowercased()
     guard !s.isEmpty else { return "—" }
-    return prettyDocName(s)
+    return s.split(separator: "-")
+        .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+        .joined(separator: " ")
 }
 
 // MARK: - Badges
@@ -134,7 +139,13 @@ func solutionLensTint(_ v: String) -> Color {
     }
 }
 func solutionAppetiteTint(_ v: String) -> Color {
-    switch v { case "big bet": return .npCoral; case "small bet": return .npOlive; default: return .secondary }
+    // The schema writes hyphenated values (small-bet / big-bet); tolerate the
+    // space-separated spelling defensively, like impact tolerates med/medium.
+    switch v {
+    case "big-bet", "big bet": return .npCoral
+    case "small-bet", "small bet": return .npOlive
+    default: return .secondary
+    }
 }
 func solutionImpactTint(_ v: String) -> Color {
     switch v { case "high": return .npOlive; case "med", "medium": return .npAmber; case "low": return .secondary; default: return .secondary }
@@ -244,14 +255,14 @@ struct SolutionsOverviewView: View {
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.up.right").font(.caption2)
-                                    Text(parentOpportunityTitle(forSlug: s.opportunity, in: store.artifacts))
+                                    Text(parentOpportunityTitle(forSlug: s.opportunity))
                                         .lineLimit(1)
                                 }
                             }
                             .buttonStyle(.link)
                             .help("Open the parent opportunity")
                         } else {
-                            Text(s.opportunity.isEmpty ? "—" : parentOpportunityTitle(forSlug: s.opportunity, in: store.artifacts))
+                            Text(s.opportunity.isEmpty ? "—" : parentOpportunityTitle(forSlug: s.opportunity))
                                 .font(.callout)
                                 .foregroundStyle(s.opportunity.isEmpty ? .tertiary : .secondary)
                                 .lineLimit(1)
@@ -363,7 +374,7 @@ struct SolutionDetailView: View {
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "arrow.up.left").font(.caption2)
-                                    Text("Opportunity: \(parentOpportunityTitle(forSlug: s.opportunity, in: store.artifacts))")
+                                    Text("Opportunity: \(parentOpportunityTitle(forSlug: s.opportunity))")
                                         .font(.caption.weight(.medium))
                                 }
                             }

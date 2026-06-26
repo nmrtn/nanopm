@@ -436,11 +436,15 @@ grep -lE '^status:[[:space:]]*ready-for-solutions' "$_OPP_DIR"/*.md 2>/dev/null 
 ```
 
 - **None ready** → surface nothing; the run is done.
-- **One or more ready** → offer to move it into solution space. Ask via `AskUserQuestion`
-  (header `Confirm`): "{N} opportunit(y/ies) are ready for solutions ({slug list}). Brainstorm
-  solutions on one now?" options `["Yes, launch it", "Not now"]`. On **Yes**, launch
-  `/pm-solutions <slug>` on the chosen (or single) ready slug. On a host with no `AskUserQuestion`,
-  print a clear suggestion line instead — e.g.
+- **Exactly one ready** → offer to move it into solution space. Ask via `AskUserQuestion`
+  (header `Confirm`): "Opportunity `{slug}` is ready for solutions. Brainstorm solutions now?"
+  options `["Yes, launch it", "Not now"]`. On **Yes**, launch `/pm-solutions {slug}`.
+- **Two or more ready** → the user must pick WHICH one. Ask via `AskUserQuestion` (header `Confirm`):
+  "{N} opportunities are ready for solutions. Brainstorm solutions on one now?" — make the **option
+  list the ready slugs themselves** (one option per slug, e.g. `["slow-bulk-editing",
+  "confusing-first-run", "Not now"]`; cap at the first few if there are many). On a slug choice,
+  launch `/pm-solutions <that-slug>`.
+- On a host with no `AskUserQuestion`, print a clear suggestion line instead — e.g.
   `{N} opportunity(ies) ready for solutions: {slug list}. Run /pm-solutions <slug> to brainstorm solutions.`
 
 **STATUS: DONE**

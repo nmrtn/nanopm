@@ -38,7 +38,7 @@ fi
 # ── 3. SKILL.md frontmatter validation ───────────────────────────────────────
 echo
 echo "  SKILL.md frontmatter"
-_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data pm-brainstorm pm-opportunities)
+_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-interview pm-standup pm-weekly-update pm-data pm-brainstorm pm-opportunities pm-solutions)
 for skill in "${_SKILLS[@]}"; do
   _FILE="$_REPO_ROOT/$skill/SKILL.md"
   if [ ! -f "$_FILE" ]; then

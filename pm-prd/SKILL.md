@@ -91,6 +91,10 @@ user`. Use them to **seed** — not replace — the spec:
 - **Falsification** seed: build the 4-element falsification paragraph around the solution's
   `## Cheapest test` (the cheapest test of the riskiest assumption *is* the experiment that would
   falsify the bet). It still must pass the Phase 4b gate (NUMBER · SEGMENT · BEHAVIOR · TIMEFRAME).
+- **Trace** (required): the PRD's `## Ties to` section MUST carry an explicit
+  `- **Solution:** {_SOLUTION_SLUG}` line. This is the machine-readable PRD→solution backlink the
+  lint `chosen-without-prd` check relies on — without it a properly-spec'd solution can be falsely
+  flagged. Keep the exact slug, not a reworded title.
 
 These are **drafts to refine** in Phases 3–4, not final copy. Then continue to Phase 2; you may skip
 re-asking Q1 (problem) in Phase 3 since the opportunity already supplies it.
@@ -569,11 +573,13 @@ print(json.dumps({
 If this PRD was seeded from a chosen solution (`_SOLUTION_SLUG` set in 1.0/1.1), move that solution
 to `status: speccing` — the chosen solution is now being spec'd. Skip entirely when `_SOLUTION_SLUG`
 is empty (the from-scratch path writes no solution record). The `opportunity` field is required by
-the `solution` state type; carry the parent slug captured in 1.1:
+the `solution` state type; carry the parent slug captured in 1.1. Also skip when `_OPP_SLUG` is empty
+or named a non-existent opportunity (the `OPP_MISSING` edge) — never log a solution record with an
+empty parent:
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-if [ -n "$_SOLUTION_SLUG" ]; then
+if [ -n "$_SOLUTION_SLUG" ] && [ -n "$_OPP_SLUG" ]; then
   python3 -c "
 import json, os
 print(json.dumps({
@@ -582,6 +588,8 @@ print(json.dumps({
     'status': 'speccing',
     'skill': 'pm-prd',
 }))" | nanopm_state_log --type solution
+elif [ -n "$_SOLUTION_SLUG" ]; then
+  echo "NOTE: solution '$_SOLUTION_SLUG' has no resolvable parent opportunity — skipping the speccing transition."
 fi
 ```
 

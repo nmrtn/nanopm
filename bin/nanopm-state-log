@@ -37,9 +37,9 @@ Types and schemas:
     slug         required  alphanumeric/hyphens (uniqueness key)
     opportunity  required  string — the opportunity it addresses
     status       optional  enum: proposed | shortlisted | chosen | speccing
-    lens         optional  string — the framing/lens used to generate it
-    appetite     optional  string — Shape Up appetite (e.g. small batch)
-    impact       optional  string — expected outcome/impact
+    lens         optional  enum: eng | design | business
+    appetite     optional  enum: small-bet | big-bet (Shape Up, not an estimate)
+    impact       optional  enum: high | medium | low (qualitative)
     skill        optional  string
 
   handoff      output handoffs (append-only, full history)
@@ -133,9 +133,15 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "status": {"type": "enum", "values": {
                 "proposed", "shortlisted", "chosen", "speccing",
             }, "optional": True},
-            "lens": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
-            "appetite": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
-            "impact": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
+            "lens": {"type": "enum", "values": {
+                "eng", "design", "business",
+            }, "optional": True},
+            "appetite": {"type": "enum", "values": {
+                "small-bet", "big-bet",
+            }, "optional": True},
+            "impact": {"type": "enum", "values": {
+                "high", "medium", "low",
+            }, "optional": True},
             "skill": {"type": "key", "optional": True},
             "session": {"type": "session", "optional": True},
         },
