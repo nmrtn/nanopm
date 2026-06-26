@@ -100,6 +100,54 @@ def edge_target_exists(wiki: Path, target: str) -> bool:
     return False
 
 
+def opportunity_exists(wiki: Path, slug: str) -> bool:
+    """True if a solution's parent opportunity slug resolves to an opportunity page."""
+    s = slug[:-3] if slug.endswith(".md") else slug
+    return (wiki / "entities" / "opportunities" / f"{s}.md").is_file()
+
+
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.*?)\s*$")
+
+
+def section_bodies(text: str) -> dict[str, str]:
+    """Map normalized markdown heading -> the body text under it (until the next
+    heading). Used by the solutions semantic checks: a heading present but with an
+    empty body counts as missing. Headings are lower-cased and stripped so matching
+    is tolerant of casing ("Riskiest assumption" vs "Riskiest Assumption")."""
+    sections: dict[str, list[str]] = {}
+    cur: str | None = None
+    for ln in text.split("\n"):
+        m = _HEADING_RE.match(ln)
+        if m:
+            cur = m.group(1).strip().lower()
+            sections.setdefault(cur, [])
+            continue
+        if cur is not None:
+            sections[cur].append(ln)
+    return {k: "\n".join(v).strip() for k, v in sections.items()}
+
+
+def section_has_content(bodies: dict[str, str], *aliases: str) -> bool:
+    """True if any of the heading aliases is present with a non-placeholder body."""
+    for a in aliases:
+        body = bodies.get(a.lower())
+        if body is None:
+            continue
+        # strip an unfilled template placeholder like "<the single assumption …>"
+        cleaned = re.sub(r"<[^>]*>", "", body).strip()
+        if cleaned:
+            return True
+    return False
+
+
+def prd_texts(wiki: Path) -> list[str]:
+    """Lower-cased text of every PRD doc (the downstream-PRD corpus for solutions)."""
+    out: list[str] = []
+    for prd in sorted((wiki / "docs" / "prds").glob("*.md")):
+        out.append(prd.read_text(encoding="utf-8", errors="replace").lower())
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--project", default=".")
@@ -123,11 +171,15 @@ def main() -> int:
     page_keys = {f"{p.parent.name}/{p.stem}" for p in ents}
     inbound: dict[str, int] = {k: 0 for k in page_keys}
     outbound: dict[str, int] = {k: 0 for k in page_keys}
+    # Downstream-PRD corpus for the chosen-without-PRD check (read once).
+    prds = prd_texts(wiki)
 
     for p in ents:
         rel_disp = p.relative_to(wiki).as_posix()
         key = f"{p.parent.name}/{p.stem}"
-        fm, edges = parse_frontmatter(p.read_text(encoding="utf-8", errors="replace"))
+        is_solution = p.parent.name == "solutions"
+        text = p.read_text(encoding="utf-8", errors="replace")
+        fm, edges = parse_frontmatter(text)
         # missing required frontmatter (ERROR)
         missing = [f for f in REQUIRED_ENTITY_FM if not fm.get(f)]
         if missing:
@@ -154,6 +206,44 @@ def main() -> int:
                     warnings.append(f"[stale] {rel_disp} last_updated {lu} (>{args.stale_days}d)")
             except ValueError:
                 warnings.append(f"[stale] {rel_disp} unparseable last_updated {lu!r}")
+
+        # ── solutions-specific checks (NANOPM-WIKI §9; solutions SCHEMA) ──────────
+        # A solution is the Solutions node of the Opportunity Solution Tree: it must
+        # name exactly one parent opportunity, carry its riskiest assumption + cheapest
+        # test, and — once `chosen` — be picked up by a downstream PRD.
+        if is_solution:
+            # 1. orphan solution (ERROR): the `opportunity` tree-edge is empty or points
+            #    at a missing opportunity page. This is the solution form of a broken
+            #    edge — `opportunity` is a frontmatter scalar, not a relates_to edge, so
+            #    it isn't caught by the generic dangling-edge check above.
+            opp = fm.get("opportunity")
+            if not opp:
+                errors.append(f"[orphan-solution] {rel_disp} (no parent opportunity — "
+                              f"set the `opportunity` field to one opportunity slug)")
+            elif not opportunity_exists(wiki, opp):
+                errors.append(f"[orphan-solution] {rel_disp} -> opportunity \"{opp}\" "
+                              f"(no such opportunity page)")
+            # 2. missing assumption/test (ERROR): the riskiest-assumption / cheapest-test
+            #    body is the core promise of a solution — choose what to spec by what's
+            #    least proven. A heading present but empty counts as missing.
+            bodies = section_bodies(text)
+            if not section_has_content(bodies, "riskiest assumption", "riskiest-assumption"):
+                errors.append(f"[missing-assumption] {rel_disp} (no \"Riskiest assumption\" "
+                              f"content — the one thing most likely to be wrong)")
+            if not section_has_content(bodies, "cheapest test", "cheapest-test"):
+                errors.append(f"[missing-test] {rel_disp} (no \"Cheapest test\" content — "
+                              f"the cheapest experiment that would confirm or kill the assumption)")
+            # 3. chosen-without-PRD (WARN): a `chosen` solution that no downstream PRD
+            #    references yet is a stalled bet — it was picked but never spec'd. Once
+            #    /pm-prd consumes it the solution moves to `speccing`, so this fires only
+            #    on the transient gap. Cross-entity edge: the PRD names the solution slug.
+            if str(fm.get("status", "")).strip().lower() == "chosen":
+                slug = p.stem.lower()
+                referenced = any(slug in prd for prd in prds)
+                if not referenced:
+                    warnings.append(f"[chosen-without-prd] {rel_disp} (status: chosen but no "
+                                    f"PRD under docs/prds/ references it — spec it via "
+                                    f"`/pm-prd --chosen {p.stem}` or revert the status)")
 
     # overviews marked stale (WARN)
     for ov in sorted((wiki / "overview").glob("*.md")):

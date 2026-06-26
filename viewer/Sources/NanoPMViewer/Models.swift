@@ -199,6 +199,39 @@ enum OpportunityFiles {
     }
 }
 
+/// `.nanopm/wiki/entities/solutions/` is the Solutions store (the OST node that
+/// bridges an opportunity to a compared set of candidate solutions — written by
+/// `/pm-solutions`): one `<slug>.md` per solution plus a generated `INDEX.md`,
+/// an append-only `LOG.md`, and an editable `SCHEMA.md`. Like Opportunities,
+/// these are grouped under one expandable "Solutions" entry (INDEX is the
+/// landing), not listed as flat sidebar rows. Mirrors `OpportunityFiles`.
+enum SolutionFiles {
+    /// Canonical home (PRD §Scope/§Requirements); the legacy root `solutions/`
+    /// path is kept for symmetry with the other entity types.
+    static let dirPrefix = "wiki/entities/solutions/"
+    static let legacyPrefix = "solutions/"
+
+    static func isSolutionFile(_ relativePath: String) -> Bool {
+        let l = relativePath.lowercased()
+        return l.hasPrefix(dirPrefix) || l.hasPrefix(legacyPrefix)
+    }
+
+    private static func basename(_ relativePath: String) -> String {
+        (relativePath as NSString).lastPathComponent.lowercased()
+    }
+
+    /// The home page; the "Solutions" entry opens this.
+    static func isIndex(_ relativePath: String) -> Bool {
+        isSolutionFile(relativePath) && basename(relativePath) == "index.md"
+    }
+
+    /// INDEX / LOG / SCHEMA are the store's machinery, not individual solutions.
+    static func isReserved(_ relativePath: String) -> Bool {
+        isSolutionFile(relativePath)
+            && ["index.md", "log.md", "schema.md"].contains(basename(relativePath))
+    }
+}
+
 /// Fixed artifact → phase mapping. Files that match no rule are internal
 /// state (configs, logs, snapshots) and are not surfaced in the viewer.
 enum PhaseMapper {
@@ -236,7 +269,10 @@ enum PhaseMapper {
                 || lower.hasPrefix("wiki/entities/features/")
                 || lower.hasPrefix("wiki/entities/people/") { return .define }
             if lower.hasPrefix("wiki/entities/competitors/")
-                || lower.hasPrefix("wiki/entities/opportunities/") { return .discover }
+                || lower.hasPrefix("wiki/entities/opportunities/")
+                // Solutions are the OST node bridging an opportunity to a compared
+                // set of candidates; grouped beside Opportunities under Discover.
+                || lower.hasPrefix("wiki/entities/solutions/") { return .discover }
             if lower.hasPrefix("wiki/entities/objectives/") { return .plan }
             if lower.hasPrefix("wiki/docs/prds/") { return .ship }
             // handoffs/ are the human-readable handoff (the shareable ticket list) —

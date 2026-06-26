@@ -41,6 +41,7 @@
     "./pm-weekly-update",
     "./pm-data",
     "./pm-brainstorm",
-    "./pm-opportunities"
+    "./pm-opportunities",
+    "./pm-solutions"
   ]
 }
