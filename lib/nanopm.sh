@@ -733,6 +733,38 @@ PY
   echo "--- END PLAN BRIEF ---"
 }
 
+# ── Brief staleness signal (v0.22+) ──────────────────────────────────────────
+#
+# After a migration relocates flat docs into wiki/docs/ but no CONTEXT-SUMMARY /
+# PLAN-SUMMARY existed to relocate, the always-loaded briefs stay empty — so the
+# first skill run starts "cold" with no shared context, even though the source
+# docs are right there in wiki/docs/. The briefs need an LLM to (re)author, which
+# the deterministic migrator can't do. So we SURFACE the gap the same way
+# nanopm_update_check surfaces UPGRADE_AVAILABLE: emit a BRIEF_STALE line the
+# running skill (notably /pm-run Phase 0c) can act on. Fires ONLY when source docs
+# exist but the brief is empty — it never nags a virgin project with nothing to
+# summarize. "Present" mirrors the loaders: wiki overview OR the legacy flat
+# summary, tested with -s so a zero-byte failed regen still reads as stale.
+nanopm_brief_stale_check() {
+  local root wiki d; root="$(_nanopm_project_root)"
+  wiki="$root/.nanopm/wiki"
+  [ -d "$wiki" ] || return 0
+  if [ ! -s "$wiki/overview/company.md" ] && [ ! -s "$root/.nanopm/CONTEXT-SUMMARY.md" ]; then
+    for d in vision-mission business-model org product personas; do
+      [ -s "$wiki/docs/$d.md" ] || continue
+      echo "BRIEF_STALE company — Define docs exist but .nanopm/wiki/overview/company.md is empty; regenerate it from the Define docs (pm-vision-mission's context-brief subagent prompt) before relying on company context."
+      break
+    done
+  fi
+  if [ ! -s "$wiki/overview/current-work.md" ] && [ ! -s "$root/.nanopm/PLAN-SUMMARY.md" ]; then
+    for d in objectives strategy roadmap; do
+      [ -s "$wiki/docs/$d.md" ] || continue
+      echo "BRIEF_STALE current-work — Plan docs exist but .nanopm/wiki/overview/current-work.md is empty; regenerate it via the nanopm_plan_brief_prompt subagent before relying on current-work context."
+      break
+    done
+  fi
+}
+
 # ── Wiki index (vNext) ───────────────────────────────────────────────────────
 #
 # The catalog of wiki pages (.nanopm/wiki/index.md), loaded at startup so every
@@ -2210,4 +2242,7 @@ nanopm_preamble() {
   # Consolidated current-work brief (objectives + strategy + roadmap) — so every
   # skill also knows what we're working on right now, not just who we are.
   nanopm_load_plan
+  # Surface empty-but-recoverable briefs (e.g. just-migrated project) right after
+  # the "none yet" lines they explain, so a skill — notably /pm-run — can regen.
+  nanopm_brief_stale_check
 }

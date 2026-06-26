@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.22.0 — Migrated projects don't start cold
+
+Fixes a gap found dogfooding the wiki migration on nanopm's own repo: the always-loaded
+briefs (`wiki/overview/company.md`, `wiki/overview/current-work.md`) were left empty
+after migration, so the first skill run started with no shared context — it *felt like
+starting from scratch* even though the source docs were right there.
+
+**What's different for you**
+
+- **The preamble now flags empty-but-recoverable briefs.** A new `nanopm_brief_stale_check`
+  emits `BRIEF_STALE company` / `BRIEF_STALE current-work` when wiki Define/Plan docs exist
+  but their consolidated brief is empty (the genuine post-migration case) — mirroring how
+  `UPGRADE_AVAILABLE` is surfaced. It never nags a virgin project with nothing to summarize.
+- **`/pm-run` self-heals up front.** A new Phase 0c regenerates any missing brief from the
+  existing wiki docs *before* the pipeline reads context, reusing the same prompts the
+  Define/Plan skills already use (`nanopm_plan_brief_prompt` + the context-brief subagent).
+  No edits to the individual skills, no migrator changes — emptiness is detected via the
+  loaders' existing `-s` test.
+
+Regression-gated by `test/brief-stale.sh` (fires on stale, silent when warm/virgin, `-s`
+not `-f` for zero-byte briefs), now part of `test/run-all.sh`.
+
 ## Unreleased — Karpathy-faithful memory engine (engine + recipes)
 
 Trims the memory wiki back to the model that inspired it (Karpathy's LLM-wiki) and

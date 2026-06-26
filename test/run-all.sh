@@ -23,6 +23,7 @@ _TESTS=(
   "multi-host.sh"
   "gates.sh"
   "update-check.sh"
+  "brief-stale.sh"
   "headers.sh"
   "symphony-validator.sh"
   "context-threading.e2e.sh"
