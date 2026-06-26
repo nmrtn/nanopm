@@ -1,4 +1,5 @@
 import SwiftUI
+import MarkdownUI
 
 /// One line of ~/.nanopm/memory/<slug>.jsonl — what a skill run recorded.
 struct MemoryEntry: Identifiable {
@@ -60,13 +61,20 @@ enum MemoryLog {
     }
 }
 
-/// Read-only page over the project's NanoPM memory: the global append-only
-/// journal each skill writes to and later runs read back for context.
+/// Read-only window onto the project's NanoPM memory. Primary: the curated wiki
+/// heartbeat (.nanopm/wiki/log.md — what the memory recorded/changed). Secondary:
+/// the raw per-run activity trace (.nanopm/raw/events.jsonl). Note the wiki briefs
+/// (Define/Plan), not this log, are what each skill reads back into context.
 struct MemoryView: View {
     @ObservedObject var store: ArtifactStore
 
     @State private var entries: [MemoryEntry] = []
-    @State private var filePath: String?
+    @State private var eventsPath: String?
+    /// Rendered body of wiki/log.md (frontmatter + intro stripped); empty when the
+    /// wiki has recorded nothing yet.
+    @State private var logBody: String = ""
+    @State private var logPath: String?
+    @State private var loaded = false
 
     var body: some View {
         ScrollView {
@@ -75,11 +83,11 @@ struct MemoryView: View {
                     Text("Memory")
                         .font(.npDisplay(30))
                         .foregroundStyle(Color.npInk)
-                    Text("What NanoPM remembers about \(store.project.name) — every skill run leaves a trace here, and later runs read it back for context.")
+                    Text("How NanoPM's memory of \(store.project.name) changed over time. What every skill reads back is the wiki briefs (see Define & Plan) — below is the curated change log, and the raw run history behind it.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                    if let filePath {
-                        Text(abbreviateHome(filePath))
+                    if let logPath {
+                        Text(abbreviateHome(logPath))
                             .font(.system(.footnote, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
@@ -87,19 +95,47 @@ struct MemoryView: View {
 
                 Divider().overlay(Color.npBorder)
 
-                if filePath == nil {
+                if !loaded {
                     SparkleView(size: 18)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
-                } else if entries.isEmpty {
+                } else if logBody.isEmpty && entries.isEmpty {
                     ContentUnavailableView(
                         "No memory yet",
                         systemImage: "brain",
                         description: Text("No NanoPM skill has recorded anything for this project. Run one (e.g. from a phase overview) and check back.")
                     )
                 } else {
-                    ForEach(entries) { entry in
-                        card(entry)
+                    // Primary: the curated wiki heartbeat (what the memory recorded/changed).
+                    if logBody.isEmpty {
+                        Text("No wiki memory recorded yet — this change log fills in as the wiki ingests sources, runs the judgment lint, or migrates.")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Markdown(logBody)
+                            .markdownTheme(.nanopm)
+                            .textSelection(.enabled)
+                    }
+
+                    // Secondary: the raw per-run activity trace (collapsed by default).
+                    if !entries.isEmpty {
+                        DisclosureGroup {
+                            VStack(alignment: .leading, spacing: 10) {
+                                if let eventsPath {
+                                    Text(abbreviateHome(eventsPath))
+                                        .font(.system(.footnote, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                                ForEach(entries) { entry in
+                                    card(entry)
+                                }
+                            }
+                            .padding(.top, 8)
+                        } label: {
+                            Text("Activity — \(entries.count) skill run\(entries.count == 1 ? "" : "s")")
+                                .font(.headline)
+                        }
+                        .padding(.top, 6)
                     }
                 }
             }
@@ -161,12 +197,27 @@ struct MemoryView: View {
 
     private func load() async {
         let projectPath = store.project.path
-        let (file, content) = await Task.detached(priority: .userInitiated) { () -> (String, String) in
-            let file = MemoryLog.file(forProjectAt: projectPath)
-            let content = (try? ShellRunner.run("cat \(ShellRunner.quote(file)) 2>/dev/null")) ?? ""
-            return (file, content)
+        let logFile = store.project.nanopmPath + "/wiki/log.md"
+        let (logText, logExists, eventsFile, eventsText) = await Task.detached(priority: .userInitiated) {
+            () -> (String, Bool, String, String) in
+            let logText = (try? ShellRunner.run("cat \(ShellRunner.quote(logFile)) 2>/dev/null")) ?? ""
+            let logExists = FileManager.default.fileExists(atPath: logFile)
+            let eventsFile = MemoryLog.file(forProjectAt: projectPath)
+            let eventsText = (try? ShellRunner.run("cat \(ShellRunner.quote(eventsFile)) 2>/dev/null")) ?? ""
+            return (logText, logExists, eventsFile, eventsText)
         }.value
-        entries = MemoryLog.parse(content)
-        filePath = file
+        logBody = Self.stripLogHeader(stripFrontmatter(logText))
+        logPath = logExists ? logFile : nil
+        entries = MemoryLog.parse(eventsText)
+        eventsPath = eventsText.isEmpty ? nil : eventsFile
+        loaded = true
+    }
+
+    /// Drop the "# Wiki Log" H1 and the intro line so the page title isn't doubled —
+    /// keep from the first `## [date] …` entry on. Empty when there are no entries yet.
+    private static func stripLogHeader(_ raw: String) -> String {
+        let lines = raw.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(where: { $0.hasPrefix("## ") }) else { return "" }
+        return lines[start...].joined(separator: "\n").trimmingCharacters(in: .newlines)
     }
 }
