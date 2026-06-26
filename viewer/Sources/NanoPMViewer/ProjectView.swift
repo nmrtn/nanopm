@@ -24,9 +24,9 @@ struct ProjectView: View {
     @State private var opportunitiesExpanded = false
     @State private var weeklyUpdatesExpanded = false
     @State private var standupsExpanded = false
-    // Which phases have their "Entities" group expanded (entities appear in several
-    // phases, so a single bool would toggle them all together).
-    @State private var expandedEntityPhases: Set<Phase> = []
+    // Which per-phase entity-type groups are expanded, keyed "<phase>/<type>" so each
+    // type collapses independently.
+    @State private var expandedEntityTypes: Set<String> = []
     // Settings → "Display entities": hide the wiki entity groups from the nav when off.
     @AppStorage(AppSettings.displayEntities) private var displayEntities = true
 
@@ -290,17 +290,18 @@ struct ProjectView: View {
                 // entry per series in DAY TO DAY (newest first), not a flat row per date.
                 && !isDatedSeriesDoc(artifact.relativePath)
         }
-        let entities = entityArtifacts(for: phase)
         // Settings → "Display entities" hides the entity groups from the nav (the
         // entity pages stay out of the flat rows either way — they're the substrate).
-        let showEntities = displayEntities && !entities.isEmpty
+        // One collapsible group PER ENTITY TYPE under its phase (Personas under Define,
+        // Objectives under Plan, …); opportunities & competitors have dedicated entries.
+        let entityGroups = displayEntities ? entityTypeGroups(for: phase) : []
         let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         // Brainstorm is an always-on interactive surface (not artifact-driven),
         // pinned at the top of DAY TO DAY so it's always reachable.
         let showBrainstorm = phase == .daily
-        if hasOverview || !items.isEmpty || showEntities || !pending.isEmpty || showPRDs || showBrainstorm {
+        if hasOverview || !items.isEmpty || !entityGroups.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
                 if showBrainstorm {
@@ -315,8 +316,9 @@ struct ProjectView: View {
                         .help(".nanopm/" + artifact.relativePath)
                         .listRowInsets(Self.childRowInsets)
                 }
-                if showEntities {
-                    entitiesEntry(phase: phase, entities: entities).listRowInsets(Self.childRowInsets)
+                ForEach(entityGroups) { group in
+                    entityTypeEntry(phase: phase, type: group.type, artifacts: group.artifacts)
+                        .listRowInsets(Self.childRowInsets)
                 }
                 if phase == .daily {
                     let weeklies = seriesArtifacts(prefix: "wiki/docs/weekly-updates/")
@@ -390,26 +392,72 @@ struct ProjectView: View {
         }
     }
 
-    /// Wiki entity pages collapse under one "Entities" group per phase, so the nav
-    /// shows the canonical docs + curated sections instead of a flat row per entity.
+    /// One collapsible group per entity TYPE under its phase (Personas, Objectives,
+    /// Features, People), so the nav reads by type instead of one lumped "Entities"
+    /// group. Opportunities & competitors are excluded — they have dedicated entries.
+    private struct EntityTypeGroup: Identifiable {
+        let type: String
+        let artifacts: [Artifact]
+        var id: String { type }
+    }
+
+    private func entityTypeGroups(for phase: Phase) -> [EntityTypeGroup] {
+        var byType: [String: [Artifact]] = [:]
+        for entity in entityArtifacts(for: phase) {
+            guard let type = Self.entityType(of: entity.relativePath),
+                  type != "opportunities", type != "competitors" else { continue }
+            let stem = ((entity.relativePath as NSString).lastPathComponent as NSString)
+                .deletingPathExtension.uppercased()
+            if stem == "INDEX" || stem == "LOG" || stem == "SCHEMA" { continue }
+            byType[type, default: []].append(entity)
+        }
+        return byType.keys.sorted().map { type in
+            EntityTypeGroup(type: type,
+                            artifacts: byType[type]!.sorted { $0.displayName < $1.displayName })
+        }
+    }
+
+    /// `wiki/entities/<type>/<slug>.md` → `<type>`.
+    private static func entityType(of relativePath: String) -> String? {
+        let parts = relativePath.lowercased().split(separator: "/")
+        guard parts.count >= 3, parts[0] == "wiki", parts[1] == "entities" else { return nil }
+        return String(parts[2])
+    }
+
+    private static func entityTypeLabel(_ type: String) -> String {
+        type.prefix(1).uppercased() + type.dropFirst()
+    }
+
+    private static func entityTypeIcon(_ type: String) -> String {
+        switch type {
+        case "personas": return "person.crop.circle"
+        case "objectives": return "target"
+        case "features": return "square.stack.3d.up"
+        case "people": return "person.2"
+        default: return "square.grid.2x2"
+        }
+    }
+
     @ViewBuilder
-    private func entitiesEntry(phase: Phase, entities: [Artifact]) -> some View {
+    private func entityTypeEntry(phase: Phase, type: String, artifacts: [Artifact]) -> some View {
+        let key = "\(phase.rawValue)/\(type)"
         DisclosureGroup(isExpanded: Binding(
-            get: { expandedEntityPhases.contains(phase) },
+            get: { expandedEntityTypes.contains(key) },
             set: { expanded in
-                if expanded { expandedEntityPhases.insert(phase) }
-                else { expandedEntityPhases.remove(phase) }
+                if expanded { expandedEntityTypes.insert(key) }
+                else { expandedEntityTypes.remove(key) }
             }
         )) {
-            ForEach(entities) { entity in
+            ForEach(artifacts) { entity in
                 Label(entity.displayName, systemImage: iconFor(entity))
                     .tag(entity.id)
                     .help(".nanopm/" + entity.relativePath)
                     .listRowInsets(Self.childRowInsets)
             }
         } label: {
-            Label("Entities (\(entities.count))", systemImage: "square.grid.2x2")
-                .help("Wiki entity pages — the substrate behind the briefs (personas, competitors, features, …)")
+            Label("\(Self.entityTypeLabel(type)) (\(artifacts.count))",
+                  systemImage: Self.entityTypeIcon(type))
+                .help("\(Self.entityTypeLabel(type)) — wiki entity pages (the substrate behind the briefs)")
         }
     }
 
