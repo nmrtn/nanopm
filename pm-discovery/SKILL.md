@@ -75,7 +75,7 @@ with the Agent tool** (one subagent); on a host with no Agent tool, follow its s
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_query_prompt "For product discovery, who is the primary persona this product is built for — their job title, situation, and the job-to-be-done they hire the product for? Cite the source. If the wiki has no personas page, say so." none
+nanopm_query_prompt "For product discovery, synthesize from the wiki: the primary persona this product is built for — their job title, situation, and the job-to-be-done they hire the product for; the current top-ranked open opportunities from the opportunity database (wiki/entities/opportunities/, by rank); the top open user-feedback themes; and the current product surface. Cite each claim, and name what's missing rather than inventing it." none
 ```
 
 Reason over the returned synthesis:

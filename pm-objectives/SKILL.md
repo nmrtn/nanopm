@@ -49,7 +49,7 @@ over the cited synthesis. Print the prompt and **dispatch it with the Agent tool
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_query_prompt "For setting objectives/OKRs, synthesize from the wiki: the latest challenge session (what we're building, who for, the biggest gap); the mission/vision; the business model and the metrics it says matter; the primary persona and their job-to-be-done; the top unaddressed user-feedback themes; and any prior objectives (noting which were hit or missed). Cite each claim." none
+nanopm_query_prompt "For setting objectives/OKRs, synthesize from the wiki: the latest challenge session (what we're building, who for, the biggest gap); the mission/vision; the business model and the metrics it says matter; the primary persona and their job-to-be-done; the top unaddressed user-feedback themes; the top-ranked open opportunities from the opportunity database (wiki/entities/opportunities/, by rank) and whether each is already addressed; and any prior objectives (noting which were hit or missed). Cite each claim." none
 ```
 
 Reason over the returned synthesis — every objective must:

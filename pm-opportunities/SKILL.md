@@ -393,6 +393,23 @@ _N=$(ls "$_OPP_DIR"/*.md 2>/dev/null | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' | wc 
 nanopm_context_append "{\"skill\":\"pm-opportunities\",\"outputs\":{\"opportunity_count\":\"$_N\",\"index\":\"$_OPP_DIR/INDEX.md\",\"next\":\"pm-roadmap\"}}"
 ```
 
+## Phase: Regenerate the plan brief
+
+A fresh opportunity DB is the "what we're hearing" signal the always-loaded plan brief should
+carry — so the next planning run starts from the current top opportunities, not a stale list.
+Print the canonical prompt and dispatch it with the **Agent tool** (one subagent); on a host
+with no Agent tool, follow its steps inline:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_plan_brief_prompt
+```
+
+Keep the security-preamble lines at the top of that prompt intact. The subagent reads the wiki
+Plan docs + the opportunity INDEX and rewrites `.nanopm/wiki/overview/current-work.md` (its
+"Top open opportunities" section now reflects this run). Skip silently if `.nanopm/wiki/`
+doesn't exist.
+
 ## Completion
 
 Tell the user:

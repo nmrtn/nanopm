@@ -45,7 +45,7 @@ the Agent tool** (one subagent); on a host with no Agent tool, follow its steps 
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
-nanopm_query_prompt "For product strategy, synthesize from the wiki: the mission/vision; the business model, pricing, and GTM motion; the current product map and its completeness; the primary persona and their job-to-be-done; the loudest unaddressed user feedback; the current objectives/OKRs; and the top gaps from the latest challenge session. Cite each claim." none
+nanopm_query_prompt "For product strategy, synthesize from the wiki: the mission/vision; the business model, pricing, and GTM motion; the current product map and its completeness; the primary persona and their job-to-be-done; the loudest unaddressed user feedback; the top-ranked open opportunities from the opportunity database (wiki/entities/opportunities/, by rank); the current objectives/OKRs; and the top gaps from the latest challenge session. Cite each claim." none
 ```
 
 Reason over the returned synthesis — the bet must:
