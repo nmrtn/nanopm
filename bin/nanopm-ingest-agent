@@ -293,13 +293,21 @@ def _norm_citation(s: str) -> str:
 
 
 def resolve_target(project: str, target: str) -> Path | None:
-    """Resolve a wiki page path and confine it to .nanopm/ (no traversal escape).
-    Accepts both '.nanopm/wiki/...' and 'wiki/...' forms."""
-    nano = (Path(project) / ".nanopm").resolve()
-    rel = target[len(".nanopm/"):] if target.startswith(".nanopm/") else target
-    dest = (nano / rel).resolve()
+    """Resolve a wiki page path and confine it to .nanopm/wiki/ (no traversal escape).
+    Accepts '.nanopm/wiki/...', 'wiki/...', or a bare wiki-relative form like
+    'entities/<type>/<slug>.md' / 'docs/<x>.md' / 'overview/<x>.md'. The wiki/ prefix
+    is normalized in: an ingest agent that writes a bare 'entities/personas/x.md' must
+    NOT land at .nanopm/entities/ (outside the wiki) — every page apply writes belongs
+    under .nanopm/wiki/."""
+    wiki = (Path(project) / ".nanopm" / "wiki").resolve()
+    rel = target
+    if rel.startswith(".nanopm/"):
+        rel = rel[len(".nanopm/"):]
+    if rel.startswith("wiki/"):
+        rel = rel[len("wiki/"):]
+    dest = (wiki / rel).resolve()
     try:
-        dest.relative_to(nano)
+        dest.relative_to(wiki)
     except ValueError:
         return None
     return dest
@@ -316,7 +324,7 @@ def cmd_apply(args) -> int:
         return err("no content on stdin")
     dest = resolve_target(args.project, args.target)
     if dest is None:
-        return err(f"target {args.target!r} escapes .nanopm/ — refused")
+        return err(f"target {args.target!r} escapes .nanopm/wiki/ — refused")
     with wiki_lock(args.project):
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")

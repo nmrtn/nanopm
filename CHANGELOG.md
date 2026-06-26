@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.22.1 — Entity pages always land inside the wiki
+
+Fixes a path bug where ingest skills (e.g. `/pm-personas`) wrote entity pages to
+`.nanopm/entities/<type>/` instead of `.nanopm/wiki/entities/<type>/` — so they fell
+outside the wiki and the viewer dumped them into "Others" instead of their phase.
+
+- `nanopm-ingest-agent`'s `resolve_target` now confines every `apply`/`citation-check`
+  target to `.nanopm/wiki/` and normalizes the `wiki/` prefix in, so a bare
+  `entities/personas/sam.md` can no longer escape the wiki. Traversal is still refused.
+- The ingest prompt now names the canonical `wiki/entities/<type>/<slug>.md` path.
+- Regression-gated by `test/ingest-path.sh`.
+
 ## 0.22.0 — Migrated projects don't start cold
 
 Fixes a gap found dogfooding the wiki migration on nanopm's own repo: the always-loaded
