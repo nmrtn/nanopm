@@ -1315,6 +1315,101 @@ Append-only heartbeat. One line per change: `<date> | <action> | <slug(s)> | <pr
 EOF
 }
 
+nanopm_solutions_schema() {
+  # Emits the canonical SCHEMA.md for the SOLUTIONS entity (the Solutions node of
+  # the Opportunity Solution Tree). Mirrors nanopm_opportunities_schema: the skill
+  # writes this once to .nanopm/wiki/entities/solutions/SCHEMA.md; the user may edit
+  # the generated file to tune the format WITHOUT touching the skill — it is the
+  # single source of structural truth the panel, ingest, and lint all read.
+  cat <<'EOF'
+# Solutions DB — Schema & Conventions
+
+This file is the single source of truth for how `.nanopm/wiki/entities/solutions/` is
+structured. `/pm-solutions` reads it on every run and conforms to it. You may
+edit it (e.g. adjust the template, tune the lenses) — the skill follows whatever
+this file says.
+
+## The tree — exactly one parent
+A solution is the **Solutions** node of the Opportunity Solution Tree
+(Outcome → Opportunity → **Solution** → Assumption). It belongs to **exactly one**
+parent opportunity (the `opportunity` frontmatter field — a single opportunity slug).
+That one-parent rule is what makes the set a navigable tree, not a graph. A solution
+serving "multiple opportunities" is out of scope at v1 — split it or pick the primary
+parent. The deliverable of a run is the *comparison* of ≥3 sibling solutions under one
+opportunity, never a single idea.
+
+## Lens (the originating expert voice) — keep the room visible
+Every solution records which lens proposed it:
+- `eng` — structural/durable cost (code complexity, migrations, external-API cost,
+  maintainability, scalability) — NOT dev time. A build can ship fast under an agent.
+- `design` — experience, flow, delight; anchored on the personas' job-to-be-done.
+- `business` — domain expertise and field/market knowledge; anchored on objectives +
+  strategy.
+The lens is preserved on the converged comparison so the cross-functional tension that
+justifies the panel stays visible — never collapsed into an anonymous verdict.
+
+## Appetite (Shape Up — a constraint, NOT an estimate)
+`small-bet | big-bet` — how much the solution is *worth* spending against, in the
+Shape Up sense. It is a budget the work fits into, not a prediction of how long it
+takes. No numeric estimate is stored.
+
+## Impact (qualitative — like opportunity priority)
+`high | medium | low` — a coarse read of expected value, Nano-proposed and
+user-overridable. There is **no numeric score** in v1; no impact number is ever
+presented as fact.
+
+## Provenance — always `assumed` at birth
+Every solution is born `assumed`: it is a hypothesis the panel generated, not an
+evidence-backed claim. No impact number is presented as fact. Validate via the cheapest
+test, not via the brief.
+
+## Status workflow
+`proposed → shortlisted → chosen → speccing`
+The agent never auto-selects `chosen` — the founder shortlists, then chooses, by hand.
+`speccing` is set when `/pm-prd` consumes the chosen solution.
+
+## Solution file template — `.nanopm/wiki/entities/solutions/<slug>.md`
+```markdown
+---
+id: <kebab-slug>
+type: solution
+title: "<the proposed solution, in plain language>"
+opportunity: <one parent opportunity slug>   # EXACTLY one — this is the tree edge
+status: proposed              # proposed | shortlisted | chosen | speccing
+lens: eng                     # eng | design | business  (the voice that proposed it)
+appetite: small-bet           # small-bet | big-bet  (Shape Up constraint, not an estimate)
+impact: medium                # high | medium | low  (qualitative; no numeric score)
+provenance: assumed           # always assumed at birth — a panel hypothesis
+linked_objectives: []         # optional KR ids the solution serves
+last_updated: <YYYY-MM-DD>
+---
+
+## Pitch
+<2–4 sentences: what the solution is and how it addresses the parent opportunity.>
+
+## Riskiest assumption
+<the single assumption most likely to be wrong and most damaging if it is —
+choose what to spec by what's least proven, not by what sounds most impressive.>
+
+## Cheapest test
+<the cheapest experiment that would confirm or kill the riskiest assumption.>
+
+## Dissent/tension note
+<one line — keeps the originating lens's disagreement visible, e.g.
+"Eng: cheap but caps scale at ~1k users".>
+```
+
+## INDEX.md
+Generated, never hand-edited. Grouped by parent `opportunity`; within a group ordered
+by `status` (chosen → shortlisted → speccing → proposed) then `last_updated` (newest
+first). One line per solution: title (link) · lens · appetite · impact · status ·
+last_updated.
+
+## LOG.md
+Append-only heartbeat. One line per change: `<date> | <action> | <slug(s)> | <provenance>`.
+EOF
+}
+
 # ── Memory Wiki (vNext) ──────────────────────────────────────────────────────
 #
 # The whole of nanopm's memory as an LLM-wiki (Karpathy pattern), generalizing the
@@ -1623,7 +1718,7 @@ nanopm_wiki_ensure() {
   root="$(_nanopm_project_root)"
   nano="$root/.nanopm"; wiki="$nano/wiki"; raw="$nano/raw"
   mkdir -p "$wiki/overview" "$wiki/docs" 2>/dev/null || return 1
-  for t in personas competitors opportunities objectives features people; do
+  for t in personas competitors opportunities solutions objectives features people; do
     mkdir -p "$wiki/entities/$t" 2>/dev/null
   done
   for t in feedback competitors data interviews git-activity; do
@@ -2178,6 +2273,106 @@ else:
 
 open(os.path.join(d, "INDEX.md"), "w", encoding="utf-8").write("\n".join(out).rstrip() + "\n")
 print("INDEX.md regenerated (%d opportunities)" % n)
+PY
+}
+
+nanopm_solutions_reindex() {
+  # Regenerates .nanopm/wiki/entities/solutions/INDEX.md from every solution file's
+  # frontmatter. Deterministic (no LLM): the skill calls it after any write.
+  # Grouped by parent opportunity; within a group ordered by status (chosen →
+  # shortlisted → speccing → proposed) then last_updated (newest first). Safe to run
+  # when the folder is empty.
+  local dir=".nanopm/wiki/entities/solutions"
+  [ -d "$dir" ] || return 0
+  NANOPM_SOL_DIR="$dir" PYTHONUTF8=1 python3 - <<'PY'
+import os, glob, re, datetime, sys
+d = os.environ["NANOPM_SOL_DIR"]
+skip = {"INDEX.md", "LOG.md", "SCHEMA.md"}
+rank = {"chosen": 0, "shortlisted": 1, "speccing": 2, "proposed": 3}
+
+def _inline(s):   # neutralize chars that would break markdown link text / inline code
+    s = (s or "").replace("\n", " ").strip()
+    for ch in ("\\", "`", "[", "]"):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+def _heading(s):  # heading text: single line, no leading '#'
+    return ((s or "").replace("\n", " ").lstrip("#").strip()) or "(unparented)"
+
+def parse(path):
+    txt = open(path, encoding="utf-8", errors="replace").read()
+    fm = {}
+    if txt.startswith("---"):
+        end = txt.find("\n---", 3)
+        if end != -1:
+            for line in txt[3:end].splitlines():
+                m = re.match(r"\s*([A-Za-z_]+):\s*(.*)$", line)
+                if m:
+                    val = m.group(2).strip()
+                    if val[:1] in ('"', "'"):          # quoted: take the quoted span
+                        q = val[0]; e = val.find(q, 1)
+                        val = val[1:e] if e != -1 else val[1:]
+                    else:                               # unquoted scalar: drop an inline " # comment"
+                        h = val.find(" #")
+                        if h != -1:
+                            val = val[:h].rstrip()
+                    fm[m.group(1)] = val
+    fname = os.path.basename(path)
+    return {
+        "file": fname,
+        "title": fm.get("title") or os.path.splitext(fname)[0],
+        "opportunity": fm.get("opportunity") or "(unparented)",
+        "status": (fm.get("status") or "proposed").lower(),
+        "lens": fm.get("lens") or "",
+        "appetite": fm.get("appetite") or "",
+        "impact": fm.get("impact") or "",
+        "last_updated": fm.get("last_updated") or "",
+    }
+
+sols = []
+for p in glob.glob(os.path.join(d, "*.md")):
+    if os.path.basename(p) in skip:
+        continue
+    try:
+        sols.append(parse(p))
+    except Exception as e:
+        print("nanopm: skipped unparseable %s (%s)" % (os.path.basename(p), e), file=sys.stderr)
+
+out = []
+n = len(sols)
+out.append("# Solutions — by opportunity")
+out.append("")
+out.append("Generated by /pm-solutions · %s · %d solution%s"
+           % (datetime.date.today().isoformat(), n, "" if n == 1 else "s"))
+out.append("")
+if not sols:
+    out.append("_No solutions yet. Run `/pm-solutions <opportunity-slug>` to brainstorm the first set._")
+else:
+    groups = {}
+    for s in sols:
+        groups.setdefault(s["opportunity"], []).append(s)
+    for opp in sorted(groups, key=lambda o: o.lower()):
+        out.append("## %s" % _heading(opp))
+        # status asc (chosen first); within same status, newest last_updated first
+        rows = sorted(groups[opp], key=lambda s: s["last_updated"], reverse=True)
+        rows = sorted(rows, key=lambda s: rank.get(s["status"], 4))
+        for s in rows:
+            parts = []
+            if s["lens"]:
+                parts.append(s["lens"])
+            if s["appetite"]:
+                parts.append(s["appetite"])
+            if s["impact"]:
+                parts.append(s["impact"])
+            parts.append(s["status"])
+            line = "- **[%s](%s)** · %s" % (_inline(s["title"]), s["file"], " · ".join(parts))
+            if s["last_updated"]:
+                line += " · %s" % s["last_updated"]
+            out.append(line)
+        out.append("")
+
+open(os.path.join(d, "INDEX.md"), "w", encoding="utf-8").write("\n".join(out).rstrip() + "\n")
+print("INDEX.md regenerated (%d solutions)" % n)
 PY
 }
 

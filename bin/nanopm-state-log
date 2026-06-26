@@ -33,6 +33,15 @@ Types and schemas:
     path         optional  file path written
     skill        optional  string
 
+  solution     candidate solutions to an opportunity (latest-wins by slug)
+    slug         required  alphanumeric/hyphens (uniqueness key)
+    opportunity  required  string — the opportunity it addresses
+    status       optional  enum: proposed | shortlisted | chosen | speccing
+    lens         optional  string — the framing/lens used to generate it
+    appetite     optional  string — Shape Up appetite (e.g. small batch)
+    impact       optional  string — expected outcome/impact
+    skill        optional  string
+
   handoff      output handoffs (append-only, full history)
     feature      required  alphanumeric/hyphens
     target       required  enum: linear | github | openspec | gstack | human
@@ -112,6 +121,21 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                 "linear", "github", "openspec", "gstack", "human", "none",
             }, "optional": True},
             "path": {"type": "string", "max": MAX_PATH_LEN, "optional": True},
+            "skill": {"type": "key", "optional": True},
+            "session": {"type": "session", "optional": True},
+        },
+    },
+    "solution": {
+        "required": {"slug", "opportunity"},
+        "fields": {
+            "slug": {"type": "key"},
+            "opportunity": {"type": "string", "max": MAX_STRING_LEN},
+            "status": {"type": "enum", "values": {
+                "proposed", "shortlisted", "chosen", "speccing",
+            }, "optional": True},
+            "lens": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
+            "appetite": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
+            "impact": {"type": "string", "max": MAX_STRING_LEN, "optional": True},
             "skill": {"type": "key", "optional": True},
             "session": {"type": "session", "optional": True},
         },

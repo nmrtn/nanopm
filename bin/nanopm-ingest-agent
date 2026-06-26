@@ -47,7 +47,7 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
 
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
-ENTITY_ORDER = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
+ENTITY_ORDER = ["personas", "competitors", "opportunities", "solutions", "objectives", "features", "people"]
 
 # Entity-section housekeeping files (the opportunities DB's INDEX/LOG/SCHEMA) are not
 # entity pages: they carry no page frontmatter and must stay OUT of the always-loaded

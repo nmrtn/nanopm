@@ -81,7 +81,7 @@ DOC_SKILL = {
 # The section a folded reasoning sidecar lands under (schema §4.3 / §5). Its presence
 # on a page is also the fold's idempotency key — never fold twice.
 PROVENANCE_HEADING = "## Provenance & assumptions"
-ENTITY_TYPES = ["personas", "competitors", "opportunities", "objectives", "features", "people"]
+ENTITY_TYPES = ["personas", "competitors", "opportunities", "solutions", "objectives", "features", "people"]
 RAW_SUBDIRS = ["feedback", "competitors", "data", "interviews", "git-activity"]
 
 
