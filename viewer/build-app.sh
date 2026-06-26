@@ -3,6 +3,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# A running instance holds the old bundle and won't reload on `open` — quit it first
+# (graceful), then hard-kill stragglers, so the rebuild actually loads. Two names on
+# purpose: "NanoPM Viewer" is CFBundleName (osascript), NanoPMViewer is the executable
+# (killall fallback). Both `|| true` so a not-running app never trips `set -e`.
+osascript -e 'quit app "NanoPM Viewer"' 2>/dev/null || true
+killall NanoPMViewer 2>/dev/null || true
+
 swift build -c release
 
 APP_DIR="build/NanoPM Viewer.app"
