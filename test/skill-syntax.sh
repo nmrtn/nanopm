@@ -200,6 +200,28 @@ if [ -f "$_PRD" ]; then
   fi
 fi
 
+# ── 6g. pm-solutions three-primitive recipe (query → reasoning → ingest) ──────
+echo
+echo "  pm-solutions three-primitive recipe"
+_SOL="$_REPO_ROOT/pm-solutions/SKILL.md"
+if [ -f "$_SOL" ]; then
+  if grep -q "nanopm_query_prompt" "$_SOL"; then
+    ok "pm-solutions — QUERY op present (grounds the panel via nanopm_query_prompt)"
+  else
+    fail "pm-solutions — no nanopm_query_prompt call (read primitive missing; panel runs ungrounded)"
+  fi
+  if grep -q "nanopm-ingest-agent apply" "$_SOL"; then
+    ok "pm-solutions — INGEST op present (writes via nanopm-ingest-agent apply)"
+  else
+    fail "pm-solutions — no ingest apply call (write primitive missing)"
+  fi
+  if grep -q "nanopm-ingest-agent reindex" "$_SOL" && grep -q "nanopm_solutions_reindex" "$_SOL"; then
+    ok "pm-solutions — regenerates both indexes (per-entity + top-level) after writes"
+  else
+    fail "pm-solutions — missing a reindex (top-level or per-entity) after writes"
+  fi
+fi
+
 # ── 7. Connector files ────────────────────────────────────────────────────────
 echo
 echo "  Connectors"
