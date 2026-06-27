@@ -33,6 +33,15 @@ Types and schemas:
     path         optional  file path written
     skill        optional  string
 
+  solution     candidate solutions to an opportunity (latest-wins by slug)
+    slug         required  alphanumeric/hyphens (uniqueness key)
+    opportunity  required  string — the opportunity it addresses
+    status       optional  enum: proposed | shortlisted | chosen | speccing
+    lens         optional  enum: eng | design | business
+    appetite     optional  enum: small-bet | big-bet (Shape Up, not an estimate)
+    impact       optional  enum: high | medium | low (qualitative)
+    skill        optional  string
+
   handoff      output handoffs (append-only, full history)
     feature      required  alphanumeric/hyphens
     target       required  enum: linear | github | openspec | gstack | human
@@ -112,6 +121,27 @@ SCHEMAS: dict[str, dict[str, Any]] = {
                 "linear", "github", "openspec", "gstack", "human", "none",
             }, "optional": True},
             "path": {"type": "string", "max": MAX_PATH_LEN, "optional": True},
+            "skill": {"type": "key", "optional": True},
+            "session": {"type": "session", "optional": True},
+        },
+    },
+    "solution": {
+        "required": {"slug", "opportunity"},
+        "fields": {
+            "slug": {"type": "key"},
+            "opportunity": {"type": "string", "max": MAX_STRING_LEN},
+            "status": {"type": "enum", "values": {
+                "proposed", "shortlisted", "chosen", "speccing",
+            }, "optional": True},
+            "lens": {"type": "enum", "values": {
+                "eng", "design", "business",
+            }, "optional": True},
+            "appetite": {"type": "enum", "values": {
+                "small-bet", "big-bet",
+            }, "optional": True},
+            "impact": {"type": "enum", "values": {
+                "high", "medium", "low",
+            }, "optional": True},
             "skill": {"type": "key", "optional": True},
             "session": {"type": "session", "optional": True},
         },

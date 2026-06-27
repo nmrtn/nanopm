@@ -1,7 +1,7 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.21.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.24.0-blue.svg)](CHANGELOG.md)
 
 A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
@@ -115,6 +115,7 @@ Commands are namespaced (`/nanopm:pm-run`) and updates flow through Claude Code'
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
 /pm-competitors-intel → discover competitors, monitor + diff their pages, run SWOT + positioning analysis
 /pm-opportunities    → ranked DB of user problems (Teresa Torres) — add or generate, deduped, provenance-tagged
+/pm-solutions        → brainstorm ≥3 compared solutions for one opportunity — a three-lens panel (Eng / Design / Business)
 /pm-strategy         → strategy + mandatory adversarial challenge (assumption, test, cost)
 /pm-roadmap          → outcome-driven roadmap (Shape Up / Scrum / NOW-NEXT-LATER)
 /pm-prd              → full PRD or Shape Up pitch, adapts to your methodology
@@ -144,8 +145,10 @@ nanopm runs in four zones — context first, signal in, planning cycle, delivery
 |---|---|---|
 | **1. Define** | vision-mission · business-model · org · product · personas | Company + product context: the business, the org, who it's for, the product map |
 | **2. Discover** | user-feedback · interview · data · competitors-intel · opportunities | The three external signals (research, analytics, market), distilled into a ranked DB of user problems |
-| **3. Plan** | objectives → strategy → roadmap → prd → breakdown | Runs in sequence; each reads typed state from the prior |
+| **3. Plan** | objectives → strategy → roadmap → solutions → prd → breakdown | Runs in sequence; each reads typed state from the prior |
 | **4. Handoffs** | Linear · GitHub · OpenSpec · gstack · Symphony · Human | `/pm-breakdown` writes to whichever target fits — see [Handoffs](#handoffs) |
+
+Discover and Plan share one spine — the Opportunity Solution Tree (Teresa Torres): objectives are the **outcomes**, the ranked DB holds the **opportunities**, and `/pm-solutions` fills the node that was missing — it takes one opportunity and brainstorms a *compared set* of candidate **solutions** (a three-lens Eng / Design / Business panel, each with an appetite, a riskiest assumption, and its cheapest test), so you weigh competing options instead of jumping from the first idea straight to a PRD. You shortlist and choose; the agent never auto-chooses, and `/pm-prd <chosen-solution>` then seeds the spec from the solution and its parent opportunity.
 
 Two one-page briefs are regenerated whenever their phase changes and reloaded into every run — `company.md` (who you are) and `current-work.md` (the bet, the OKRs, what's NOW) — so every skill works from the same baseline instead of drifting. Daily Ops skills (`/pm-challenge-me`, `/pm-brainstorm`, `/pm-standup`, `/pm-weekly-update`, `/pm-retro`) run on any day, outside the pipeline.
 
@@ -153,9 +156,22 @@ Run `/pm-run` for the whole sequence, or invoke any skill standalone.
 
 ---
 
+## How a skill works — three primitives over the wiki
+
+Every skill, whatever its job, is the **same recipe over the memory wiki** — it never starts from a blank prompt and it keeps no bespoke read logic. It **queries** the wiki for what it needs, **reasons** over what it got, and **ingests** the result back; a **lint** pass keeps the whole thing honest after the fact. That uniformity is the point: add a skill and it inherits the shared memory, the citations, and the health checks for free.
+
+- **query** *(read)* — a subagent reads the wiki catalog, drills into only the pages that matter, and returns a **cited** synthesis — never the raw docs dumped into context, and a missing answer is named rather than invented. It's how `/pm-prd` pulls the right persona and the quantified problem size, and how `/pm-solutions` grounds its Eng/Design/Business panel on the real personas, objectives, and product surface.
+- **reasoning** — the skill's actual work, and the only part that differs skill to skill: the adversarial bet gate in `/pm-strategy`, the three-lens panel in `/pm-solutions`, the dedup-and-rank in `/pm-opportunities`, the methodology-aware spec in `/pm-prd`.
+- **ingest** *(write)* — the result is written back as a wiki page (and, where it matters, a typed JSONL decision), single-writer-per-file and locked, after which the index is regenerated so the next skill can find it.
+- **lint** *(honesty pass)* — there's no pre-write approval gate; a structural + judgment lint runs *after the fact*, surfacing contradictions, orphans, broken links, stale pages, and drift. **Write freely, lint surfaces, you curate.**
+
+So a single run reads like one sentence: *query the wiki → reason → ingest back → lint keeps it honest.* The wiki those primitives operate on — a small, always-current body of pages rather than an ever-growing chat log — is described under [Memory](#memory).
+
+---
+
 ## The viewer (macOS, optional)
 
-Prefer not to live in a terminal? The optional **NanoPM Viewer** is a native macOS app that browses everything in `.nanopm/` — artifacts grouped by phase (Define / Discover / Plan / Build), rendered as Markdown, with the compounding entity pages (opportunities, competitors, PRDs) as first-class views.
+Prefer not to live in a terminal? The optional **NanoPM Viewer** is a native macOS app that browses everything in `.nanopm/` — artifacts grouped by phase (Define / Discover / Plan / Build), rendered as Markdown, with the compounding entity pages (opportunities, solutions, competitors, PRDs) as first-class views — the Solutions table filters and navigates opportunity↔solution in both directions.
 
 ![NanoPM Viewer — the Opportunities database, with the phase sidebar](assets/viewer.png)
 
@@ -170,7 +186,7 @@ It's an early, deliberately throwaway prototype — see [`viewer/README.md`](vie
 nanopm remembers across sessions, so each run builds on the last instead of starting cold. Memory is a **maintained wiki**, not a chat log — a small set of always-current pages the agent reads at the start of every run, with deterministic CLIs to keep it tidy. (The pattern is Karpathy's [LLM wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).)
 
 - **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated when their phase changes and reloaded into every run — so all work shares one baseline instead of drifting.
-- **Entity pages that compound.** Personas, competitors, opportunities, objectives, features, and people each get a page that many sources refine over time, with citations — new evidence supersedes old claims (keeping the history) instead of stacking duplicate notes.
+- **Entity pages that compound.** Personas, competitors, opportunities, solutions, objectives, features, and people each get a page that many sources refine over time, with citations — new evidence supersedes old claims (keeping the history) instead of stacking duplicate notes. Solutions link back to their parent opportunity (one edge of the Opportunity Solution Tree), navigable from either end.
 - **Just files + git.** No database, no server. A project's `.nanopm/` is two layers: `raw/` (immutable sources — connector pulls, the typed event log, page snapshots) and `wiki/` (all generated content — the briefs, skill outputs, compounding entity pages). Plain Markdown you can read, diff, and edit.
 - **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions (and warns when a `challenges`/`strategy` page drifts past 20 commits); an ingest pass dedupes by citation. Writes apply directly — there's no pre-write approval queue; quality is kept honest *after the fact* by the judgment lint (write freely, lint surfaces, you curate).
 

@@ -422,4 +422,29 @@ Tell the user:
 - Next step: feed the top opportunities into `/pm-roadmap` or `/pm-prd`, or run `/pm-opportunities add`
   whenever a new problem surfaces. (Continuous auto-ingest from discovery skills is a later mode.)
 
+### Solutioning nudge (if any opportunity is ready)
+
+After the completion summary, check whether any opportunity has reached the end of the status
+workflow — `status: ready-for-solutions` in its frontmatter:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+_OPP_DIR=".nanopm/wiki/entities/opportunities"
+grep -lE '^status:[[:space:]]*ready-for-solutions' "$_OPP_DIR"/*.md 2>/dev/null \
+  | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' \
+  | sed -E 's#.*/##; s#\.md$##'   # one ready-for-solutions slug per line
+```
+
+- **None ready** → surface nothing; the run is done.
+- **Exactly one ready** → offer to move it into solution space. Ask via `AskUserQuestion`
+  (header `Confirm`): "Opportunity `{slug}` is ready for solutions. Brainstorm solutions now?"
+  options `["Yes, launch it", "Not now"]`. On **Yes**, launch `/pm-solutions {slug}`.
+- **Two or more ready** → the user must pick WHICH one. Ask via `AskUserQuestion` (header `Confirm`):
+  "{N} opportunities are ready for solutions. Brainstorm solutions on one now?" — make the **option
+  list the ready slugs themselves** (one option per slug, e.g. `["slow-bulk-editing",
+  "confusing-first-run", "Not now"]`; cap at the first few if there are many). On a slug choice,
+  launch `/pm-solutions <that-slug>`.
+- On a host with no `AskUserQuestion`, print a clear suggestion line instead — e.g.
+  `{N} opportunity(ies) ready for solutions: {slug list}. Run /pm-solutions <slug> to brainstorm solutions.`
+
 **STATUS: DONE**

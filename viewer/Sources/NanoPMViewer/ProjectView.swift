@@ -22,6 +22,7 @@ struct ProjectView: View {
     @State private var competitorsExpanded = false
     @State private var prdsExpanded = false
     @State private var opportunitiesExpanded = false
+    @State private var solutionsExpanded = false
     @State private var weeklyUpdatesExpanded = false
     @State private var standupsExpanded = false
     // Which per-phase entity-type groups are expanded, keyed "<phase>/<type>" so each
@@ -121,6 +122,20 @@ struct ProjectView: View {
     private var opportunityChildren: [Artifact] {
         store.artifacts
             .filter { OpportunityFiles.isOpportunityFile($0.relativePath) && !OpportunityFiles.isReserved($0.relativePath) }
+            .sorted { $0.relativePath.lowercased() < $1.relativePath.lowercased() }
+    }
+
+    /// True when the Solutions store has any files — it gets its own expandable
+    /// nav entry beside Opportunities (the OST sibling node), not a flat row each.
+    private var showSolutionsSection: Bool {
+        store.artifacts.contains { SolutionFiles.isSolutionFile($0.relativePath) }
+    }
+
+    /// Children of the "Solutions" entry: the individual solutions only
+    /// (alphabetical). INDEX is the landing; LOG and SCHEMA are machinery.
+    private var solutionChildren: [Artifact] {
+        store.artifacts
+            .filter { SolutionFiles.isSolutionFile($0.relativePath) && !SolutionFiles.isReserved($0.relativePath) }
             .sorted { $0.relativePath.lowercased() < $1.relativePath.lowercased() }
     }
 
@@ -283,6 +298,9 @@ struct ProjectView: View {
                 // Opportunity DB files are grouped under one expandable
                 // "Opportunities" entry (INDEX is the landing), not flat rows.
                 && !(showOpportunitiesSection && OpportunityFiles.isOpportunityFile(artifact.relativePath))
+                // Solutions store files are grouped under one expandable
+                // "Solutions" entry (INDEX is the landing), not flat rows.
+                && !(showSolutionsSection && SolutionFiles.isSolutionFile(artifact.relativePath))
                 // Wiki entity pages collapse under a per-phase "Entities" group, not
                 // ~18 flat rows. They're the substrate behind the briefs.
                 && !artifact.relativePath.lowercased().hasPrefix("wiki/entities/")
@@ -340,6 +358,9 @@ struct ProjectView: View {
                 if phase == .discover && showOpportunitiesSection {
                     opportunitiesEntry.listRowInsets(Self.childRowInsets)
                 }
+                if phase == .discover && showSolutionsSection {
+                    solutionsEntry.listRowInsets(Self.childRowInsets)
+                }
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry.listRowInsets(Self.childRowInsets)
                 }
@@ -394,7 +415,8 @@ struct ProjectView: View {
 
     /// One collapsible group per entity TYPE under its phase (Personas, Objectives,
     /// Features, People), so the nav reads by type instead of one lumped "Entities"
-    /// group. Opportunities & competitors are excluded — they have dedicated entries.
+    /// group. Opportunities, solutions & competitors are excluded — they have
+    /// dedicated entries.
     private struct EntityTypeGroup: Identifiable {
         let type: String
         let artifacts: [Artifact]
@@ -405,7 +427,7 @@ struct ProjectView: View {
         var byType: [String: [Artifact]] = [:]
         for entity in entityArtifacts(for: phase) {
             guard let type = Self.entityType(of: entity.relativePath),
-                  type != "opportunities", type != "competitors" else { continue }
+                  type != "opportunities", type != "competitors", type != "solutions" else { continue }
             let stem = ((entity.relativePath as NSString).lastPathComponent as NSString)
                 .deletingPathExtension.uppercased()
             if stem == "INDEX" || stem == "LOG" || stem == "SCHEMA" { continue }
@@ -506,6 +528,21 @@ struct ProjectView: View {
         }
     }
 
+    @ViewBuilder
+    private var solutionsEntry: some View {
+        DisclosureGroup(isExpanded: $solutionsExpanded) {
+            ForEach(solutionChildren) { sol in
+                Label(prettyDocName(sol.relativePath), systemImage: iconFor(sol))
+                    .tag(sol.id)
+                    .help(".nanopm/" + sol.relativePath)
+            }
+        } label: {
+            Label("Solutions", systemImage: SkillCatalog.solutionsIcon)
+                .tag(NavRoute.solutionsPage)
+                .help("Candidate solutions per opportunity (the OST node before a PRD) — opens the filterable table; expand for each solution")
+        }
+    }
+
     /// A dated-series folder (weekly updates, standups) collapses under one entry,
     /// newest first, instead of a flat row per date. The label just toggles the list
     /// (no landing page), like the per-phase "Entities" group.
@@ -557,6 +594,11 @@ struct ProjectView: View {
                 onOpen: { artifactID in selection = artifactID },
                 onAnswer: { relPath in selection = Self.runTagPrefix + relPath }
             )
+        } else if selection == NavRoute.solutionsPage {
+            SolutionsOverviewView(
+                store: store,
+                onOpen: { artifactID in selection = artifactID }
+            )
         } else if let selection,
                   selection.hasPrefix(Self.runTagPrefix),
                   let run = runManager.latestRun(for: String(selection.dropFirst(Self.runTagPrefix.count)),
@@ -576,6 +618,11 @@ struct ProjectView: View {
                   !OpportunityFiles.isReserved(selection),
                   let opp = store.artifacts.first(where: { $0.id == selection }) {
             OpportunityDetailView(store: store, artifact: opp) { id in self.selection = id }
+        } else if let selection,
+                  SolutionFiles.isSolutionFile(selection),
+                  !SolutionFiles.isReserved(selection),
+                  let sol = store.artifacts.first(where: { $0.id == selection }) {
+            SolutionDetailView(store: store, artifact: sol) { id in self.selection = id }
         } else if let selection,
                   selection.hasPrefix(NavRoute.seriesPrefix),
                   let newest = seriesArtifacts(

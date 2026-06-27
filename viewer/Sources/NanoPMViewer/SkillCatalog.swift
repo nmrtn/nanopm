@@ -4,6 +4,7 @@ import Foundation
 enum NavRoute {
     static let prdsPage = "page:prds"
     static let opportunitiesPage = "page:opportunities"
+    static let solutionsPage = "page:solutions"
     static let competitorsPage = "page:competitors"
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
@@ -109,6 +110,11 @@ enum SkillCatalog {
         all.first { $0.title == "Opportunities" }?.icon ?? "lightbulb"
     }
 
+    /// The Solutions folder skill icon, so the nav entry matches its overview row.
+    static var solutionsIcon: String {
+        all.first { $0.title == "Solutions" }?.icon ?? "lightbulb.max"
+    }
+
     /// One-line intro shown under each phase overview title.
     static func subtitle(for phase: Phase) -> String {
         switch phase {
@@ -195,6 +201,14 @@ enum SkillCatalog {
             skillCommand: "/pm-opportunities",
             headlessArgs: "The launch context may carry a structured hint. A line starting with `add:` means capture that one user problem — go straight to add with that text. A line starting with `generate:` (optionally `generate: <N>` or `generate: <N> for theme <theme>`) means run the additive generate mode for that count and optional theme. With no hint, auto-detect: run `bootstrap` if .nanopm/wiki/entities/opportunities/SCHEMA.md does not exist, otherwise run `add` and ask the user (via the interface contract) for the user problem to capture.",
             phase: .discover, output: .file("wiki/entities/opportunities/INDEX.md")
+        ),
+        SkillDoc(
+            title: "Solutions",
+            blurb: "Multi-lens solution brainstorming for an opportunity — a panel of Eng, Design, and Business lenses proposes competing solutions, deduped into a compared set with appetite, impact, the riskiest assumption, and the cheapest test. The OST node between an opportunity and a PRD.",
+            icon: "lightbulb.max",
+            skillCommand: "/pm-solutions",
+            headlessArgs: "Takes an opportunity slug as argument: /pm-solutions <opportunity-slug>. Resolve it from .nanopm/wiki/entities/opportunities/; if missing or ambiguous, list candidates and stop. Ask the user (via the interface contract) which opportunity to brainstorm solutions for if it is not given.",
+            phase: .discover, output: .file("wiki/entities/solutions/INDEX.md")
         ),
         SkillDoc(
             title: "Competitor Intel",
