@@ -156,6 +156,19 @@ Run `/pm-run` for the whole sequence, or invoke any skill standalone.
 
 ---
 
+## How a skill works — three primitives over the wiki
+
+Every skill, whatever its job, is the **same recipe over the memory wiki** — it never starts from a blank prompt and it keeps no bespoke read logic. It **queries** the wiki for what it needs, **reasons** over what it got, and **ingests** the result back; a **lint** pass keeps the whole thing honest after the fact. That uniformity is the point: add a skill and it inherits the shared memory, the citations, and the health checks for free.
+
+- **query** *(read)* — a subagent reads the wiki catalog, drills into only the pages that matter, and returns a **cited** synthesis — never the raw docs dumped into context, and a missing answer is named rather than invented. It's how `/pm-prd` pulls the right persona and the quantified problem size, and how `/pm-solutions` grounds its Eng/Design/Business panel on the real personas, objectives, and product surface.
+- **reasoning** — the skill's actual work, and the only part that differs skill to skill: the adversarial bet gate in `/pm-strategy`, the three-lens panel in `/pm-solutions`, the dedup-and-rank in `/pm-opportunities`, the methodology-aware spec in `/pm-prd`.
+- **ingest** *(write)* — the result is written back as a wiki page (and, where it matters, a typed JSONL decision), single-writer-per-file and locked, after which the index is regenerated so the next skill can find it.
+- **lint** *(honesty pass)* — there's no pre-write approval gate; a structural + judgment lint runs *after the fact*, surfacing contradictions, orphans, broken links, stale pages, and drift. **Write freely, lint surfaces, you curate.**
+
+So a single run reads like one sentence: *query the wiki → reason → ingest back → lint keeps it honest.* The wiki those primitives operate on — a small, always-current body of pages rather than an ever-growing chat log — is described under [Memory](#memory).
+
+---
+
 ## The viewer (macOS, optional)
 
 Prefer not to live in a terminal? The optional **NanoPM Viewer** is a native macOS app that browses everything in `.nanopm/` — artifacts grouped by phase (Define / Discover / Plan / Build), rendered as Markdown, with the compounding entity pages (opportunities, solutions, competitors, PRDs) as first-class views — the Solutions table filters and navigates opportunity↔solution in both directions.

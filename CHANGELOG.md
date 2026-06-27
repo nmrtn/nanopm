@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.24.0 — The Opportunity Solution Tree gets its missing node: `/pm-solutions`
+## 0.24.0 — 2026-06-27 — The Opportunity Solution Tree gets its missing node: `/pm-solutions`
 
 nanopm already produced Outcomes (objectives) and Opportunities (the ranked DB) — but nothing
 bridged an opportunity to a *compared set* of candidate solutions. So the founder picked the first
@@ -28,11 +28,16 @@ node of the Opportunity Solution Tree (Outcome → Opportunity → **Solution** 
 - **Engine + viewer.** A `solution` type registered across the ingest/migrate/state-log layers; three
   new lint rules (orphan solution · missing assumption/test · `chosen`-without-PRD); and a filterable
   Solutions table in the macOS viewer with bidirectional opportunity↔solution navigation.
+- **A true three-primitive recipe (query → reasoning → ingest).** Like every nanopm skill, the panel
+  is *grounded*, not guessed: a `nanopm_query_prompt` subagent reads the wiki and returns a cited,
+  lens-relevant digest (persona JTBD · objectives/strategy · product surface) → the three lenses
+  reason over it → the converged solutions are written back via `nanopm-ingest-agent apply`. Gated by
+  three new `pm-solutions` checks in `test/skill-syntax.sh`.
 - Built in two parallel waves with per-wave code review; the skill was dogfooded on a real opportunity
   before release (which caught and fixed a top-level-index regen gap). Regression-gated by the full
   local suite (`test/run-all.sh`).
 
-## 0.23.0 — The discover→plan loop is closed
+## 0.23.0 — 2026-06-26 — The discover→plan loop is closed
 
 The ranked opportunity database (the headline compounding artifact) was written by several
 skills but read by virtually none downstream — planning asked `query` for "feedback themes,"
@@ -49,7 +54,7 @@ just sharpens the read questions, the way the read primitive is meant to be used
   hearing, not just what we're doing.
 - Regression-gated by `test/opportunity-loop.sh`.
 
-## 0.22.1 — Entity pages always land inside the wiki
+## 0.22.1 — 2026-06-26 — Entity pages always land inside the wiki
 
 Fixes a path bug where ingest skills (e.g. `/pm-personas`) wrote entity pages to
 `.nanopm/entities/<type>/` instead of `.nanopm/wiki/entities/<type>/` — so they fell
@@ -61,56 +66,54 @@ outside the wiki and the viewer dumped them into "Others" instead of their phase
 - The ingest prompt now names the canonical `wiki/entities/<type>/<slug>.md` path.
 - Regression-gated by `test/ingest-path.sh`.
 
-## 0.22.0 — Migrated projects don't start cold
+## 0.22.0 — 2026-06-26 — The Karpathy-faithful memory engine
 
-Fixes a gap found dogfooding the wiki migration on nanopm's own repo: the always-loaded
-briefs (`wiki/overview/company.md`, `wiki/overview/current-work.md`) were left empty
-after migration, so the first skill run started with no shared context — it *felt like
-starting from scratch* even though the source docs were right there.
+Trims the memory wiki back to the model that inspired it (Karpathy's LLM-wiki) and re-expresses
+every skill as a thin recipe over **three primitives — query → reasoning → ingest** — with a `lint`
+pass keeping it honest after the fact. Surfaced by Nico's review of #121; built on the wiki-canonical
+foundation from 0.21.0. (This is the engine the rest of the pack now runs on; it shipped to users in
+this release.)
 
-**What's different for you**
+**The engine**
 
-- **The preamble now flags empty-but-recoverable briefs.** A new `nanopm_brief_stale_check`
-  emits `BRIEF_STALE company` / `BRIEF_STALE current-work` when wiki Define/Plan docs exist
-  but their consolidated brief is empty (the genuine post-migration case) — mirroring how
-  `UPGRADE_AVAILABLE` is surfaced. It never nags a virgin project with nothing to summarize.
-- **`/pm-run` self-heals up front.** A new Phase 0c regenerates any missing brief from the
-  existing wiki docs *before* the pipeline reads context, reusing the same prompts the
-  Define/Plan skills already use (`nanopm_plan_brief_prompt` + the context-brief subagent).
-  No edits to the individual skills, no migrator changes — emptiness is detected via the
-  loaders' existing `-s` test.
+- **A `query` read primitive.** Skills read upstream context through a shared query (or, for Define
+  cross-doc gathering, retrieval) subagent — read the catalog, drill in, synthesize with citations —
+  instead of bespoke per-skill reads. Every `pm-*` skill is now recipe-form: **query → reasoning →
+  ingest**, all on the gate-free path.
+- **No more pre-write confidence gate.** `nanopm-confidence-gate` and the `wiki/_review/` approval
+  queue are gone. Writes apply directly (single-writer-per-file, locked, via a new
+  `nanopm-ingest-agent apply`); contradictions and reversals are surfaced *after the fact* by the
+  judgment lint — "write freely, lint surfaces, you curate." The 5 signal skills no longer route
+  through the gate.
+- **The judgment lint is now wired.** The structural lint is a cheap pre-filter; the judgment pass
+  (missing contradictions / gaps / drift) is dispatched once/day when the preamble flags it due
+  (`LINT_JUDGMENT_DUE`) and records findings in `wiki/log.md`.
+- **Cleaner upgrades.** A project with legacy flat docs auto-migrates into the wiki on the first
+  post-upgrade run (copy mode + a one-line banner); `nanopm-migrate-to-wiki --finalize` now deletes a
+  flat doc only when the wiki copy matches it — an edited flat doc is kept, not lost. Opportunities
+  `INDEX/LOG/SCHEMA` housekeeping files are skiplisted from lint and the index.
 
-Regression-gated by `test/brief-stale.sh` (fires on stale, silent when warm/virgin, `-s`
-not `-f` for zero-byte briefs), now part of `test/run-all.sh`.
+**Migrated projects don't start cold**
 
-## Unreleased — Karpathy-faithful memory engine (engine + recipes)
+A gap found dogfooding the migration on nanopm's own repo: the always-loaded briefs
+(`wiki/overview/company.md`, `current-work.md`) were left empty after migration, so the first run
+started with no shared context — it *felt like starting from scratch* even though the source docs were
+right there.
 
-Trims the memory wiki back to the model that inspired it (Karpathy's LLM-wiki) and
-re-expresses every skill as a thin recipe over three primitives. Surfaced by Nico's
-review of #121; built on the wiki-canonical foundation from 0.21.0.
+- **The preamble now flags empty-but-recoverable briefs.** A new `nanopm_brief_stale_check` emits
+  `BRIEF_STALE company` / `BRIEF_STALE current-work` when wiki Define/Plan docs exist but their
+  consolidated brief is empty (the genuine post-migration case) — never nagging a virgin project.
+- **`/pm-run` self-heals up front.** A new Phase 0c regenerates any missing brief from the existing
+  wiki docs *before* the pipeline reads context, reusing the Define/Plan prompts the skills already use.
 
-**What's different for you**
+**Viewer**
 
-- **No more pre-write confidence gate.** `nanopm-confidence-gate` and the `wiki/_review/`
-  approval queue are gone. Writes apply directly (single-writer-per-file, locked, via a
-  new `nanopm-ingest-agent apply`); contradictions and reversals are surfaced *after the
-  fact* by the judgment lint — "write freely, lint surfaces, you curate." The 5 signal
-  skills no longer route through the gate.
-- **The judgment lint is now wired.** The structural lint is a cheap pre-filter; the
-  judgment pass (missing contradictions / gaps / drift) is dispatched once/day when the
-  preamble flags it due (`LINT_JUDGMENT_DUE`) and records findings in `wiki/log.md`.
-- **A `query` read primitive.** Skills read upstream context through a shared query (or,
-  for Define cross-doc gathering, retrieval) subagent — read the catalog, drill in,
-  synthesize with citations — instead of bespoke per-skill reads. Every `pm-*` skill is
-  now recipe-form: query → reasoning → ingest, all on the gate-free path.
-- **Cleaner upgrades.** A project with legacy flat docs auto-migrates into the wiki on
-  the first post-upgrade run (copy mode + a one-line banner); `nanopm-migrate-to-wiki
-  --finalize` now deletes a flat doc only when the wiki copy matches it — an edited flat
-  doc is kept, not lost. Opportunities `INDEX/LOG/SCHEMA` housekeeping files are skiplisted
-  from lint and the index.
+- Entity pages are now grouped **by type under their phase** (personas, opportunities, … each its own
+  collapsible group) instead of one lumped bucket, and the viewer's wiki-migration reading is corrected
+  (card paths, reload-on-rebuild, the Memory hybrid view).
 
-Regression-gated by `test/wiki-canonical.sh` (gate-absence + judgment-lint wiring) and
-the engine e2e tests, now part of `test/run-all.sh`.
+Regression-gated by `test/wiki-canonical.sh` (gate-absence + judgment-lint wiring), `test/brief-stale.sh`,
+and the engine e2e tests — all part of `test/run-all.sh`.
 
 ## 0.21.0 — 2026-06-25
 
