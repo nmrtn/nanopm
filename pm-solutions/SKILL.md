@@ -270,14 +270,22 @@ last_updated: <YYYY-MM-DD>
 SOLUTION_EOF
 ```
 
-Then **regenerate the index** (deterministic — grouped by parent opportunity, then status) and append
-the run to the log:
+Then **regenerate both indexes** and append the run to the log. Two reindexes, because they serve
+different readers: `nanopm_solutions_reindex` rebuilds the per-entity `solutions/INDEX.md` (the
+human-navigable ranked home, grouped by parent opportunity then status), and the top-level
+`nanopm-ingest-agent reindex` rebuilds `.nanopm/wiki/index.md` so the new solution pages appear in the
+wiki-wide index — without it the lint agent flags every fresh solution as an `[orphan]` / `[index-drift]`
+(they're on disk but not in the canonical index). This mirrors the standard ingest flow (`apply` →
+`reindex` → `log`):
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _SOL_DIR=".nanopm/wiki/entities/solutions"
 _N=$(ls "$_SOL_DIR"/*.md 2>/dev/null | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' | wc -l | tr -d ' ')
 if nanopm_solutions_reindex; then
+  ~/.nanopm/bin/nanopm-ingest-agent reindex >/dev/null 2>&1 \
+    && echo "top-level wiki index refreshed" \
+    || echo "WARN: top-level wiki index.md not refreshed — run 'nanopm-ingest-agent reindex' to clear orphan/index-drift lint."
   printf '%s | solutions: wrote set for %s (proposed) | /pm-solutions\n' "$(date +%Y-%m-%d)" "${_OPP_SLUG:-?}" >> "$_SOL_DIR/LOG.md"
   echo "WROTE solutions + INDEX.md + LOG.md ($_N total)"
 else
