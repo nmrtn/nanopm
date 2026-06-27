@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.24.0 — The Opportunity Solution Tree gets its missing node: `/pm-solutions`
+
+nanopm already produced Outcomes (objectives) and Opportunities (the ranked DB) — but nothing
+bridged an opportunity to a *compared set* of candidate solutions. So the founder picked the first
+idea in his head and jumped straight to `/pm-prd`, never weighing alternatives. `/pm-solutions` fills
+that gap: it convenes a panel of three fixed expert lenses, makes them propose *competing* solutions
+in parallel, and converges them into a comparison the founder can actually weigh — the **Solutions**
+node of the Opportunity Solution Tree (Outcome → Opportunity → **Solution** → Assumption).
+
+- **New skill `/pm-solutions <opportunity-slug>`.** Three lenses — **Eng** (structural/durable cost,
+  not dev-time) · **Design** (experience, anchored on the persona's JTBD) · **Business** (domain +
+  market, anchored on objectives) — dispatched **concurrently** to diverge, then a convergence pass
+  dedups into **≥3 framed solutions**. Each carries a pitch · appetite (small-bet/big-bet, Shape Up —
+  not an estimate) · qualitative impact (high/med/low — no numeric score) · riskiest assumption ·
+  cheapest test · originating lens · and a one-line **dissent note** so the panel's disagreement stays
+  visible (never collapsed to a single anonymous verdict). The founder shortlists and chooses — **the
+  agent never auto-chooses.**
+- **A navigable tree, not buried notes.** Each solution is a wiki entity under
+  `.nanopm/wiki/entities/solutions/<slug>.md` with exactly one parent opportunity (the tree edge),
+  born `provenance: assumed`. A generated `solutions/INDEX.md` groups them by opportunity; the parent
+  opportunity page links back to its solutions, bidirectionally.
+- **The loop closes end-to-end.** `/pm-opportunities` now nudges you to run `/pm-solutions` when an
+  opportunity reaches `ready-for-solutions`; `/pm-prd <chosen-solution-slug>` seeds the spec's problem,
+  riskiest assumption, and falsification from the chosen solution + its parent. Net chain:
+  `pm-opportunities → pm-solutions → (chosen) → pm-prd`.
+- **Engine + viewer.** A `solution` type registered across the ingest/migrate/state-log layers; three
+  new lint rules (orphan solution · missing assumption/test · `chosen`-without-PRD); and a filterable
+  Solutions table in the macOS viewer with bidirectional opportunity↔solution navigation.
+- Built in two parallel waves with per-wave code review; the skill was dogfooded on a real opportunity
+  before release (which caught and fixed a top-level-index regen gap). Regression-gated by the full
+  local suite (`test/run-all.sh`).
+
 ## 0.23.0 — The discover→plan loop is closed
 
 The ranked opportunity database (the headline compounding artifact) was written by several
