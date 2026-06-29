@@ -215,22 +215,40 @@ final class RunManager: ObservableObject {
         latestRun(for: relPath, in: projectPath)?.isActive ?? false
     }
 
-    func launch(_ doc: SkillDoc, in projectPath: String, userContext: String? = nil) {
+    /// Launch a catalog skill as a headless run.
+    ///
+    /// - Parameters:
+    ///   - trackingKey: Overrides the run-tracking key (defaults to `doc.trackingPath`).
+    ///     Pass a per-opportunity key like `"solutions:payment-retries"` so two
+    ///     opportunities driving the SAME catalog skill (e.g. `/pm-solutions`, whose
+    ///     `trackingPath` is the shared `wiki/entities/solutions/INDEX.md`) don't collide
+    ///     on one run key — `latestRun(for:in:)`/`isActive(_:in:)` then resolve per-opportunity.
+    ///   - argument: A positional argument appended to the skill command, producing a first
+    ///     prompt line of `/pm-solutions <slug>`. Trimmed; ignored when empty/nil. The stored
+    ///     `SkillRun.skillCommand` stays the bare command so notifications/labels read cleanly.
+    func launch(_ doc: SkillDoc,
+                in projectPath: String,
+                userContext: String? = nil,
+                argument: String? = nil,
+                trackingKey: String? = nil) {
+        let key = trackingKey ?? doc.trackingPath
         guard let skillCommand = doc.skillCommand,
-              !isActive(doc.trackingPath, in: projectPath) else { return }
+              !isActive(key, in: projectPath) else { return }
 
         Notifier.requestAuthorizationIfNeeded()
 
         var run = SkillRun(projectPath: projectPath,
                            skillCommand: skillCommand,
-                           expectedRelPath: doc.trackingPath)
+                           expectedRelPath: key)
         let context = (userContext ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !context.isEmpty {
             run.transcript.append(TranscriptEntry(role: .user, text: context))
         }
         runs.append(run)
 
-        var parts = [skillCommand]
+        let trimmedArgument = (argument ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let commandLine = trimmedArgument.isEmpty ? skillCommand : "\(skillCommand) \(trimmedArgument)"
+        var parts = [commandLine]
         if !context.isEmpty {
             parts.append("CONTEXT FROM THE USER — they typed this when launching the run; "
                          + "let it scope and inform the work:\n\(context)")

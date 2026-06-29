@@ -35,6 +35,27 @@ struct ProjectView: View {
         runManager.runs.filter(\.isActive).count
     }
 
+    /// Runs in THIS project currently blocked on the human — the source of the
+    /// global "needs you" affordance in the sidebar footer. Global by design: a
+    /// waiting run is answerable from one central place, not only on the entity /
+    /// document page where it was launched.
+    private var waitingRuns: [RunManager.SkillRun] {
+        runManager.runs(in: project.path).filter {
+            if case .waitingForInput = $0.status { return true }
+            return false
+        }
+    }
+
+    /// A short, readable label for a waiting run in the answer menu — the skill
+    /// command plus a target hint (the entity slug for per-opportunity runs whose
+    /// tracking key is the synthetic `solutions:<slug>`, else the doc name).
+    private func waitingLabel(_ run: RunManager.SkillRun) -> String {
+        let target = run.expectedRelPath.contains(":")
+            ? String(run.expectedRelPath.split(separator: ":").last ?? "")
+            : prettyDocName(run.expectedRelPath)
+        return target.isEmpty ? run.skillCommand : "\(run.skillCommand) · \(target)"
+    }
+
     init(project: Project, onSwitchProject: @escaping () -> Void) {
         self.project = project
         self.onSwitchProject = onSwitchProject
@@ -69,30 +90,6 @@ struct ProjectView: View {
         .onChange(of: runManager.completionTick) { _, _ in
             Task { await store.refresh() }
         }
-    }
-
-    private func sidebarHelp(for run: RunManager.SkillRun) -> String {
-        switch run.status {
-        case .running: return "\(run.skillCommand) is generating this document"
-        case .waitingForInput: return "\(run.skillCommand) needs your input"
-        default: return "\(run.skillCommand) failed"
-        }
-    }
-
-    /// Active or failed runs whose artifact isn't on disk yet — shown as
-    /// placeholder rows in the phase they will land in.
-    private func pendingRuns(for phase: Phase) -> [RunManager.SkillRun] {
-        var latestByPath: [String: RunManager.SkillRun] = [:]
-        // Brainstorm runs produce no artifact — they never belong in a phase's
-        // pending-document rows (they live in the Brainstorm surface instead).
-        for run in runManager.runs(in: project.path) where run.kind == .skill {
-            latestByPath[run.expectedRelPath] = run
-        }
-        return latestByPath.values
-            .filter { $0.status != .succeeded }
-            .filter { PhaseMapper.phase(for: $0.expectedRelPath) == phase }
-            .filter { run in !store.artifacts.contains { $0.relativePath == run.expectedRelPath } }
-            .sorted { $0.expectedRelPath < $1.expectedRelPath }
     }
 
     /// True when competitor intel artifacts get their own nav section.
@@ -220,6 +217,14 @@ struct ProjectView: View {
                   ? "\(activeRunCount) run(s) in progress — open the live activity monitor"
                   : "Open the activity monitor")
 
+            // Global "a run needs your input" affordance — only present while at
+            // least one run is waiting. Routes straight to the answer form, so
+            // questions are answerable centrally regardless of where the run was
+            // launched. One waiting run → a direct button; several → a menu.
+            if !waitingRuns.isEmpty {
+                answerControl
+            }
+
             Button {
                 selection = NavRoute.memoryPage
             } label: {
@@ -247,6 +252,48 @@ struct ProjectView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
+    }
+
+    /// The amber "needs you" pill shown in the footer while runs wait on input.
+    /// A direct button when a single run waits (jump straight to its answer form);
+    /// a menu when several, so each is reachable from the one central place.
+    @ViewBuilder
+    private var answerControl: some View {
+        let count = waitingRuns.count
+        let label = HStack(spacing: 6) {
+            Image(systemName: "questionmark.bubble.fill")
+                .symbolEffect(.pulse, options: .repeating)
+            Text(count == 1 ? "Answer" : "\(count) to answer")
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(Color.npAmber)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Color.npAmber.opacity(0.15), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.npAmber.opacity(0.4)))
+
+        if count == 1, let run = waitingRuns.first {
+            Button { answer(run) } label: { label }
+                .buttonStyle(.borderless)
+                .help("\(run.skillCommand) needs your input — click to answer")
+        } else {
+            Menu {
+                ForEach(waitingRuns) { run in
+                    Button(waitingLabel(run)) { answer(run) }
+                }
+            } label: { label }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("\(count) runs need your input — pick one to answer")
+        }
+    }
+
+    /// Route to a waiting run's live session, where its QuestionForm renders. Uses
+    /// the run-tag route keyed on expectedRelPath, so it works for any tracking key
+    /// (including the synthetic `solutions:<slug>`) without depending on PhaseMapper.
+    private func answer(_ run: RunManager.SkillRun) {
+        selection = Self.runTagPrefix + run.expectedRelPath
     }
 
     /// Current project at the top of the sidebar, with the switcher.
@@ -313,13 +360,12 @@ struct ProjectView: View {
         // One collapsible group PER ENTITY TYPE under its phase (Personas under Define,
         // Objectives under Plan, …); opportunities & competitors have dedicated entries.
         let entityGroups = displayEntities ? entityTypeGroups(for: phase) : []
-        let pending = pendingRuns(for: phase)
         let hasOverview = !SkillCatalog.docs(for: phase).isEmpty
         let showPRDs = phase == .ship && !prdArtifacts.isEmpty
         // Brainstorm is an always-on interactive surface (not artifact-driven),
         // pinned at the top of DAY TO DAY so it's always reachable.
         let showBrainstorm = phase == .daily
-        if hasOverview || !items.isEmpty || !entityGroups.isEmpty || !pending.isEmpty || showPRDs || showBrainstorm {
+        if hasOverview || !items.isEmpty || !entityGroups.isEmpty || showPRDs || showBrainstorm {
             Section {
                 phaseLabel(phase, hasOverview: hasOverview)
                 if showBrainstorm {
@@ -364,9 +410,6 @@ struct ProjectView: View {
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry.listRowInsets(Self.childRowInsets)
                 }
-                ForEach(pending, id: \.expectedRelPath) { run in
-                    pendingRow(run).listRowInsets(Self.childRowInsets)
-                }
             }
         }
     }
@@ -385,26 +428,6 @@ struct ProjectView: View {
         } else {
             label
         }
-    }
-
-    @ViewBuilder
-    private func pendingRow(_ run: RunManager.SkillRun) -> some View {
-        HStack(spacing: 6) {
-            switch run.status {
-            case .running:
-                SparkleView(size: 11)
-            case .waitingForInput:
-                Image(systemName: "questionmark.bubble.fill")
-                    .foregroundStyle(Color.npAmber)
-            default:
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundStyle(Color.npRust)
-            }
-            Text(prettyDocName(run.expectedRelPath))
-                .foregroundStyle(.secondary)
-        }
-        .tag(Self.runTagPrefix + run.expectedRelPath)
-        .help(sidebarHelp(for: run))
     }
 
     private func entityArtifacts(for phase: Phase) -> [Artifact] {
@@ -617,7 +640,7 @@ struct ProjectView: View {
                   OpportunityFiles.isOpportunityFile(selection),
                   !OpportunityFiles.isReserved(selection),
                   let opp = store.artifacts.first(where: { $0.id == selection }) {
-            OpportunityDetailView(store: store, artifact: opp) { id in self.selection = id }
+            OpportunityDetailView(store: store, artifact: opp, onAnswer: { relPath in self.selection = Self.runTagPrefix + relPath }) { id in self.selection = id }
         } else if let selection,
                   SolutionFiles.isSolutionFile(selection),
                   !SolutionFiles.isReserved(selection),
