@@ -428,6 +428,7 @@ If a legacy `.nanopm/AUDIT.md` exists, after writing the wiki Challenges page te
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _CHALLENGES_DOC="$(nanopm_wiki_doc_path challenges)"
 nanopm_context_append "{\"skill\":\"pm-challenge-me\",\"outputs\":{\"gap\":\"$(grep -m1 '^# ' "$_CHALLENGES_DOC" | tr '\"' \"'\")\",\"next\":\"$(grep 'Run:' "$_CHALLENGES_DOC" | head -1 | sed 's/.*\///;s/\*//g' | xargs)\"}}"
+nanopm_wiki_doc_log pm-challenge-me "wrote docs/$(basename "$_CHALLENGES_DOC")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 Also append a more complete JSON with the challenge questions (key + question per angle) for downstream skills.

@@ -344,6 +344,7 @@ How each claim above was decided — what's evidenced vs assumed, the sources, a
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _PERSONAS_DOC="$(nanopm_wiki_doc_path personas)"
 nanopm_context_append "{\"skill\":\"pm-personas\",\"outputs\":{\"primary\":\"$(grep -m1 '^## Primary Persona' "$_PERSONAS_DOC" | sed 's/^## Primary Persona — //' | tr '\"' \"'\" | head -c 80)\",\"persona_count\":\"$(grep -cE '^## (Primary|Secondary) Persona' "$_PERSONAS_DOC")\",\"mode\":\"$(grep -m1 '^Mode:' "$_PERSONAS_DOC" | cut -d: -f2- | xargs | head -c 60)\",\"next\":\"pm-challenge-me\"}}"
+nanopm_wiki_doc_log pm-personas "wrote docs/$(basename "$_PERSONAS_DOC")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the PM context brief
