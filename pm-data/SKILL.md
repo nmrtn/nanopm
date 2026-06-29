@@ -236,6 +236,7 @@ after the fact — there is no pre-write review queue.
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _DATA_PATH="$(nanopm_wiki_doc_path data)"
 nanopm_context_append "{\"skill\":\"pm-data\",\"outputs\":{\"question\":\"$(head -20 "$_DATA_PATH" | grep 'Question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"source\":\"posthog\",\"next\":\"pm-challenge-me\"}}"
+nanopm_wiki_doc_log pm-data "wrote docs/$(basename "$_DATA_PATH")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

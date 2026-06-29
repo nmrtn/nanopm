@@ -165,6 +165,7 @@ A list without these two elements is just a to-do list for later, not a boundary
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _OBJ_PATH="$(nanopm_wiki_doc_path objectives)"
 nanopm_context_append "{\"skill\":\"pm-objectives\",\"outputs\":{\"period\":\"$(head -8 "$_OBJ_PATH" | grep Period | cut -d: -f2- | xargs)\",\"objective_count\":\"$(grep -c '^## Objective' "$_OBJ_PATH")\",\"next\":\"pm-strategy\"}}"
+nanopm_wiki_doc_log pm-objectives "wrote docs/$(basename "$_OBJ_PATH")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the plan brief

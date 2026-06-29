@@ -385,6 +385,7 @@ nanopm_company_publish BUSINESS-MODEL
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _BIZMODEL_DOC="$(nanopm_wiki_doc_path business-model)"
 nanopm_context_append "{\"skill\":\"pm-business-model\",\"outputs\":{\"model\":\"$(grep -A1 '^## How It Makes Money' "$_BIZMODEL_DOC" | tail -1 | tr -d '*' | xargs | tr '\"' \"'\" | head -c 80)\",\"gtm\":\"$(grep -A1 '^## GTM Motion' "$_BIZMODEL_DOC" | tail -1 | tr -d '*' | xargs | tr '\"' \"'\" | head -c 40)\",\"mode\":\"$(grep -m1 '^Mode:' "$_BIZMODEL_DOC" | cut -d: -f2- | xargs | head -c 60)\",\"next\":\"pm-org\"}}"
+nanopm_wiki_doc_log pm-business-model "wrote docs/$(basename "$_BIZMODEL_DOC")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the PM context brief

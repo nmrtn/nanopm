@@ -556,6 +556,7 @@ contradiction after the fact — there is no pre-write review queue.
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-competitors-intel\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"report\":\"${_REPORT_FILE}\",\"competitors\":\"$(python3 -c "import json; d=json.load(open('$_COMPETITORS_FILE')); print(','.join(c['name'] for c in d['competitors']))" 2>/dev/null || echo 'unknown')\",\"changes_found\":\"$(grep -c '^\\*\\*New:\\|^\\*\\*Changed:\\|^\\*\\*Removed:' $_REPORT_FILE 2>/dev/null || echo 0)\"}}"
+[ -f "$(nanopm_wiki_doc_path competitors)" ] && nanopm_wiki_doc_log pm-competitors-intel "wrote docs/competitors.md"   # global heartbeat: landscape page write -> wiki/log.md
 ```
 
 ## Completion

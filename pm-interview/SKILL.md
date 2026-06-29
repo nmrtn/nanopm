@@ -405,6 +405,8 @@ after the fact — there is no pre-write review queue.
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _INTERVIEW_PAGE="$(nanopm_wiki_doc_path interview)"
 nanopm_context_append "{\"skill\":\"pm-interview\",\"outputs\":{\"focus\":\"$(head -20 "$_INTERVIEW_PAGE" | grep 'Focus' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"verdict\":\"$(grep 'Hypothesis verdicts' "$_INTERVIEW_PAGE" | cut -d: -f2- | xargs | head -c 50)\",\"next\":\"pm-challenge-me\"}}"
+nanopm_wiki_doc_log pm-interview "wrote docs/$(basename "$_INTERVIEW_PAGE")"   # global heartbeat: this page write -> wiki/log.md
+[ -f "$(nanopm_wiki_doc_path feedback)" ] && nanopm_wiki_doc_log pm-interview "wrote docs/feedback.md"   # heartbeat for the feedback page if it was written
 ```
 
 ## Completion

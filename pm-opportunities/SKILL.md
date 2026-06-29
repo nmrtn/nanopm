@@ -213,6 +213,12 @@ _OPP_DIR=".nanopm/wiki/entities/opportunities"
 _N=$(ls "$_OPP_DIR"/*.md 2>/dev/null | grep -vE '/(INDEX|LOG|SCHEMA)\.md$' | wc -l | tr -d ' ')
 if nanopm_opportunities_reindex; then
   printf '%s | bootstrap: created %s opportunities | /pm-opportunities\n' "$(date +%Y-%m-%d)" "$_N" >> "$_OPP_DIR/LOG.md"
+  # Global heartbeat: one line per page written. Bootstrap creates a fresh DB, so every
+  # opportunity file is new — log each to wiki/log.md (NANOPM-WIKI.md §8).
+  for _f in "$_OPP_DIR"/*.md; do
+    case "$(basename "$_f")" in INDEX.md|LOG.md|SCHEMA.md) continue;; esac
+    nanopm_wiki_doc_log pm-opportunities "wrote entities/opportunities/$(basename "$_f")"
+  done
   echo "WROTE $_N opportunities + INDEX.md + LOG.md"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr) — likely a python3 issue. The opportunity files were written; fix and re-run /pm-opportunities to rebuild the index."
@@ -274,6 +280,8 @@ _OPP_DIR=".nanopm/wiki/entities/opportunities"
 # Set _SLUG and _PROV to the opportunity you wrote/updated; _ACTION to "add" (new) or "merge" (merged in).
 if nanopm_opportunities_reindex; then
   printf '%s | %s: %s (%s) | /pm-opportunities\n' "$(date +%Y-%m-%d)" "${_ACTION:-add}" "${_SLUG:-?}" "${_PROV:-?}" >> "$_OPP_DIR/LOG.md"
+  # Global heartbeat for the one page written/updated (NANOPM-WIKI.md §8).
+  [ -n "${_SLUG:-}" ] && nanopm_wiki_doc_log pm-opportunities "${_ACTION:-add} entities/opportunities/${_SLUG}.md"
   echo "WROTE/UPDATED ${_SLUG:-opportunity} + INDEX.md + LOG.md"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity file was written; fix python3 and re-run to rebuild the index."
@@ -371,7 +379,9 @@ if nanopm_opportunities_reindex; then
   # append to LOG.md — one line per new write and per merge:
   #   <date> | generate: new <slug> (nano-hypothesis) | /pm-opportunities
   #   <date> | generate: merged candidate into <slug> | /pm-opportunities
-  echo "INDEX regenerated — append the LOG lines above for each write/merge"
+  # AND a global heartbeat per page (NANOPM-WIKI.md §8) — for each new <slug> and each merge target run:
+  #   nanopm_wiki_doc_log pm-opportunities "generate: entities/opportunities/<slug>.md"
+  echo "INDEX regenerated — append the LOG lines above for each write/merge, and call nanopm_wiki_doc_log per page"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity files were written; fix python3 and re-run /pm-opportunities to rebuild the index."
 fi

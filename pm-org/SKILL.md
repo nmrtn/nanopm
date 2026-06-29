@@ -392,6 +392,7 @@ How each section of the body was decided — what's Evidenced vs Assumed, the so
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-org\",\"outputs\":{\"team_size\":\"$(grep -A2 '^## Team Shape' "$(nanopm_wiki_doc_path org)" | tail -1 | tr '\"' \"'\" | head -c 80)\",\"people_count\":\"$(grep -cE '^\\| .* \\| .* \\| .* \\|' "$(nanopm_wiki_doc_path org)")\",\"mode\":\"$(grep -m1 '^Mode:' "$(nanopm_wiki_doc_path org)" | cut -d: -f2- | xargs | head -c 60)\",\"next\":\"pm-product\"}}"
+nanopm_wiki_doc_log pm-org "wrote docs/org.md"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the PM context brief
