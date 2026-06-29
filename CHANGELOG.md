@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.25.0 — 2026-06-29 — Every wiki page write now leaves a heartbeat in the log
+
+The wiki's global log (`.nanopm/wiki/log.md`) is the memory's heartbeat — one line per operation — and
+the viewer renders it as the primary "what the memory recorded" surface. But only the bookkeeping
+subagents (ingest / query / lint) ever wrote to it. The recipe-style skills that write pages directly —
+`/pm-product` writing `docs/product.md`, `/pm-opportunities` and `/pm-solutions` writing entity pages —
+left **no global heartbeat at all**; their only trace landed in `raw/events.jsonl` and the per-entity
+`LOG.md`. So a founder who ran `/pm-product`, created opportunities, and brainstormed solutions opened
+the viewer to a near-empty log and reasonably concluded the memory wasn't recording. It was — just not
+where the eye lands.
+
+- **New primitive `nanopm_wiki_doc_log`** (lib/nanopm.sh) — the deterministic journal call a skill makes
+  right after it writes a wiki page, so "write a page" and "record the mutation in the log" become one
+  action (NANOPM-WIKI.md §8: one line per operation). Non-blocking by contract: a missing CLI or write
+  error never fails the skill — the page write already succeeded, the heartbeat is best-effort.
+- **Wired into every page-writing skill** — the 17 Define / Plan / Discover / Daily-Ops doc skills, plus
+  `/pm-prd`, plus the two entity skills (`/pm-opportunities`, `/pm-solutions`), at one heartbeat line
+  **per page written**. The entity skills log each opportunity / solution page; the doc skills log their
+  one page.
+- **Regression gate** (test/wiki-canonical.sh) — fails red if a page-writing skill ever forgets the
+  call, or if the helper goes missing from the runtime. The heartbeat can't silently rot again.
+
 ## 0.24.0 — 2026-06-27 — The Opportunity Solution Tree gets its missing node: `/pm-solutions`
 
 nanopm already produced Outcomes (objectives) and Opportunities (the ranked DB) — but nothing
