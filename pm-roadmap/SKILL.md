@@ -388,6 +388,7 @@ If `m > 0`, prompt: *"{m} item(s) were rewritten by the gate to be falsifiable. 
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _ROADMAP_FILE="$(nanopm_wiki_doc_path roadmap)"
 nanopm_context_append "{\"skill\":\"pm-roadmap\",\"outputs\":{\"now_count\":\"$(grep -c '^| ' "$_ROADMAP_FILE" | head -1)\",\"top_now_item\":\"$(grep -A2 '## NOW' "$_ROADMAP_FILE" | grep '^| ' | head -1 | cut -d'|' -f2 | xargs | tr '\"' \"'\")\",\"next\":\"pm-prd\"}}"
+nanopm_wiki_doc_log pm-roadmap "wrote docs/$(basename "$_ROADMAP_FILE")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the plan brief

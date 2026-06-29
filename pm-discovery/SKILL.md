@@ -245,6 +245,7 @@ of who the user is and what they actually need. The challenge session will be si
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 \"$(nanopm_wiki_doc_path discovery)\" | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' \"$(nanopm_wiki_doc_path discovery)\" | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-challenge-me\"}}"
+nanopm_wiki_doc_log pm-discovery "wrote docs/discovery.md"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

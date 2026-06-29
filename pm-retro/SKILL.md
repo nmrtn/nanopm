@@ -187,6 +187,7 @@ Update your roadmap with carry-forward items and new priorities from this retro.
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _RETRO_FILE="$(nanopm_wiki_doc_path "retro-$(date +%F)")"
 nanopm_context_append "{\"skill\":\"pm-retro\",\"outputs\":{\"shipped\":\"$(grep -c '✅' "$_RETRO_FILE" 2>/dev/null || echo 0) items shipped\",\"window_commits\":\"${_COMMIT_COUNT:-?} commits\",\"next\":\"pm-roadmap\"}}"
+nanopm_wiki_doc_log pm-retro "wrote docs/$(basename "$_RETRO_FILE")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

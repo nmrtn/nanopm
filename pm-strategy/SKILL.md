@@ -282,6 +282,7 @@ print(json.dumps({
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _STRATEGY_DOC="$(nanopm_wiki_doc_path strategy)"
 nanopm_context_append "{\"skill\":\"pm-strategy\",\"outputs\":{\"bet\":\"$(grep -A1 '## The Bet' "$_STRATEGY_DOC" | tail -1 | tr '\"' \"'\" | head -c 120)\",\"risk\":\"$(grep -A1 '## The Risk' "$_STRATEGY_DOC" | tail -1 | tr '\"' \"'\" | head -c 120)\",\"next\":\"pm-roadmap\"}}"
+nanopm_wiki_doc_log pm-strategy "wrote docs/$(basename "$_STRATEGY_DOC")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Phase: Regenerate the plan brief

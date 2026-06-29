@@ -599,6 +599,7 @@ fi
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _PRD_FILE="$_PRD_DIR/${_SLUG_FEATURE}.md"
 nanopm_context_append "{\"skill\":\"pm-prd\",\"outputs\":{\"feature\":\"$(echo $_FEATURE | tr '\"' \"'\")\",\"file\":\"$_PRD_FILE\",\"status\":\"DRAFT\",\"next\":\"pm-breakdown\"}}"
+nanopm_wiki_doc_log pm-prd "wrote docs/prds/$(basename "$_PRD_FILE")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

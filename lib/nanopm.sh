@@ -1857,6 +1857,38 @@ sources: [${sources}]
 EOF
 }
 
+# Journal a wiki PAGE WRITE to the global heartbeat wiki/log.md. This is the
+# deterministic call every skill makes right after it writes a wiki page, so the
+# global log (NANOPM-WIKI.md §8: "one line per operation") reflects EVERY wiki
+# mutation — not just the operations a bookkeeping subagent happens to run.
+#
+# Why this exists: a recipe-style skill that writes a page directly (pm-product
+# writing docs/product.md, pm-opportunities/pm-solutions writing entity pages) used
+# to leave NO global heartbeat — its only trace landed in raw/events.jsonl (the
+# per-run record) and the entity-local LOG.md. The global log was fed solely by the
+# ingest/query/lint subagent prompts, so the viewer's primary "what the memory
+# recorded" surface (wiki/log.md) under-reported real work. This helper closes that
+# gap at the write site: "write a page" and "journal the mutation" become one action.
+#
+# Non-blocking by contract: the page write already succeeded before this is called,
+# so a missing CLI, no python3, or a write error must NEVER fail the skill — the
+# heartbeat is best-effort. Mirrors the bin-resolution of nanopm_migrate_on_upgrade.
+#
+# Usage: nanopm_wiki_doc_log <skill> "<title>" [op]    (op defaults to ingest)
+#   e.g. nanopm_wiki_doc_log pm-product "wrote docs/product.md"
+# Appends:  ## [YYYY-MM-DD] ingest | <skill>: <title>
+nanopm_wiki_doc_log() {
+  local skill="${1:-}" title="${2:-}" op="${3:-ingest}" root ingest
+  [ -n "$skill" ] && [ -n "$title" ] || return 0
+  root="$(_nanopm_project_root)"
+  ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  [ -x "$ingest" ] || ingest="$(dirname "${BASH_SOURCE[0]:-}")/../bin/nanopm-ingest-agent"
+  [ -x "$ingest" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  "$ingest" --project "$root" log --op "$op" --title "${skill}: ${title}" >/dev/null 2>&1 || true
+  return 0
+}
+
 # Emits the ingest/bookkeeper subagent prompt the main agent dispatches (gated) to
 # integrate a source into the wiki. The subagent does the reasoning (what to keep,
 # which page, how to phrase); the deterministic mechanics are bin/nanopm-ingest-agent

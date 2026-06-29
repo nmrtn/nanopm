@@ -2,7 +2,7 @@
   "name": "nanopm",
   "displayName": "nanopm",
   "description": "Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-end.",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "author": {
     "name": "Nicolas Martin & Guillaume Simon",
     "url": "https://github.com/nmrtn"

@@ -192,6 +192,39 @@ else
   fail "seeded contradiction did NOT trigger LINT_JUDGMENT_DUE (judgment lint would not run)"
 fi
 
+# ── Every wiki-page write journals to the global log ──────────────────────────
+# Regression gate for the global-heartbeat fix: a skill that WRITES a wiki page must
+# also call nanopm_wiki_doc_log so the mutation lands in wiki/log.md (NANOPM-WIKI.md
+# §8 — "one line per operation"). Without this the viewer's primary memory surface
+# under-reports real work (the exact symptom that motivated the fix: pm-product wrote
+# docs/product.md but left no heartbeat). If a new page-writing skill forgets the call,
+# this fails red. The helper lives in lib/nanopm.sh; callers are the Define/Plan doc
+# skills plus the entity skills (opportunities, solutions) and pm-prd.
+echo
+echo "  Page-writing skills journal to wiki/log.md"
+_LOG_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas \
+             pm-objectives pm-strategy pm-roadmap pm-challenge-me pm-discovery \
+             pm-user-feedback pm-interview pm-data pm-competitors-intel \
+             pm-weekly-update pm-standup pm-retro pm-opportunities pm-solutions pm-prd)
+for skill in "${_LOG_SKILLS[@]}"; do
+  f="$_REPO_ROOT/$skill/SKILL.md"
+  if [ ! -f "$f" ]; then
+    fail "$skill — SKILL.md missing"
+    continue
+  fi
+  if grep -q "nanopm_wiki_doc_log" "$f"; then
+    ok "$skill calls nanopm_wiki_doc_log"
+  else
+    fail "$skill writes a wiki page but never calls nanopm_wiki_doc_log (no global heartbeat)"
+  fi
+done
+# The helper itself must exist in the shared runtime, or every call above is a silent no-op.
+if grep -q "^nanopm_wiki_doc_log()" "$_LIB"; then
+  ok "nanopm_wiki_doc_log defined in lib/nanopm.sh"
+else
+  fail "nanopm_wiki_doc_log missing from lib/nanopm.sh — the page-write heartbeat is unwired"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "  ─────────────────────────────"

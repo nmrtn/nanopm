@@ -207,6 +207,7 @@ nanopm_wiki_doc_frontmatter pm-weekly-update user-stated "$(date +%Y-%m-%d)" "{s
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_context_append "{\"skill\":\"pm-weekly-update\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"audience\":\"stakeholders\",\"status\":\"drafted\"}}"
+nanopm_wiki_doc_log pm-weekly-update "wrote docs/weekly-updates/$(date +%F).md"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

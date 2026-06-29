@@ -386,6 +386,7 @@ Bets, and any others present. Same shape each time.}
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _PRODUCT_DOC="$(nanopm_wiki_doc_path product)"
 nanopm_context_append "{\"skill\":\"pm-product\",\"outputs\":{\"what\":\"$(grep -A2 '## What This Product Is' "$_PRODUCT_DOC" | tail -1 | tr '\"' \"'\" | head -c 100)\",\"mode\":\"$(grep -m1 '^Mode:' "$_PRODUCT_DOC" | cut -d: -f2- | xargs | head -c 50)\",\"completeness\":\"$(grep -m1 '^Completeness:' "$_PRODUCT_DOC" | cut -d: -f2- | xargs)\",\"next\":\"pm-personas\"}}"
+nanopm_wiki_doc_log pm-product "wrote docs/$(basename "$_PRODUCT_DOC")"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 > The `completeness` flag (`complete | draft`) is sourced from the wiki product page's

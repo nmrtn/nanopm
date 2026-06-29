@@ -200,6 +200,7 @@ comma-separated connectors/docs used — e.g. `github,linear,calendar,granola,ro
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _STANDUP_FILE="$(nanopm_wiki_doc_path "standup-$(date +%F)")"
 nanopm_context_append "{\"skill\":\"pm-standup\",\"outputs\":{\"date\":\"$(date +%Y-%m-%d)\",\"drift\":\"$(grep -c 'DRIFT' "$_STANDUP_FILE" 2>/dev/null || echo 0)\"}}"
+nanopm_wiki_doc_log pm-standup "wrote docs/standups/$(date +%F).md"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 Do NOT ask the user anything. Do NOT wait for input. Generate and display the briefing immediately.

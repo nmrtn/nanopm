@@ -359,6 +359,7 @@ after the fact — there is no pre-write review queue.
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _TOP_THEME=$(grep "## Top Unaddressed Signal" "$(nanopm_wiki_doc_path feedback)" -A2 2>/dev/null | tail -1 | xargs)
 nanopm_context_append "{\"skill\":\"pm-user-feedback\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"outputs\":{\"top_unaddressed\":\"$(echo $_TOP_THEME | head -c 100 | tr '\"' \"'\")\",\"sources\":\"${_SOURCES_USED:-manual}\",\"next\":\"pm-challenge-me\"}}"
+nanopm_wiki_doc_log pm-user-feedback "wrote docs/feedback.md"   # global heartbeat: this page write -> wiki/log.md
 ```
 
 ## Completion

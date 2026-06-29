@@ -319,6 +319,13 @@ if nanopm_solutions_reindex; then
     && echo "top-level wiki index refreshed" \
     || echo "WARN: top-level wiki index.md not refreshed — run 'nanopm-ingest-agent reindex' to clear orphan/index-drift lint."
   printf '%s | solutions: wrote set for %s (proposed) | /pm-solutions\n' "$(date +%Y-%m-%d)" "${_OPP_SLUG:-?}" >> "$_SOL_DIR/LOG.md"
+  # Global heartbeat: one line per solution page written this run (NANOPM-WIKI.md §8).
+  # The set just written all carry `opportunity: ${_OPP_SLUG}` in frontmatter — log each.
+  for _f in "$_SOL_DIR"/*.md; do
+    case "$(basename "$_f")" in INDEX.md|LOG.md|SCHEMA.md) continue;; esac
+    grep -qE "^opportunity:[[:space:]]*${_OPP_SLUG}[[:space:]]*\$" "$_f" 2>/dev/null \
+      && nanopm_wiki_doc_log pm-solutions "wrote entities/solutions/$(basename "$_f")"
+  done
   echo "WROTE solutions + INDEX.md + LOG.md ($_N total)"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr) — likely a python3 issue. The solution files were written; fix and re-run /pm-solutions to rebuild the index."
