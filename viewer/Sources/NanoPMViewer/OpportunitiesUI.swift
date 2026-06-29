@@ -130,6 +130,8 @@ struct OpportunitiesOverviewView: View {
 
     @EnvironmentObject private var runManager: RunManager
     @State private var opportunities: [Opportunity] = []
+    /// opportunity-slug → count of child solutions, for the per-row count badge.
+    @State private var solutionCounts: [String: Int] = [:]
     @State private var loaded = false
     @State private var selection: Opportunity.ID?
     @State private var claudeAvailable: Bool?
@@ -263,10 +265,17 @@ struct OpportunitiesOverviewView: View {
             } else {
                 Table(rows, selection: $selection, sortOrder: $sortOrder) {
                     TableColumn("Opportunity", value: \.title) { o in
+                        let oSlug = ((o.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+                        let solCount = solutionCounts[oSlug] ?? 0
                         VStack(alignment: .leading, spacing: 2) {
                             Text(o.title).font(.headline).foregroundStyle(Color.npInk).lineLimit(2)
                             if !o.summary.isEmpty {
                                 Text(o.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            if solCount > 0 {
+                                Text(solCount == 1 ? "1 solution ⊳" : "\(solCount) solutions ⊳")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.npOlive)
                             }
                         }
                         .padding(.vertical, 4)
@@ -310,6 +319,18 @@ struct OpportunitiesOverviewView: View {
             result.append(OpportunityParser.parse(content, artifact: art))
         }
         opportunities = result
+
+        // Tally child solutions per parent opportunity slug for the row badge.
+        var counts: [String: Int] = [:]
+        let solutionArtifacts = store.artifacts.filter {
+            SolutionFiles.isSolutionFile($0.relativePath) && !SolutionFiles.isReserved($0.relativePath)
+        }
+        for art in solutionArtifacts {
+            let content = (try? await store.content(of: art)) ?? ""
+            let parsed = SolutionParser.parse(content, artifact: art)
+            if !parsed.opportunity.isEmpty { counts[parsed.opportunity, default: 0] += 1 }
+        }
+        solutionCounts = counts
         loaded = true
     }
 }
@@ -321,20 +342,115 @@ struct OpportunitiesOverviewView: View {
 struct OpportunityDetailView: View {
     @ObservedObject var store: ArtifactStore
     let artifact: Artifact
+    /// Navigate to the live run session when the launched `/pm-solutions` run
+    /// needs the human's input.
+    var onAnswer: (String) -> Void = { _ in }
     var onOpenArtifact: (String) -> Void = { _ in }
 
+    @EnvironmentObject private var runManager: RunManager
     @State private var opportunity: Opportunity?
     @State private var bodyText: String?
     @State private var loadError: String?
+    @State private var claudeAvailable: Bool?
+    @State private var showLaunchPopover = false
+    @State private var launchComment = ""
+    /// Candidate solutions whose parent is THIS opportunity — the OST children
+    /// `/pm-solutions` wrote. Drives the compare-card section.
+    @State private var childSolutions: [Solution] = []
+
+    /// The opportunity slug (filename without extension), used as the positional
+    /// argument to `/pm-solutions` and the per-opportunity run-tracking key.
+    private var slug: String { ((artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension }
+    private var trackingKey: String { "solutions:\(slug)" }
+    private var solutionsDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-solutions" } }
+    private var solutionsRun: RunManager.SkillRun? { runManager.latestRun(for: trackingKey, in: store.project.path) }
+
+    /// The catalog skill behind "Spec this →" — launching `/pm-prd <solution>` is
+    /// the act of choosing a solution (no frontmatter written by the viewer).
+    private var prdDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-prd" } }
+
+    private func launchSolutions() {
+        guard let doc = solutionsDoc else { return }
+        let comment = launchComment.trimmingCharacters(in: .whitespacesAndNewlines)
+        runManager.launch(doc, in: store.project.path,
+                          userContext: comment.isEmpty ? nil : comment,
+                          argument: slug, trackingKey: trackingKey)
+        launchComment = ""
+        showLaunchPopover = false
+    }
+
+    /// "Spec this →" — choosing this solution. Launches `/pm-prd <solution-slug>`;
+    /// the act of launching IS the choice (the viewer writes no frontmatter).
+    private func specSolution(_ solution: Solution) {
+        guard let doc = prdDoc else { return }
+        let solSlug = ((solution.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+        runManager.launch(doc, in: store.project.path, argument: solSlug, trackingKey: "prd:\(solSlug)")
+    }
+
+    /// The header control that drives the `/pm-solutions` run for THIS
+    /// opportunity: Answer… while it waits on the human, an inline running strip
+    /// while it works, and the Brainstorm launch button otherwise.
+    @ViewBuilder
+    private var solutionsControl: some View {
+        if solutionsRun?.pendingQuestions.isEmpty == false {
+            ActionButton(title: "Answer…", systemImage: "questionmark.bubble.fill", tone: .waiting,
+                         help: "/pm-solutions needs your input") {
+                onAnswer(trackingKey)
+            }
+        } else if solutionsRun?.status == .running {
+            HStack(spacing: 6) {
+                SparkleView(size: 14)
+                Text(solutionsRun?.lastActivity ?? "Working…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color.npSurface.opacity(0.5), in: Capsule())
+        } else {
+            ActionButton(title: "Brainstorm solutions", systemImage: "lightbulb.max", tone: .accent,
+                         help: "Brainstorm a compared set of solutions for this opportunity with /pm-solutions") {
+                showLaunchPopover = true
+            }
+            .disabled(claudeAvailable == false || solutionsDoc == nil)
+            .popover(isPresented: $showLaunchPopover, arrowEdge: .bottom) { launchPopover }
+        }
+    }
+
+    /// Pre-launch composer (mirrors `SkillRunButton`'s popover): an optional
+    /// free-text steer passed to `/pm-solutions`. Run works with the field empty.
+    @ViewBuilder
+    private var launchPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Brainstorm solutions").font(.headline)
+            Text("Optional: add a steer — e.g. focus on cheap-to-ship ideas.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextField("Optional comment…", text: $launchComment, axis: .vertical)
+                .lineLimit(3...8)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Spacer()
+                Button("Run") { launchSolutions() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(14)
+        .frame(width: 360)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(opportunity?.title ?? prettyDocName(artifact.relativePath))
-                        .font(.npDisplay(30))
-                        .foregroundStyle(Color.npInk)
-                        .textSelection(.enabled)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(opportunity?.title ?? prettyDocName(artifact.relativePath))
+                            .font(.npDisplay(30))
+                            .foregroundStyle(Color.npInk)
+                            .textSelection(.enabled)
+                        Spacer()
+                        solutionsControl
+                    }
 
                     if let o = opportunity {
                         HStack(spacing: 8) {
@@ -350,6 +466,12 @@ struct OpportunityDetailView: View {
                             OpportunityBadge(text: o.priority, tint: opportunityPriorityTint(o.priority))
                             OpportunityBadge(text: o.provenance, tint: opportunityProvenanceTint(o.provenance))
                             OpportunityBadge(text: o.status, tint: opportunityStatusTint(o.status))
+                            if !childSolutions.isEmpty {
+                                OpportunityBadge(
+                                    text: childSolutions.count == 1 ? "1 solution" : "\(childSolutions.count) solutions",
+                                    tint: .npOlive
+                                )
+                            }
                         }
                     }
 
@@ -361,6 +483,40 @@ struct OpportunityDetailView: View {
                             .font(.footnote)
                     }
                     .foregroundStyle(.secondary)
+                }
+
+                if !childSolutions.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 6) {
+                            if solutionsRun?.status == .succeeded {
+                                Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.npOlive)
+                                Text(childSolutions.count == 1 ? "✓ 1 solution ready"
+                                                               : "✓ \(childSolutions.count) solutions ready")
+                                    .font(.callout.weight(.medium))
+                            } else {
+                                Text(childSolutions.count == 1 ? "1 candidate solution"
+                                                               : "\(childSolutions.count) candidate solutions")
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(Color.npInk)
+                            }
+                        }
+                        CompareCardView(
+                            solutions: childSolutions,
+                            onOpen: { sol in onOpenArtifact(sol.id) },
+                            onSpec: { sol in specSolution(sol) }
+                        )
+                    }
+                } else if solutionsRun?.status == .succeeded {
+                    HStack {
+                        Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.npOlive)
+                        Text("Solutions ready — reading them in…").font(.callout.weight(.medium))
+                    }
+                }
+                if case .failed(let msg)? = solutionsRun?.status {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text(msg).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
                 }
 
                 Divider().overlay(Color.npBorder)
@@ -391,9 +547,11 @@ struct OpportunityDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.npPaper)
-        .task(id: "\(artifact.id)#\(store.generation)") {
+        .task(id: "\(artifact.id)#\(store.generation)#\(runManager.completionTick)") {
             await load()
+            await loadChildSolutions()
         }
+        .task { claudeAvailable = await ShellRunner.claudeAvailable() }
     }
 
     private func load() async {
@@ -406,6 +564,27 @@ struct OpportunityDetailView: View {
             bodyText = nil
             loadError = "\(error)"
         }
+    }
+
+    /// Loads the solution artifacts whose `opportunity` frontmatter points at THIS
+    /// opportunity's slug — the OST children — sorted by converging status, then
+    /// impact.
+    private func loadChildSolutions() async {
+        let mySlug = slug
+        let solutionArtifacts = store.artifacts.filter {
+            SolutionFiles.isSolutionFile($0.relativePath) && !SolutionFiles.isReserved($0.relativePath)
+        }
+        var result: [Solution] = []
+        for art in solutionArtifacts {
+            let content = (try? await store.content(of: art)) ?? ""
+            let parsed = SolutionParser.parse(content, artifact: art)
+            if parsed.opportunity == mySlug { result.append(parsed) }
+        }
+        result.sort {
+            if $0.statusOrder != $1.statusOrder { return $0.statusOrder < $1.statusOrder }
+            return $0.impactOrder < $1.impactOrder
+        }
+        childSolutions = result
     }
 }
 

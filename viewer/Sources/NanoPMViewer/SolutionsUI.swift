@@ -16,6 +16,8 @@ struct Solution: Identifiable {
     let impact: String        // high | med | low | ""
     let status: String        // proposed | shortlisted | chosen | speccing | ""
     let summary: String       // first line of the pitch / problem section
+    let riskiestAssumption: String   // first prose line under "## Riskiest assumption"
+    let cheapestTest: String         // first prose line under "## Cheapest test"
 
     var id: String { artifact.id }
     var lastUpdated: Date { artifact.modifiedAt }
@@ -54,18 +56,22 @@ enum SolutionParser {
                 fm[key] = val
             }
         }
-        // The one-line pitch: the first prose line under a "Pitch" heading, falling
-        // back to the first prose line under "Problem" / "Summary", else empty.
-        var summary = ""
-        if let r = content.range(of: #"(?m)^##\s*(?:\d+\.\s*)?(?:Pitch|Problem summary|Summary)\s*$"#,
-                                 options: .regularExpression) {
+        // The first prose line under a heading: skip blanks, sub-headings, and raw
+        // HTML; empty when the heading is absent.
+        func firstLine(under headingPattern: String) -> String {
+            guard let r = content.range(of: headingPattern, options: .regularExpression) else { return "" }
             for line in content[r.upperBound...].components(separatedBy: "\n") {
                 let s = line.trimmingCharacters(in: .whitespaces)
                 if s.isEmpty || s.hasPrefix("#") || s.hasPrefix("<") { continue }
-                summary = s
-                break
+                return s
             }
+            return ""
         }
+        // The one-line pitch: the first prose line under a "Pitch" heading, falling
+        // back to the first prose line under "Problem" / "Summary", else empty.
+        let summary = firstLine(under: #"(?m)^##\s*(?:\d+\.\s*)?(?:Pitch|Problem summary|Summary)\s*$"#)
+        let riskiest = firstLine(under: #"(?m)^##\s*(?:\d+\.\s*)?Riskiest assumption\s*$"#)
+        let cheapest = firstLine(under: #"(?m)^##\s*(?:\d+\.\s*)?Cheapest test\s*$"#)
         return Solution(
             artifact: artifact,
             title: fm["title"] ?? prettyDocName(artifact.relativePath),
@@ -74,7 +80,9 @@ enum SolutionParser {
             appetite: (fm["appetite"] ?? "").lowercased(),
             impact: (fm["impact"] ?? "").lowercased(),
             status: (fm["status"] ?? "").lowercased(),
-            summary: summary
+            summary: summary,
+            riskiestAssumption: riskiest,
+            cheapestTest: cheapest
         )
     }
 
@@ -202,7 +210,8 @@ struct SolutionsOverviewView: View {
     private var rows: [Solution] {
         let base = loaded ? solutions : solutionArtifacts.map {
             Solution(artifact: $0, title: prettyDocName($0.relativePath),
-                     opportunity: "", lens: "", appetite: "", impact: "", status: "", summary: "")
+                     opportunity: "", lens: "", appetite: "", impact: "", status: "", summary: "",
+                     riskiestAssumption: "", cheapestTest: "")
         }
         return base
             .filter { statusFilter == "all" || $0.status == statusFilter }

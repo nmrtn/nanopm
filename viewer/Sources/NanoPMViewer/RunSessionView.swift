@@ -10,6 +10,14 @@ struct RunSessionView: View {
     /// Called with an artifact id (relative path) to open it once produced.
     let onOpenArtifact: (String) -> Void
 
+    /// A synthetic tracking key (`solutions:<slug>` / `prd:<slug>`) — a per-entity
+    /// run that doesn't produce an artifact at its key, so the "Open" affordance
+    /// and the `.nanopm/<path>` subtitle don't apply.
+    private var isSyntheticKey: Bool { run.expectedRelPath.contains(":") }
+    private var prettyTarget: String {
+        String(run.expectedRelPath.split(separator: ":").last ?? "")
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -40,7 +48,9 @@ struct RunSessionView: View {
             statusChip
             VStack(alignment: .leading, spacing: 1) {
                 Text(run.skillCommand).font(.headline)
-                Text("→ .nanopm/\(run.expectedRelPath) · started \(Text(run.startedAt, style: .relative)) ago")
+                Text(isSyntheticKey
+                     ? "\(prettyTarget) · started \(Text(run.startedAt, style: .relative)) ago"
+                     : "→ .nanopm/\(run.expectedRelPath) · started \(Text(run.startedAt, style: .relative)) ago")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -127,11 +137,20 @@ struct RunSessionView: View {
             .id(questions.map(\.question).joined())
         case .succeeded:
             VStack(alignment: .leading, spacing: 8) {
-                Label("\(run.expectedRelPath) is ready", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .foregroundStyle(Color.npOlive)
-                Button("Open \(run.expectedRelPath)") {
-                    onOpenArtifact(run.expectedRelPath)
+                if isSyntheticKey {
+                    // Per-entity runs (solutions:<slug> / prd:<slug>) don't land at
+                    // their tracking key, so there's no artifact to "Open" here —
+                    // the result surfaces on the originating entity page instead.
+                    Label("\(run.skillCommand) finished", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(Color.npOlive)
+                } else {
+                    Label("\(run.expectedRelPath) is ready", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .foregroundStyle(Color.npOlive)
+                    Button("Open \(run.expectedRelPath)") {
+                        onOpenArtifact(run.expectedRelPath)
+                    }
                 }
             }
             .padding(.top, 4)
