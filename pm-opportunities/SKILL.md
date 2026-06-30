@@ -560,8 +560,16 @@ fi
 # Bidirectional link — source→opportunity edge on the raw manifest (the citation already points back).
 # Only write it when I.0b derived a real type/id; otherwise SKIP (never misfile under raw/feedback/).
 if [ "${_MANIFEST_OK:-0}" = "1" ]; then
-  nanopm_raw_manifest "$_RAW_TYPE" "$_RAW_ID" \
-    "{\"opportunity_slug\":\"${_SLUG}\",\"claim\":\"${_CLAIM}\",\"raw_line\":\"${_VERBATIM}\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+  # Build the link JSON with a real serializer — _CLAIM/_VERBATIM are untrusted
+  # ingested verbatims that routinely contain " \ or newlines; shell string
+  # interpolation would emit invalid JSON that nanopm_raw_manifest then drops
+  # silently, orphaning the source→opportunity link. json.dumps escapes correctly.
+  _LINK_JSON=$(NPM_SLUG="$_SLUG" NPM_CLAIM="$_CLAIM" NPM_RAW="$_VERBATIM" python3 -c 'import os,json;print(json.dumps({"opportunity_slug":os.environ.get("NPM_SLUG",""),"claim":os.environ.get("NPM_CLAIM",""),"raw_line":os.environ.get("NPM_RAW","")},ensure_ascii=False))' 2>/dev/null)
+  if [ -n "$_LINK_JSON" ]; then
+    nanopm_raw_manifest "$_RAW_TYPE" "$_RAW_ID" "$_LINK_JSON"
+  else
+    echo "WARN: manifest link skipped (could not serialize link JSON — is python3 present?)"
+  fi
 else
   echo "WARN: manifest link skipped (no usable raw type/id) — report manifest_link: skipped in the result"
 fi

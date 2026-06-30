@@ -171,7 +171,7 @@ struct RawFeedbackOverviewView: View {
                 ContentUnavailableView(
                     "No raw feedback yet",
                     systemImage: "tray",
-                    description: Text("Archived interviews and feedback land in .nanopm/raw/interviews/ and .nanopm/raw/feedback/. Run /pm-interview or /pm-user-feedback in your agent to fill this in.")
+                    description: Text("Archived interviews and feedback land in .nanopm/raw/interviews/ and .nanopm/raw/feedback/. Run /pm-add-feedback in your agent to fill this in.")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !loaded {
