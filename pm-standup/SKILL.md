@@ -108,7 +108,7 @@ Try `mcp__claude_ai_Granola__list_meetings` with limit: 5.
 
 If available: extract meetings from the last 48h. For each:
 - Title, date, participants
-- Flag any meeting titled with "user", "customer", "interview", "discovery" → note as "📋 user signal available — run /pm-interview to extract"
+- Flag any meeting titled with "user", "customer", "interview", "discovery" → note as "📋 user signal available — run /pm-add-feedback to capture"
 
 If Granola not available: skip silently.
 
@@ -141,7 +141,7 @@ YESTERDAY
   ✓ [{repo}] {commit message}
   ✓ [{repo}] {commit message}
   ✓ {if nothing shipped: "No commits in the last 24h"}
-  {if Granola had a user meeting: "📋 User call with {name} — run /pm-interview to extract signal"}
+  {if Granola had a user meeting: "📋 User call with {name} — run /pm-add-feedback to capture signal"}
 
 TODAY'S MEETINGS
   {HH:MM} → {event title} ({duration}) {⚠ no recent commits on this topic — if flagged}
@@ -175,7 +175,7 @@ DRIFT
 **Rules for TODAY'S MEETINGS:**
 - Show time + title + duration only — no attendee list (too noisy)
 - Flag prep gaps (no recent commits on the meeting topic) with ⚠
-- If a meeting looks like a user interview (title keywords: user, customer, interview, call, discovery) → append "📋 run /pm-interview after"
+- If a meeting looks like a user interview (title keywords: user, customer, interview, call, discovery) → append "📋 run /pm-add-feedback after"
 - If no meetings today: show "No meetings today"
 
 ## Phase 4: Write the dated wiki Standup page

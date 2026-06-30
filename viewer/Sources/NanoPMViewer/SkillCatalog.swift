@@ -6,6 +6,7 @@ enum NavRoute {
     static let opportunitiesPage = "page:opportunities"
     static let solutionsPage = "page:solutions"
     static let competitorsPage = "page:competitors"
+    static let rawFeedbackPage = "page:raw-feedback"
     static let memoryPage = "page:memory"
     static let brainstormPage = "page:brainstorm"
     static func overview(_ phase: Phase) -> String { "overview:" + phase.rawValue }
@@ -98,6 +99,12 @@ enum SkillCatalog {
             case .handoff: return false
             }
         }
+    }
+
+    /// The Add Feedback skill, so the Activity Monitor's "+ Add feedback"
+    /// composer can launch the same catalog skill the Discover page exposes.
+    static var addFeedback: SkillDoc? {
+        all.first { $0.skillCommand == "/pm-add-feedback" }
     }
 
     /// The PRDs folder skill icon, so the nav folder matches its overview row.
@@ -209,6 +216,14 @@ enum SkillCatalog {
             skillCommand: "/pm-solutions",
             headlessArgs: "Takes an opportunity slug as argument: /pm-solutions <opportunity-slug>. Resolve it from .nanopm/wiki/entities/opportunities/; if missing or ambiguous, list candidates and stop. Ask the user (via the interface contract) which opportunity to brainstorm solutions for if it is not given.",
             phase: .discover, output: .file("wiki/entities/solutions/INDEX.md")
+        ),
+        SkillDoc(
+            title: "Add Feedback",
+            blurb: "The single ingestion door for raw user signal — paste an interview note, an SMS, a Slack thread, or a raw quote. Archives it verbatim, runs the Mom-Test discovery filter, grounds existing opportunities, and surfaces new strategy-coherent ones.",
+            icon: "tray.and.arrow.down",
+            skillCommand: "/pm-add-feedback",
+            headlessArgs: "Pasted feedback arrives as the launch context. Treat this as a --paste intake: archive the pasted text verbatim, run the learning loop, and (headless) write-then-review with ⚠ low-confidence. End with the ===PM-ADD-FEEDBACK-SUMMARY=== block.",
+            phase: .discover, output: .folder(prefix: "raw/", opens: NavRoute.rawFeedbackPage)
         ),
         SkillDoc(
             title: "Competitor Intel",

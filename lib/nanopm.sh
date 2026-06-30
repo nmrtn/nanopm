@@ -1442,7 +1442,7 @@ persistent, compounding artifact the LLM maintains, not a log re-read on every r
 
 | Layer | What it is | Who writes it | Loaded at startup? |
 |-------|-----------|---------------|--------------------|
-| `raw/` | Immutable sources: connector pulls, interviews, the typed event log. The source of truth for evidence. | Connectors / the user. Agents read, never rewrite. | **Never** loaded whole. Queried on demand. |
+| `raw/` | Immutable sources: connector pulls, interviews, the typed event log, and content-addressed source archives (`raw/<type>/<id>.<ext>`) with their source→opportunity manifests (§2.1). The source of truth for evidence. | Connectors / the user (via `nanopm_archive_raw` / `nanopm_raw_manifest`). Agents read, never rewrite. | **Never** loaded whole. Queried on demand. |
 | `wiki/` | LLM-owned markdown: an index, a log, the overview syntheses, entity pages, and skill-output views. | The agents (ingest / bookkeeper / lint). | Only `index.md` + the two overviews. |
 | `NANOPM-WIKI.md` (this file) | The schema: conventions, page formats, workflows. | You + the agents, co-evolved. | Read by skills as the contract; not pasted into context. |
 
@@ -1458,6 +1458,8 @@ ask questions.
   raw/                      # immutable sources — never loaded whole
     events.jsonl            # the typed event log
     feedback/ competitors/ data/ interviews/ git-activity/
+      <id>.<ext>            # a source archived verbatim, content-addressed (§2.1)
+      <id>.manifest.jsonl   # source→opportunity links for that source (§2.1)
   wiki/
     index.md                # catalog — ALWAYS loaded (see §7)
     log.md                  # chronological heartbeat — greppable (see §8)
@@ -1471,6 +1473,32 @@ ask questions.
 
 `entities/opportunities/`, if present from `/pm-opportunities`, is an entity section
 and already conforms to this layout.
+
+### 2.1 Raw source archive + manifest
+
+A raw source (a feedback dump, an interview transcript, a data export) is archived
+**verbatim** under `raw/<type>/<id>.<ext>`, where `<type>` is the raw subdir
+(`feedback` | `interviews` | `data` | …) and `<id>` is the first 12 hex of the
+sha256 of the file's CONTENT. Content-addressing makes archiving **idempotent**:
+re-archiving identical content yields the same id and never writes a second file.
+The archive is immutable — agents read it, never rewrite it. Written by
+`nanopm_archive_raw <type> [<source>]` (file path or stdin), which echoes the
+resulting `raw/<type>/<id>.<ext>` path.
+
+Each archived source carries a sibling **manifest**, `raw/<type>/<id>.manifest.jsonl`
+— one compact JSON line per source→opportunity link, recording which claim on which
+opportunity page was drawn from which line of this source. Written by
+`nanopm_raw_manifest <type> <id> <json>`. Line schema:
+
+| Field | Meaning |
+|-------|---------|
+| `opportunity_slug` | the opportunity entity page this evidence backs (`entities/opportunities/<slug>`) |
+| `claim` | the claim the source supports (the wiki-side assertion) |
+| `raw_line` | the verbatim line / locator in `raw/<type>/<id>.<ext>` it came from |
+| `ts` | ISO-8601 UTC write time (injected if the caller omits it) |
+
+This is the bidirectional link the ingestion loop and the viewer browser walk: a
+wiki claim → its raw source line, and a raw source → every opportunity it fed.
 
 ## 3. Sections (the phases map 1:1)
 
@@ -1736,6 +1764,112 @@ nanopm_wiki_ensure() {
     fi
   fi
   return 0
+}
+
+# ── Raw substrate: verbatim archive + source→opportunity manifest (issue #163) ─
+#
+# The raw layer (NANOPM-WIKI.md §1/§2: "immutable sources — never loaded whole")
+# needs two write affordances the ingestion loop and the viewer browser depend on:
+#
+#   1. nanopm_archive_raw — drop a source verbatim under raw/<type>/<id>.<ext>,
+#      keyed by a CONTENT hash so re-archiving identical content is idempotent (same
+#      id, no second file). This is the immutable evidence the wiki pages cite back
+#      to: claims live in wiki/, the verbatim source lives here, the manifest links
+#      them.
+#   2. nanopm_raw_manifest — append one JSON line per source→opportunity link to
+#      raw/<type>/<id>.manifest.jsonl, so a wiki claim can be traced to the exact
+#      raw line it came from (and the viewer can render the chain in reverse).
+#
+# raw/ is SEPARATE from wiki/, so it is outside the wiki's single-writer-per-file
+# .lock (that lock guards index.md/log.md/pages). Both writers here are
+# content-addressed or append-only, so a plain write/append is safe and consistent.
+
+nanopm_archive_raw() {
+  # Usage: nanopm_archive_raw <type> [<source>]
+  #   <type>   raw subdir, e.g. feedback | interviews | data
+  #   <source> a readable file to copy verbatim; if omitted or not a readable file,
+  #            content is read from stdin (default extension .md)
+  # Archives the source under .nanopm/raw/<type>/<id>.<ext> where <id> is the first
+  # 12 hex of the sha256 of the CONTENT — so re-archiving identical content yields the
+  # same id and never writes a second file (idempotent). Echoes the resulting
+  # project-relative path (raw/<type>/<id>.<ext>). Returns non-zero on bad input.
+  local type="$1" source="${2:-}" root raw dir ext id dest tmp
+  [ -n "$type" ] || { echo "nanopm: nanopm_archive_raw: type required" >&2; return 1; }
+  # Sanitize <type> to one safe path segment so a caller can't escape raw/.
+  type=$(printf '%s' "$type" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]##g')
+  [ -n "$type" ] || { echo "nanopm: nanopm_archive_raw: invalid type" >&2; return 1; }
+  root="$(_nanopm_project_root)"
+  raw="$root/.nanopm/raw"; dir="$raw/$type"
+  mkdir -p "$dir" 2>/dev/null || { echo "nanopm: nanopm_archive_raw: could not create $dir" >&2; return 1; }
+
+  # Stage the content in a temp file first: we need the full bytes both to hash and
+  # to copy, and stdin can only be read once. A file source is copied (extension
+  # preserved); otherwise stdin is staged (default .md).
+  tmp=$(mktemp "${dir}/.archive.tmp.XXXXXX") || {
+    echo "nanopm: nanopm_archive_raw: could not stage temp file" >&2; return 1; }
+  if [ -n "$source" ] && [ -r "$source" ] && [ -f "$source" ]; then
+    cat "$source" > "$tmp" 2>/dev/null || { rm -f "$tmp"; echo "nanopm: nanopm_archive_raw: could not read $source" >&2; return 1; }
+    ext="${source##*.}"
+    # Only treat it as an extension if the basename actually has a '.' (else default).
+    case "$source" in *.*) : ;; *) ext="" ;; esac
+    # Sanitize the extension to a short alnum token; fall back to md.
+    ext=$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9]##g')
+    [ -n "$ext" ] || ext="md"
+  else
+    cat > "$tmp" 2>/dev/null || { rm -f "$tmp"; echo "nanopm: nanopm_archive_raw: could not read stdin" >&2; return 1; }
+    ext="md"
+  fi
+
+  # Content hash: first 12 hex of sha256. shasum is present on macOS/Linux (nanopm's
+  # supported hosts); sha256sum is the GNU fallback.
+  if command -v shasum >/dev/null 2>&1; then
+    id=$(shasum -a 256 "$tmp" 2>/dev/null | cut -c1-12)
+  else
+    id=$(sha256sum "$tmp" 2>/dev/null | cut -c1-12)
+  fi
+  [ -n "$id" ] || { rm -f "$tmp"; echo "nanopm: nanopm_archive_raw: could not hash content" >&2; return 1; }
+
+  dest="$dir/$id.$ext"
+  if [ -f "$dest" ]; then
+    rm -f "$tmp"   # identical content already archived — idempotent no-op
+  else
+    mv -f "$tmp" "$dest" 2>/dev/null || { rm -f "$tmp"; echo "nanopm: nanopm_archive_raw: could not write $dest" >&2; return 1; }
+  fi
+  printf '%s\n' "raw/$type/$id.$ext"
+}
+
+nanopm_raw_manifest() {
+  # Usage: nanopm_raw_manifest <type> <id> <json>
+  # Appends ONE compact JSON line recording a source→opportunity link to
+  # .nanopm/raw/<type>/<id>.manifest.jsonl (created if missing). The <id> is the
+  # content hash returned by nanopm_archive_raw (the basename without extension).
+  # <json> carries: {"opportunity_slug":..., "claim":..., "raw_line":..., "ts":...}.
+  # ts is injected (ISO-8601 UTC) when absent, mirroring nanopm_context_append /
+  # nanopm_state_log. Echoes nothing; returns non-zero on bad input or write failure.
+  local type="$1" id="$2" json="$3" root dir file
+  [ -n "$type" ] && [ -n "$id" ] && [ -n "$json" ] || {
+    echo "nanopm: nanopm_raw_manifest: type, id and json required" >&2; return 1; }
+  type=$(printf '%s' "$type" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]##g')
+  id=$(printf '%s' "$id" | sed 's#[^A-Za-z0-9]##g')
+  [ -n "$type" ] && [ -n "$id" ] || { echo "nanopm: nanopm_raw_manifest: invalid type or id" >&2; return 1; }
+  root="$(_nanopm_project_root)"
+  dir="$root/.nanopm/raw/$type"
+  mkdir -p "$dir" 2>/dev/null || { echo "nanopm: nanopm_raw_manifest: could not create $dir" >&2; return 1; }
+  file="$dir/$id.manifest.jsonl"
+  # Same UTF-8-safe python path as nanopm_context_append: raw JSON in, ts stamped,
+  # compact line out — so multibyte claims/quotes don't break under a non-UTF-8 locale.
+  printf '%s' "$json" | \
+    NANOPM_FILE="$file" PYTHONUTF8=1 python3 -c '
+import sys, os, json, datetime
+raw = sys.stdin.buffer.read().decode("utf-8", "replace")
+d = json.loads(raw)
+d.setdefault("ts", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+with open(os.environ["NANOPM_FILE"], "a", encoding="utf-8") as f:
+    f.write(json.dumps(d, separators=(",", ":"), ensure_ascii=False) + "\n")
+' 2>/dev/null && return 0
+  # Fallback: python missing or JSON invalid — append the raw payload best-effort.
+  printf '%s\n' "$json" >> "$file" 2>/dev/null || {
+    echo "nanopm: nanopm_raw_manifest: could not write manifest (disk full?)" >&2; return 1; }
 }
 
 # ── Migration-on-upgrade (vNext) ─────────────────────────────────────────────

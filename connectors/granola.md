@@ -1,7 +1,7 @@
 # Connector: Granola
 
 Fetches meeting notes and transcripts from Granola.
-Used by `/pm-standup` for recent meeting context and by `/pm-interview` to pull user interview transcripts automatically.
+Used by `/pm-standup` for recent meeting context and by `/pm-add-feedback` to pull user interview transcripts automatically.
 
 ## Tier 1 (MCP)
 
@@ -24,7 +24,7 @@ mcp__claude_ai_Granola__list_meetings(
 ```
 Extract: meeting title, date, duration, participants — gives context on what was discussed recently.
 
-**Fetching a specific transcript (for /pm-interview):**
+**Fetching a specific transcript (for /pm-add-feedback):**
 ```
 mcp__claude_ai_Granola__query_granola_meetings(
   query: "{topic or person name}"
@@ -39,14 +39,14 @@ mcp__claude_ai_Granola__get_meeting_transcript(
 - Meetings from the last 24-48h: title, participants, key decisions if available in notes
 - Flag if a meeting has no notes yet (may need follow-up)
 
-**What to extract for `/pm-interview`:**
-- Full transcript text — feed directly into Phase 5 signal extraction
+**What to extract for `/pm-add-feedback`:**
+- Full transcript text — archived as raw and fed into signal extraction
 - Participant names — identifies the interviewee profile
-- Meeting date — timestamps the interview session in FEEDBACK.md
+- Meeting date — timestamps the feedback source
 - Any action items or follow-ups noted in Granola
 
 **Heuristics:**
-- Meeting title contains "user", "customer", "interview", "discovery", "research", "call" → likely a user interview → suggest using `/pm-interview` to extract signal
+- Meeting title contains "user", "customer", "interview", "discovery", "research", "call" → likely a user interview → suggest using `/pm-add-feedback` to capture the signal
 - Meeting title contains "standup", "sync", "weekly", "planning" → internal meeting → show in standup summary only
 - Transcript length >3000 words → rich data source, worth full signal extraction
 
@@ -75,7 +75,7 @@ If Granola MCP is not available:
 
 **For `/pm-standup`:** skip the Granola section silently — no question asked.
 
-**For `/pm-interview`:** in Phase 5, ask the user to paste their raw notes manually:
+**For `/pm-add-feedback`:** ask the user to paste their raw notes manually:
 > "Granola not connected. Paste your interview notes below — transcript, bullet points, anything."
 
-This is the default Tier 4 behavior already in `/pm-interview` Phase 5.
+This is the default Tier 4 behavior already in `/pm-add-feedback`.

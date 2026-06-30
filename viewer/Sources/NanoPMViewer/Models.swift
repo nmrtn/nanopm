@@ -258,8 +258,15 @@ enum PhaseMapper {
         if lower == "nanopm-wiki.md" { return nil }
         // raw/ is the immutable source layer — hidden from the browser — EXCEPT the
         // competitor intel (snapshots + dated INTEL reports), which the Competitors
-        // section reads from the store and groups on its own page.
+        // section reads from the store and groups on its own page, and the archived
+        // interview/feedback sources, which the "Raw feedback" browser surfaces under
+        // Discover. The per-source `.manifest.jsonl` sidecars (source→opportunity
+        // links, schema §2.1) stay hidden — they're machinery the browser reads
+        // alongside their source, never standalone artifacts.
         if lower.hasPrefix("raw/competitors/") { return .discover }
+        if lower.hasPrefix("raw/interviews/") || lower.hasPrefix("raw/feedback/") {
+            return lower.hasSuffix(".manifest.jsonl") ? nil : .discover
+        }
         if lower.hasPrefix("raw/") { return nil }
         if lower.hasPrefix("wiki/") {
             if file == "index.md" || file == "log.md" { return nil }

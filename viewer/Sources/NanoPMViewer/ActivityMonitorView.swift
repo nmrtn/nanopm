@@ -12,23 +12,33 @@ struct ActivityMonitorView: View {
         runManager.runs.sorted { $0.startedAt > $1.startedAt }
     }
 
+    /// Project to launch a pasted "+ Add feedback" run into: the most recent
+    /// run's project (the one the user is working in). nil before any run exists.
+    private var inferredProjectPath: String? {
+        runs.first?.projectPath
+    }
+
     var body: some View {
         NavigationSplitView {
-            List(selection: $selection) {
-                ForEach(runs) { run in
-                    runRow(run).tag(run.id)
+            VStack(spacing: 0) {
+                AddFeedbackComposer(projectPath: inferredProjectPath)
+                Divider().padding(.top, 10)
+                List(selection: $selection) {
+                    ForEach(runs) { run in
+                        runRow(run).tag(run.id)
+                    }
+                }
+                .overlay {
+                    if runs.isEmpty {
+                        ContentUnavailableView(
+                            "No runs yet",
+                            systemImage: "antenna.radiowaves.left.and.right",
+                            description: Text("Paste feedback above, or launch a skill from a project's Discover page to watch it here, live.")
+                        )
+                    }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
-            .overlay {
-                if runs.isEmpty {
-                    ContentUnavailableView(
-                        "No runs yet",
-                        systemImage: "antenna.radiowaves.left.and.right",
-                        description: Text("Launch a skill from a project's Discover page to watch it here, live.")
-                    )
-                }
-            }
+            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 380)
         } detail: {
             if let run = runs.first(where: { $0.id == selection }) ?? runs.first {
                 RunConsoleView(run: run)
@@ -94,11 +104,26 @@ struct StatusDot: View {
 struct RunConsoleView: View {
     let run: RunManager.SkillRun
     @State private var autoScroll = true
+    @State private var feedbackSummary: FeedbackSummary?
+
+    /// True for a finished `/pm-add-feedback` run — its console leads with the
+    /// parsed digest before the raw event log.
+    private var isAddFeedback: Bool {
+        run.skillCommand == "/pm-add-feedback"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
+            if isAddFeedback, run.status == .succeeded, let feedbackSummary {
+                ScrollView {
+                    FeedbackDigestView(summary: feedbackSummary)
+                        .padding(14)
+                }
+                .frame(maxHeight: 320)
+                Divider()
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -115,6 +140,33 @@ struct RunConsoleView: View {
                 }
                 .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
             }
+        }
+        // Parse the digest when the run finishes (or when this console is shown
+        // for an already-finished run). Prefer the skill's final output; fall
+        // back to .nanopm/raw/events.jsonl — never file-mtime diffing.
+        .task(id: digestTaskKey) { await loadDigest() }
+    }
+
+    /// Re-parse whenever the run reaches a succeeded state or its transcript grows.
+    private var digestTaskKey: String {
+        "\(run.id)#\(run.status == .succeeded)#\(run.transcript.count)"
+    }
+
+    private func loadDigest() async {
+        guard isAddFeedback, run.status == .succeeded else { return }
+        // Preferred: the skill's final printed output (last model transcript entry
+        // carrying the ===PM-ADD-FEEDBACK-SUMMARY=== block).
+        for entry in run.transcript.reversed() where entry.role == .model {
+            if let parsed = FeedbackSummary.parse(fromOutput: entry.text) {
+                feedbackSummary = parsed
+                return
+            }
+        }
+        // Fallback: the latest pm-add-feedback line in raw/events.jsonl.
+        let file = run.projectPath + "/.nanopm/raw/events.jsonl"
+        if let contents = try? await ShellRunner.runAsync("cat \(ShellRunner.quote(file)) 2>/dev/null"),
+           let parsed = FeedbackSummary.parse(fromEventsJSONL: contents) {
+            feedbackSummary = parsed
         }
     }
 

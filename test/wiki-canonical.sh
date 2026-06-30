@@ -25,13 +25,12 @@ echo "  nanopm wiki-canonical enforcement"
 echo "  ================================="
 
 # Migrated skills and their RETIRED flat doc basename (parallel arrays).
-# Define/Plan (Phase 1) + Discover/Daily-Ops (Phase 2). pm-interview owns two docs
-# (interview + the cumulative feedback page), so it appears twice. pm-standup/pm-retro
+# Define/Plan (Phase 1) + Discover/Daily-Ops (Phase 2). pm-standup/pm-retro
 # write DATED wiki docs, so their retired flat doc is STANDUP/RETRO.
 _SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-objectives pm-strategy pm-roadmap \
-         pm-challenge-me pm-competitors-intel pm-user-feedback pm-interview pm-interview pm-data pm-discovery pm-weekly-update pm-standup pm-retro)
+         pm-challenge-me pm-competitors-intel pm-user-feedback pm-data pm-discovery pm-weekly-update pm-standup pm-retro)
 _DOCS=(VISION-MISSION BUSINESS-MODEL ORG PRODUCT PERSONAS OBJECTIVES STRATEGY ROADMAP \
-       CHALLENGES COMPETITORS FEEDBACK INTERVIEW FEEDBACK DATA DISCOVERY WEEKLY_UPDATE STANDUP RETRO)
+       CHALLENGES COMPETITORS FEEDBACK DATA DISCOVERY WEEKLY_UPDATE STANDUP RETRO)
 
 echo
 echo "  No flat writes in migrated skills"
@@ -204,7 +203,7 @@ echo
 echo "  Page-writing skills journal to wiki/log.md"
 _LOG_SKILLS=(pm-vision-mission pm-business-model pm-org pm-product pm-personas \
              pm-objectives pm-strategy pm-roadmap pm-challenge-me pm-discovery \
-             pm-user-feedback pm-interview pm-data pm-competitors-intel \
+             pm-user-feedback pm-data pm-competitors-intel \
              pm-weekly-update pm-standup pm-retro pm-opportunities pm-solutions pm-prd)
 for skill in "${_LOG_SKILLS[@]}"; do
   f="$_REPO_ROOT/$skill/SKILL.md"

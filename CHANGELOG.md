@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.26.0 — 2026-06-30 — `/pm-add-feedback` replaces `/pm-interview`: a feedback substrate, not just an interview tool
+
+The old `/pm-interview` skill bundled two jobs that don't belong together: preparing a hypothesis-driven
+interview guide, and turning a finished conversation into product signal. Worse, it only knew one source
+(interviews) and left no durable trace of the original input — once the signal was extracted, the verbatim
+was gone. This release splits the two jobs and generalizes the second.
+
+- **New `/pm-add-feedback`** — add a feedback from *any* source (interview, support ticket, sales call,
+  review, tweet, casual hallway note), archive the **raw** input verbatim under the wiki, and ground
+  opportunities in the actual words the user said. The raw archive becomes a first-class substrate:
+  feedback is never paraphrased away, and downstream skills can cite the source.
+- **Viewer raw browser + add** — the viewer gains a way to browse the raw feedback archive and add a new
+  piece of feedback directly.
+- **Interview *prep* moves to `/pm-discovery`** — designing the guide is a discovery activity (what do we
+  need to learn, what are the riskiest assumptions), so it now lives there alongside the rest of WHAT-to-build.
+- **`/pm-interview` retired** — removed from the skill roster (`setup` `_SKILL_LIST` + `plugin.json`),
+  the static and wiki-canonical tests, the README/CLAUDE skill tables, the Granola/Intercom connectors,
+  and the `/pm-data`, `/pm-challenge-me`, `/pm-standup` recommendation links — repointed to
+  `/pm-add-feedback` (capture/debrief) or `/pm-discovery` (prep) per context.
+
 ## 0.25.0 — 2026-06-29 — Every wiki page write now leaves a heartbeat in the log
 
 The wiki's global log (`.nanopm/wiki/log.md`) is the memory's heartbeat — one line per operation — and

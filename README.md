@@ -110,7 +110,7 @@ Commands are namespaced (`/nanopm:pm-run`) and updates flow through Claude Code'
 /pm-org              → map the org, key roles, and decision-makers
 /pm-product          → deep product map — reads code + the public site, or interviews you when greenfield
 /pm-personas         → define who you're building for — JTBD personas + an explicit anti-persona
-/pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield)
+/pm-discovery        → figure out WHAT to build before planning HOW (pre-product / greenfield); includes user-interview prep
 /pm-objectives       → OKRs with anti-goals and measurable key results
 /pm-user-feedback    → aggregate feedback from Dovetail, Productboard, etc; cluster themes, surface top signal
 /pm-competitors-intel → discover competitors, monitor + diff their pages, run SWOT + positioning analysis
@@ -128,7 +128,7 @@ Commands are namespaced (`/nanopm:pm-run`) and updates flow through Claude Code'
 /pm-challenge-me     → three adversarial challenges: strategy, users, focus — starting with the question you're avoiding
 /pm-brainstorm       → jam with Nano, your expert CPO — informal, context-loaded, resumable
 /pm-standup          → morning briefing — what shipped, today's meetings, top 1-3 priorities
-/pm-interview        → prepare a user interview guide, or debrief a transcript from Granola
+/pm-add-feedback     → add feedback from any source → archive raw → ground opportunities in verbatims
 /pm-weekly-update    → draft stakeholder update email (CEO, investor, or team), adapted to audience
 /pm-data             → answer a product question using PostHog or Amplitude — trends, funnels, retention
 ```

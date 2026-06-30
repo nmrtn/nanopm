@@ -12,7 +12,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-org | `/pm-org` | Map the org, roles, decision-makers → ORG.md |
 | pm-product | `/pm-product` | Deep product map — from code + site, or interview if greenfield → PRODUCT.md |
 | pm-personas | `/pm-personas` | Define WHO you're building for — JTBD personas + anti-persona |
-| pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery |
+| pm-discovery | `/pm-discovery` | Figure out WHAT to build — pre-planning discovery; includes user-interview prep |
 | pm-opportunities | `/pm-opportunities` | Build & maintain a ranked user-opportunity database (Teresa Torres) → .nanopm/opportunities/ |
 | pm-challenge-me | `/pm-challenge-me` | Challenge Me — adversarial challenges based on product context |
 | pm-objectives | `/pm-objectives` | Define OKRs and anti-goals |
@@ -21,7 +21,7 @@ Autonomous PM skill pack for AI coding agents. Replaces the PM workflow end-to-e
 | pm-prd | `/pm-prd` | Full PRD (or Shape Up pitch) |
 | pm-breakdown | `/pm-breakdown` | Break PRD into tasks, hand off to Linear / GitHub / OpenSpec / gstack / Human |
 | pm-retro | `/pm-retro` | Compare roadmap vs commits, surface drift |
-| pm-interview | `/pm-interview` | Prepare and debrief user interviews, update FEEDBACK.md |
+| pm-add-feedback | `/pm-add-feedback` | Add a feedback from any source → archive raw → ground opportunities in verbatims |
 | pm-standup | `/pm-standup` | Daily briefing — what shipped, today's priorities, blockers |
 | pm-brainstorm | `/pm-brainstorm` | Jam with Nano, the expert CPO — informal, context-loaded, resumable sessions |
 | pm-weekly-update | `/pm-weekly-update` | Draft stakeholder update email, adapted to audience |
