@@ -120,6 +120,10 @@ struct FeedbackDigestView: View {
     let summary: FeedbackSummary
     /// Open an opportunity by its bare slug; nil disables the links.
     var onOpenOpportunity: ((String) -> Void)? = nil
+    /// Whether a slug resolves to an opportunity page; chips that fail this stay
+    /// greyed/disabled even when a handler is wired (slug may have no page yet).
+    /// Defaults to "all resolvable" so callers that don't know just enable them.
+    var canOpenOpportunity: (String) -> Bool = { _ in true }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -208,10 +212,11 @@ struct FeedbackDigestView: View {
                 Image(systemName: icon).foregroundStyle(tint)
             }
             .font(.callout.weight(.medium))
-            // Clickable only when a handler is wired (standalone Activity Monitor
-            // window has no navigation, so the chips are plain there).
+            // Clickable only when a handler is wired AND the slug resolves to a
+            // page; a slug with no opportunity page stays greyed/disabled.
             FlowChips(items: slugs,
                       lowConfidence: Set(summary.lowConfidence),
+                      canOpen: canOpenOpportunity,
                       onTap: onOpenOpportunity)
         }
     }
@@ -245,6 +250,9 @@ struct FeedbackDigestView: View {
 private struct FlowChips: View {
     let items: [String]
     let lowConfidence: Set<String>
+    /// Whether a given item is openable; a non-openable item renders as a plain
+    /// (greyed) label even when `onTap` is wired. Themes pass the default.
+    var canOpen: (String) -> Bool = { _ in true }
     var onTap: ((String) -> Void)?
 
     var body: some View {
@@ -261,17 +269,23 @@ private struct FlowChips: View {
     @ViewBuilder
     private func chip(_ item: String) -> some View {
         let flagged = lowConfidence.contains(item)
+        // A chip is interactive only when a handler is wired AND the slug resolves
+        // to a page. When a handler is wired but the slug doesn't resolve, the chip
+        // is greyed (it had a page to link, but there isn't one) rather than tinted.
+        let openable = onTap != nil && canOpen(item)
+        let unresolved = onTap != nil && !canOpen(item)
+        let tint = flagged ? Color.npAmber : Color.npOlive
         let label = HStack(spacing: 4) {
             if flagged { Image(systemName: "exclamationmark.triangle").font(.caption2) }
             Text(item).font(.caption.weight(.medium)).lineLimit(1)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background((flagged ? Color.npAmber : Color.npOlive).opacity(0.14),
+        .background((unresolved ? Color.secondary : tint).opacity(unresolved ? 0.10 : 0.14),
                     in: Capsule())
-        .foregroundStyle(flagged ? Color.npAmber : Color.npOlive)
+        .foregroundStyle(unresolved ? Color.secondary : tint)
 
-        if let onTap {
+        if openable, let onTap {
             Button { onTap(item) } label: { label }
                 .buttonStyle(.plain)
         } else {

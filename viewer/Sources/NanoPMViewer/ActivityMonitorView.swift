@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Live activity monitor: every skill run across the session in a sidebar,
 /// with a live console for the selected one. Built to follow several parallel
@@ -94,6 +95,8 @@ struct StatusDot: View {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.npOlive)
             case .failed:
                 Image(systemName: "xmark.circle.fill").foregroundStyle(Color.npRust)
+            case .interrupted:
+                Image(systemName: "bolt.slash.fill").foregroundStyle(Color.npAmber)
             }
         }
         .frame(width: 18, height: 18)
@@ -102,9 +105,15 @@ struct StatusDot: View {
 
 /// Scrolling, auto-following console of a single run's streamed events.
 struct RunConsoleView: View {
+    @EnvironmentObject private var runManager: RunManager
     let run: RunManager.SkillRun
     @State private var autoScroll = true
     @State private var feedbackSummary: FeedbackSummary?
+    /// Bare slugs of opportunity pages that exist on disk for this run's project,
+    /// scanned alongside the digest. A digest chip is clickable only when its slug
+    /// is in here — others stay greyed (no page to open). The Activity Monitor has
+    /// no ArtifactStore of its own, so we resolve straight off disk.
+    @State private var opportunitySlugs: Set<String> = []
 
     /// True for a finished `/pm-add-feedback` run — its console leads with the
     /// parsed digest before the raw event log.
@@ -118,8 +127,21 @@ struct RunConsoleView: View {
             Divider()
             if isAddFeedback, run.status == .succeeded, let feedbackSummary {
                 ScrollView {
-                    FeedbackDigestView(summary: feedbackSummary)
-                        .padding(14)
+                    FeedbackDigestView(
+                        summary: feedbackSummary,
+                        onOpenOpportunity: { slug in
+                            // The Activity Monitor is its own window with no nav host,
+                            // so route the tap through the shared RunManager — the main
+                            // ProjectView resolves the slug and navigates — then bring
+                            // that window forward so the opportunity is visible.
+                            runManager.requestOpenOpportunity(slug: slug, in: run.projectPath)
+                            NSApp.activate(ignoringOtherApps: true)
+                        },
+                        canOpenOpportunity: { slug in
+                            opportunitySlugs.contains((slug as NSString).lastPathComponent.lowercased())
+                        }
+                    )
+                    .padding(14)
                 }
                 .frame(maxHeight: 320)
                 Divider()
@@ -154,6 +176,7 @@ struct RunConsoleView: View {
 
     private func loadDigest() async {
         guard isAddFeedback, run.status == .succeeded else { return }
+        await loadOpportunitySlugs()
         // Preferred: the skill's final printed output (last model transcript entry
         // carrying the ===PM-ADD-FEEDBACK-SUMMARY=== block).
         for entry in run.transcript.reversed() where entry.role == .model {
@@ -168,6 +191,26 @@ struct RunConsoleView: View {
            let parsed = FeedbackSummary.parse(fromEventsJSONL: contents) {
             feedbackSummary = parsed
         }
+    }
+
+    /// Scan opportunity-page stems off disk (canonical wiki path + legacy root),
+    /// excluding the INDEX/LOG/SCHEMA machinery, so the digest knows which chips
+    /// resolve to a real page. Mirrors `OpportunityFiles`' path conventions.
+    private func loadOpportunitySlugs() async {
+        let base = run.projectPath + "/.nanopm"
+        let dirs = [base + "/wiki/entities/opportunities", base + "/opportunities"]
+        var slugs: Set<String> = []
+        for dir in dirs {
+            let command = "ls \(ShellRunner.quote(dir))/*.md 2>/dev/null || true"
+            guard let out = try? await ShellRunner.runAsync(command) else { continue }
+            for line in out.split(separator: "\n") {
+                let stem = ((String(line) as NSString).lastPathComponent as NSString)
+                    .deletingPathExtension.lowercased()
+                guard !["index", "log", "schema"].contains(stem) else { continue }
+                slugs.insert(stem)
+            }
+        }
+        opportunitySlugs = slugs
     }
 
     private var header: some View {

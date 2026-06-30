@@ -99,12 +99,16 @@ final class RunManager: ObservableObject {
             case waitingForInput([UserQuestion])
             case succeeded
             case failed(String)
+            /// The app quit (or tore down) while this run was in flight: its child
+            /// `claude` was sent SIGTERM rather than dying silently on SIGPIPE. The
+            /// run's work may be incomplete — surfaced with an "interrupted" marker.
+            case interrupted
         }
 
         var isActive: Bool {
             switch status {
             case .running, .waitingForInput: return true
-            case .succeeded, .failed: return false
+            case .succeeded, .failed, .interrupted: return false
             }
         }
 
@@ -126,6 +130,26 @@ final class RunManager: ObservableObject {
     @Published private(set) var runs: [SkillRun] = []
     /// Bumped each time a run finishes — views watch this to refresh artifact lists.
     @Published private(set) var completionTick = 0
+
+    /// A cross-window "open this opportunity" request. The Activity Monitor is a
+    /// separate window with no navigation host, so when a digest chip is tapped it
+    /// publishes the target here; the main `ProjectView` (which holds the nav
+    /// selection) observes it, resolves the slug to an opportunity artifact, and
+    /// navigates. Carries the project so the main window only acts on its own.
+    struct OpportunityOpenRequest: Equatable {
+        let projectPath: String
+        let slug: String
+        /// Distinguishes two taps of the same slug so the observer always fires.
+        let nonce = UUID()
+        static func == (l: OpportunityOpenRequest, r: OpportunityOpenRequest) -> Bool { l.nonce == r.nonce }
+    }
+    @Published var openOpportunityRequest: OpportunityOpenRequest?
+
+    /// Ask the main window to open an opportunity by its bare slug. Used by the
+    /// standalone Activity Monitor's feedback digest, which can't navigate itself.
+    func requestOpenOpportunity(slug: String, in projectPath: String) {
+        openOpportunityRequest = OpportunityOpenRequest(projectPath: projectPath, slug: slug)
+    }
 
     private var processes: [UUID: Process] = [:]
 
@@ -322,6 +346,22 @@ final class RunManager: ObservableObject {
         completionTick += 1
         processes[runID]?.terminate()
         processes[runID] = nil
+    }
+
+    /// True while ≥1 run is still in flight — drives the quit-confirmation prompt.
+    var hasActiveRuns: Bool { runs.contains { $0.isActive } }
+
+    /// Gracefully tear down every in-flight run on app termination. `Process.terminate()`
+    /// sends SIGTERM (not SIGKILL), giving the child `claude` a chance to flush rather
+    /// than dying uncleanly on SIGPIPE when our pipes close. The run is marked
+    /// `interrupted` so the Activity Monitor shows it didn't finish cleanly.
+    /// Synchronous on the main actor so it completes inside `applicationShouldTerminate`.
+    func terminateAllForQuit() {
+        for index in runs.indices where runs[index].isActive {
+            processes[runs[index].id]?.terminate()
+            processes[runs[index].id] = nil
+            runs[index].status = .interrupted
+        }
     }
 
     // MARK: - Turn lifecycle

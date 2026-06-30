@@ -103,6 +103,31 @@ struct ProjectView: View {
         .onChange(of: runManager.completionTick) { _, _ in
             Task { await store.refresh() }
         }
+        // Cross-window navigation: the standalone Activity Monitor's feedback digest
+        // can't navigate itself, so a tapped opportunity chip publishes a request
+        // here. Resolve it to a scanned opportunity artifact and select it — same
+        // destination RawFeedbackUI / OpportunitiesUI route to.
+        .onChange(of: runManager.openOpportunityRequest) { _, request in
+            guard let request, request.projectPath == project.path,
+                  let id = opportunityArtifactID(for: request.slug) else { return }
+            selection = id
+        }
+    }
+
+    /// Resolve a slug (bare `foo` or `entities/opportunities/foo`) to a scanned
+    /// opportunity artifact id, so a digest chip navigates in-app. Nil when no
+    /// matching opportunity page exists (chip stays inert). Mirrors the resolver in
+    /// `RawSourceDetailView.opportunityArtifactID`.
+    private func opportunityArtifactID(for slug: String) -> String? {
+        let bare = (slug as NSString).lastPathComponent.lowercased()
+        guard !bare.isEmpty else { return nil }
+        return store.artifacts.first { art in
+            guard OpportunityFiles.isOpportunityFile(art.relativePath),
+                  !OpportunityFiles.isReserved(art.relativePath) else { return false }
+            let stem = ((art.relativePath as NSString).lastPathComponent as NSString)
+                .deletingPathExtension.lowercased()
+            return stem == bare
+        }?.id
     }
 
     /// True when there's at least one archived interview/feedback source — it gets

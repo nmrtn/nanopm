@@ -77,6 +77,8 @@ struct RunSessionView: View {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.npOlive)
         case .failed:
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.npRust)
+        case .interrupted:
+            Image(systemName: "bolt.slash.fill").foregroundStyle(Color.npAmber)
         }
     }
 
@@ -163,6 +165,17 @@ struct RunSessionView: View {
                     .font(.callout.monospaced())
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+            }
+            .padding(.top, 4)
+        case .interrupted:
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Run interrupted", systemImage: "bolt.slash.fill")
+                    .font(.headline)
+                    .foregroundStyle(Color.npAmber)
+                Text("The app quit while this run was in progress, so it was stopped before finishing. Its work may be incomplete — re-run the skill to produce a clean result.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.top, 4)
         }
