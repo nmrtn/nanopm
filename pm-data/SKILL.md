@@ -193,12 +193,12 @@ What is the data actually saying about user behavior? What does it suggest you s
 ### Biggest unknown
 
 {The most important question the data raises but cannot answer alone.
-Usually answered by qualitative research — flag it for /pm-interview if relevant.}
+Usually answered by qualitative research — flag it for /pm-discovery if relevant.}
 
 ### Recommended next
 
 {/pm-challenge-me to fold this into the product assessment |
-/pm-interview to investigate the biggest unknown qualitatively |
+/pm-discovery to investigate the biggest unknown qualitatively |
 /pm-prd if the problem is validated and sized}
 
 ---
@@ -245,7 +245,7 @@ Tell the user:
 - The wiki data page (`.nanopm/wiki/docs/data.md`) updated
 - The single most important finding in one sentence
 - The confidence level and what would increase it
-- Whether this data suggests running more interviews (/pm-interview) or moving to planning (/pm-challenge-me)
+- Whether this data suggests running more interviews (/pm-discovery) or moving to planning (/pm-challenge-me)
 
 If the data reveals a clear problem with quantified size: "This is now ready to feed into /pm-challenge-me — the quantitative problem size strengthens the challenge session's strategic recommendations."
 

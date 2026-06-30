@@ -286,7 +286,7 @@ Locally check each block:
 If any check fails, re-dispatch the subagent ONCE with: *"Your previous output failed validation: {specific reason}. Re-output the three 5-line blocks following the format exactly. Do not add prose around the lines. Do not change the labels."*
 
 After the second attempt:
-- If the `strategy` block is still invalid, STOP. Tell the user: *"Adversarial gate failed twice. The synthesis is too thin to land a sharp challenge — re-run `/pm-challenge-me` after enriching CONTEXT.md (add Q6 workaround details, run `/pm-interview` for user signal, or `/pm-data` for quanti)."* Exit non-zero.
+- If the `strategy` block is still invalid, STOP. Tell the user: *"Adversarial gate failed twice. The synthesis is too thin to land a sharp challenge — re-run `/pm-challenge-me` after enriching CONTEXT.md (add Q6 workaround details, run `/pm-discovery` for user signal, or `/pm-data` for quanti)."* Exit non-zero.
 - If the `users` or `focus` blocks are still invalid, drop the invalid ones with a one-line warning ("dropping the {angle} challenge — failed rubric twice") and continue with the valid challenges (minimum: the `strategy` one).
 
 ### 5c. State write (structural gate)
@@ -405,7 +405,7 @@ The most important unknown the data raises: {question}."]
 
 **Action:** {If quanti contradicts quali: "Investigate the discrepancy before setting objectives."
 If quanti confirms: "Use this number to size the problem in your PRD."
-If biggest unknown is flagged: "Run /pm-interview to answer {question} before /pm-strategy."}
+If biggest unknown is flagged: "Run /pm-discovery to answer {question} before /pm-strategy."}
 
 ---
 

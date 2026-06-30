@@ -4,6 +4,11 @@ import MarkdownUI
 struct ProjectView: View {
     static let runTagPrefix = "run:"
     static let competitorTagPrefix = "competitor:"
+    /// Per-source detail route for the "Raw feedback" browser. The raw archive can
+    /// hold any extension (a .txt transcript), so these sources aren't always
+    /// scanned artifacts — they're addressed by relativePath behind this prefix
+    /// rather than an artifact id.
+    static let rawSourceTagPrefix = "raw:"
     /// Leading indent for documents nested under a phase entry.
     static let childIndent: CGFloat = 14
     /// Row insets driven by `.listRowInsets` (not inner `.padding`) so the
@@ -25,6 +30,10 @@ struct ProjectView: View {
     @State private var solutionsExpanded = false
     @State private var weeklyUpdatesExpanded = false
     @State private var standupsExpanded = false
+    @State private var rawFeedbackExpanded = false
+    /// Archived interview/feedback sources, loaded off disk (any extension — the
+    /// scanner only keeps md/json/jsonl). Drives the "Raw feedback" nav entry.
+    @State private var rawSources: [RawSource] = []
     // Which per-phase entity-type groups are expanded, keyed "<phase>/<type>" so each
     // type collapses independently.
     @State private var expandedEntityTypes: Set<String> = []
@@ -73,6 +82,9 @@ struct ProjectView: View {
                 .background(Color.npPaper)
         }
         .task { await store.refresh() }
+        .task(id: store.generation) {
+            rawSources = await RawSourceScanner.scan(nanopmPath: project.nanopmPath)
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await store.refresh() }
         }
@@ -82,6 +94,7 @@ struct ProjectView: View {
                !selection.hasPrefix("page:"),
                !selection.hasPrefix(Self.runTagPrefix),
                !selection.hasPrefix(Self.competitorTagPrefix),
+               !selection.hasPrefix(Self.rawSourceTagPrefix),
                !selection.hasPrefix(NavRoute.seriesPrefix),
                !newValue.contains(where: { $0.id == selection }) {
                 self.selection = nil
@@ -90,7 +103,37 @@ struct ProjectView: View {
         .onChange(of: runManager.completionTick) { _, _ in
             Task { await store.refresh() }
         }
+        // Cross-window navigation: the standalone Activity Monitor's feedback digest
+        // can't navigate itself, so a tapped opportunity chip publishes a request
+        // here. Resolve it to a scanned opportunity artifact and select it — same
+        // destination RawFeedbackUI / OpportunitiesUI route to.
+        .onChange(of: runManager.openOpportunityRequest) { _, request in
+            guard let request, request.projectPath == project.path,
+                  let id = opportunityArtifactID(for: request.slug) else { return }
+            selection = id
+        }
     }
+
+    /// Resolve a slug (bare `foo` or `entities/opportunities/foo`) to a scanned
+    /// opportunity artifact id, so a digest chip navigates in-app. Nil when no
+    /// matching opportunity page exists (chip stays inert). Mirrors the resolver in
+    /// `RawSourceDetailView.opportunityArtifactID`.
+    private func opportunityArtifactID(for slug: String) -> String? {
+        let bare = (slug as NSString).lastPathComponent.lowercased()
+        guard !bare.isEmpty else { return nil }
+        return store.artifacts.first { art in
+            guard OpportunityFiles.isOpportunityFile(art.relativePath),
+                  !OpportunityFiles.isReserved(art.relativePath) else { return false }
+            let stem = ((art.relativePath as NSString).lastPathComponent as NSString)
+                .deletingPathExtension.lowercased()
+            return stem == bare
+        }?.id
+    }
+
+    /// True when there's at least one archived interview/feedback source — it gets
+    /// its own collapsible "Raw feedback" entry under Discover (the verbatim sources
+    /// behind the synthesized FEEDBACK page), not a flat row each.
+    private var showRawFeedbackSection: Bool { !rawSources.isEmpty }
 
     /// True when competitor intel artifacts get their own nav section.
     private var showCompetitorsSection: Bool {
@@ -145,6 +188,13 @@ struct ProjectView: View {
     private func isDatedSeriesDoc(_ relativePath: String) -> Bool {
         let l = relativePath.lowercased()
         return Self.datedSeriesPrefixes.contains { l.hasPrefix($0) }
+    }
+
+    /// An archived interview/feedback source (the raw layer the "Raw feedback"
+    /// entry groups). Structural — matches the PhaseMapper carve-out.
+    private func isRawFeedbackDoc(_ relativePath: String) -> Bool {
+        let l = relativePath.lowercased()
+        return l.hasPrefix("raw/interviews/") || l.hasPrefix("raw/feedback/")
     }
 
     /// Pages under one series folder, newest first (by the ISO date in the filename).
@@ -354,6 +404,10 @@ struct ProjectView: View {
                 // Dated-series pages (weekly updates, standups) collapse under one
                 // entry per series in DAY TO DAY (newest first), not a flat row per date.
                 && !isDatedSeriesDoc(artifact.relativePath)
+                // Archived interview/feedback sources (md/json ones land in the store
+                // via the PhaseMapper carve-out) group under the "Raw feedback" entry,
+                // not flat rows.
+                && !isRawFeedbackDoc(artifact.relativePath)
         }
         // Settings → "Display entities" hides the entity groups from the nav (the
         // entity pages stay out of the flat rows either way — they're the substrate).
@@ -406,6 +460,9 @@ struct ProjectView: View {
                 }
                 if phase == .discover && showSolutionsSection {
                     solutionsEntry.listRowInsets(Self.childRowInsets)
+                }
+                if phase == .discover && showRawFeedbackSection {
+                    rawFeedbackEntry.listRowInsets(Self.childRowInsets)
                 }
                 if phase == .discover && showCompetitorsSection {
                     competitorsEntry.listRowInsets(Self.childRowInsets)
@@ -507,6 +564,21 @@ struct ProjectView: View {
     }
 
     @ViewBuilder
+    private var rawFeedbackEntry: some View {
+        DisclosureGroup(isExpanded: $rawFeedbackExpanded) {
+            ForEach(rawSources) { src in
+                Label("\(rawTypeLabel(src.type)) · \(src.id)", systemImage: rawTypeIcon(src.type))
+                    .tag(Self.rawSourceTagPrefix + src.relativePath)
+                    .help(".nanopm/" + src.relativePath)
+            }
+        } label: {
+            Label("Raw feedback", systemImage: "tray.full")
+                .tag(NavRoute.rawFeedbackPage)
+                .help("Archived interviews and feedback, stored verbatim — opens the source table; expand for each source")
+        }
+    }
+
+    @ViewBuilder
     private var competitorsEntry: some View {
         DisclosureGroup(isExpanded: $competitorsExpanded) {
             ForEach(store.competitors) { competitor in
@@ -603,6 +675,18 @@ struct ProjectView: View {
             )
         } else if selection == NavRoute.competitorsPage {
             CompetitorsPageView(store: store)
+        } else if selection == NavRoute.rawFeedbackPage {
+            RawFeedbackOverviewView(store: store) { relPath in
+                selection = Self.rawSourceTagPrefix + relPath
+            }
+        } else if let selection,
+                  selection.hasPrefix(Self.rawSourceTagPrefix) {
+            RawSourceDetailView(
+                store: store,
+                relativePath: String(selection.dropFirst(Self.rawSourceTagPrefix.count)),
+                onOpenArtifact: { id in self.selection = id }
+            )
+            .id(selection)
         } else if selection == NavRoute.memoryPage {
             MemoryView(store: store)
         } else if selection == NavRoute.brainstormPage {

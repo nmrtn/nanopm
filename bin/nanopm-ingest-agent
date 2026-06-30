@@ -22,6 +22,7 @@ Subcommands:
   log              append a heartbeat line to .nanopm/wiki/log.md
   citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
   apply            write a wiki page directly (locked, single-writer-per-file)
+  raw-check        is a raw source already archived? (content-hash dedup — see below)
 
 Usage:
   nanopm-ingest-agent reindex [--project DIR]
@@ -29,14 +30,17 @@ Usage:
   nanopm-ingest-agent citation-check --target wiki/entities/personas/theo.md \\
       --citation '"I live in the terminal" — interview, 2026-06-23' [--project DIR]
   nanopm-ingest-agent apply --target wiki/entities/personas/theo.md [--project DIR] < content.md
+  nanopm-ingest-agent raw-check --type feedback --hash 9f86d081884c [--project DIR]
+  nanopm-ingest-agent raw-check --type feedback < source.txt   # hash stdin, then check
 
-Exit codes: reindex/log/apply -> 0 ok, 1 error. citation-check -> 0 DUPLICATE, 1 NEW, 2 error.
+Exit codes: reindex/log/apply -> 0 ok, 1 error. citation-check/raw-check -> 0 DUPLICATE, 1 NEW, 2 error.
 """
 from __future__ import annotations
 
 import argparse
 import contextlib
 import datetime as _dt
+import hashlib
 import sys
 from pathlib import Path
 
@@ -359,6 +363,50 @@ def cmd_citation_check(args) -> int:
     return 1
 
 
+RAW_ID_LEN = 12  # first 12 hex of sha256, matching nanopm_archive_raw (lib/nanopm.sh)
+
+
+def raw_id(data: bytes) -> str:
+    """Content hash for the raw archive: first 12 hex of sha256. MUST match the
+    bash helper nanopm_archive_raw so a Python pre-check and the actual archive
+    write agree on the id (and therefore on the archived filename)."""
+    return hashlib.sha256(data).hexdigest()[:RAW_ID_LEN]
+
+
+def cmd_raw_check(args) -> int:
+    """Raw-dedup affordance: is a content hash already archived under
+    .nanopm/raw/<type>/? Lets a caller skip re-writing an identical source before
+    invoking the bash archiver (NANOPM-WIKI.md §2.1). The id is content-addressed,
+    so this only needs the hash + type. Provide --hash directly, or pipe the source
+    content on stdin and we hash it the same way nanopm_archive_raw does. Prints the
+    resolved id; returns 0=DUPLICATE (already archived), 1=NEW so a caller can branch
+    on the exit code (mirrors citation-check)."""
+    if args.hash:
+        rid = "".join(c for c in args.hash.strip().lower() if c in "0123456789abcdef")[:RAW_ID_LEN]
+        if not rid:
+            print("ERROR: --hash is not a hex digest", file=sys.stderr)
+            return 2
+    else:
+        data = sys.stdin.buffer.read()
+        if not data:
+            print("ERROR: no --hash and no content on stdin", file=sys.stderr)
+            return 2
+        rid = raw_id(data)
+    rtype = "".join(c for c in args.type.lower() if c.isalnum() or c == "-")
+    if not rtype:
+        print("ERROR: invalid --type", file=sys.stderr)
+        return 2
+    raw_dir = Path(args.project) / ".nanopm" / "raw" / rtype
+    # Content-addressed: id is fixed, extension is not — any raw/<type>/<id>.* counts.
+    existing = sorted(raw_dir.glob(f"{rid}.*")) if raw_dir.is_dir() else []
+    existing = [p for p in existing if not p.name.endswith(".manifest.jsonl")]
+    if existing:
+        print(f"DUPLICATE {rid} {existing[0].relative_to(Path(args.project) / '.nanopm').as_posix()}")
+        return 0
+    print(f"NEW {rid}")
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
@@ -382,6 +430,11 @@ def main() -> int:
     a = sub.add_parser("apply", help="write a wiki page directly (content on stdin)")
     a.add_argument("--target", required=True, help="wiki page path (under .nanopm/)")
     a.set_defaults(func=cmd_apply)
+
+    rc = sub.add_parser("raw-check", help="is a raw source already archived? (content-hash dedup)")
+    rc.add_argument("--type", required=True, help="raw subdir: feedback | interviews | data | …")
+    rc.add_argument("--hash", default="", help="content hash to check; omit to hash stdin instead")
+    rc.set_defaults(func=cmd_raw_check)
 
     args = ap.parse_args()
     return args.func(args)

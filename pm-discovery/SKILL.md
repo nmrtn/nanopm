@@ -15,6 +15,22 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, WebF
 >    `Skip`) — never call `ask_user_question` with `options: []`.
 
 
+## Two modes
+
+This skill has two modes. Pick based on what the user is asking for:
+
+- **Map mode (default):** the full discovery flow below (Phases 1–7). Maps the opportunity
+  space, inventories assumptions, designs the cheapest tests, and writes the wiki Discovery page.
+- **Interview-prep mode:** the user wants a hypothesis-driven *user-interview guide* to take into
+  a live call — a prep deliverable, not a discovery analysis. Jump to the **Interview-prep mode**
+  section near the end and produce the guide there. Prep mode does **not** write to the wiki or the
+  opportunity database; it only hands the human a ready-to-run guide. (Capturing what an interview
+  *returns* — transcript import, signal extraction, feedback writeback — is `/pm-add-feedback`'s job,
+  not this skill's.)
+
+If it's ambiguous, default to Map mode and offer prep mode at the end.
+
+
 ## Preamble (run first)
 
 ```bash
@@ -247,6 +263,206 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_context_append "{\"skill\":\"pm-discovery\",\"outputs\":{\"discovery_question\":\"$(head -5 \"$(nanopm_wiki_doc_path discovery)\" | grep 'Discovery question' | cut -d: -f2- | xargs | tr '\"' \"'\" | head -c 100)\",\"top_risk\":\"$(grep -A1 'Assumption Inventory' \"$(nanopm_wiki_doc_path discovery)\" | tail -1 | tr '\"' \"'\" | head -c 100)\",\"next\":\"pm-challenge-me\"}}"
 nanopm_wiki_doc_log pm-discovery "wrote docs/discovery.md"   # global heartbeat: this page write -> wiki/log.md
 ```
+
+---
+
+## Interview-prep mode
+
+Run this when the user wants a **hypothesis-driven interview guide** to take into a live user call,
+rather than the full opportunity-mapping flow. The output is a prep deliverable for the human — a
+compass for the conversation. **This mode writes nothing**: no wiki page, no opportunity entry, no
+feedback writeback. (When the user comes back from the call with notes or a transcript, that's
+`/pm-add-feedback` — it imports, extracts signal, and updates the wiki. Point them there at the end.)
+
+**The goal of an interview is never to pitch.** The goal is to collect specific stories from the past
+that reveal real behavior.
+
+### Frameworks used
+
+This mode draws from four recognized approaches:
+
+- **Rob Fitzpatrick (The Mom Test):** Only ask questions that are honest even if the interviewee wants to please you. Past behavior only, no hypotheticals.
+- **Teresa Torres (Continuous Discovery Habits):** One specific story per interview. Anchor to a real past event, then excavate the timeline.
+- **Bob Moesta (JTBD Switch Interview):** Map the full decision timeline — from first dissatisfaction to current use. Identify the four forces (push, pull, anxiety, inertia).
+- **Cindy Alvarez (Lean Customer Development):** Falsify your critical hypotheses. Know your top 3 questions before the call. End with a forward action.
+
+### Prep Phase 1: Set the focus
+
+If you arrived here straight from Map mode, reuse the user definition, jobs, workarounds, and
+assumptions you already gathered (Phases 2 & 4) — don't re-ask. Otherwise pull prior context and the
+primary persona through the **query primitive** (same call shape as Phase 2 above), then ask via
+AskUserQuestion:
+
+**"What are you trying to learn from this interview?**
+
+Be specific — name the assumption or behavior you want to understand.
+
+Good examples:
+- 'I want to know why PMs at startups feel their standup process is broken'
+- 'I want to understand why users drop off after onboarding step 3'
+- 'I want to know what workaround people use when they can't do X'
+
+Bad examples (too vague):
+- 'What users think of the product'
+- 'General feedback'"
+
+If a prior discovery or challenge session surfaced a top-risk assumption, suggest it as the default
+focus. Let the user confirm or override.
+
+From the focus, extract or infer:
+- The **specific behavior** to anchor the story on (e.g., "the last time they chose what to watch")
+- The **critical hypotheses** to falsify (max 3)
+- The **stage** (pre-product/discovery, feature validation, churn/retention investigation, positioning)
+
+### Prep Phase 2: Interviewee profile
+
+Ask via AskUserQuestion:
+
+**"Who is the person you're interviewing?**
+
+- Job title and company size
+- Their relationship to the problem: current user / churned user / prospect / never tried it
+- How you found them
+
+If you don't have someone yet, I can write a recruitment message."
+
+**If no subject yet:** write a 3-sentence recruitment message (LinkedIn or Slack) targeting the ideal
+profile from the persona / discovery context. Include: who you're looking for, what you want to talk
+about (problem, not your solution), and a clear ask (30-min call).
+
+**Interview type detection:** Based on the relationship to the problem, classify the session:
+- **Current user** → use story-based (Torres) + JTBD ongoing use questions
+- **Churned user / switched away** → use JTBD Switch full timeline (Moesta)
+- **Prospect / never tried** → use Lean Customer Dev (Alvarez) + Mom Test
+- **Buyer / decision-maker** → use positioning interview (Dunford framing)
+
+### Prep Phase 3: Build the interview guide
+
+Generate a complete, ready-to-use interview guide. The guide is a **compass, not a script**
+(Constable) — questions are ordered by criticality, most important hypotheses first.
+
+---
+
+#### Opening (3–5 min)
+
+Set the frame:
+> "Thanks for making time. I'm trying to understand your experience with [problem area] — I'm not here to pitch anything, just to learn. I'll ask you about specific situations you've been in, not hypothetical scenarios. Mind if I take notes?"
+
+Warm-up:
+> "Tell me a bit about your role and what [relevant activity] looks like in a typical week."
+
+---
+
+#### Story anchor (Torres method)
+
+Pick ONE behavior most likely to reveal the assumption. Anchor to a real past event:
+
+> "I'd love to start with a specific situation. **Tell me about the last time you [specific behavior].**"
+
+- If they generalize ("I usually...") → redirect: "Let's focus on one specific time — the most recent one you can remember. Walk me through what actually happened."
+- Excavate the timeline with neutral prompts: "What happened first?" / "What happened next?" / "What made you decide to do that?"
+- Never interpret while they're talking. Note, then follow up.
+
+---
+
+#### Core questions (15–20 min)
+
+Generate 5–7 questions based on the interview type and focus. Apply these rules for every question:
+
+**Mom Test rules (Fitzpatrick):**
+- ✓ Ask about specific past behavior: "Tell me about the last time..."
+- ✓ Ask what they've tried: "What else have you tried to solve this?"
+- ✓ Ask about implications: "What happens when [problem] occurs?"
+- ✗ Never ask: "Would you use X?" / "Do you think X is a good idea?" / "How much would you pay?"
+- ✗ Never ask hypothetical future questions
+
+**Mandatory questions (always include):**
+1. **Workaround question:** "How are you handling [the problem] right now? Walk me through exactly what you do."
+   → *Reveals your real competition. If the answer is "nothing," probe harder — someone with a real problem always has a workaround.*
+
+2. **Implication question:** "What happens if you don't solve this? What does it cost you — time, money, stress?"
+   → *Separates a real problem from a minor irritant. No real cost = weak signal.*
+
+3. **Alternative question:** "What else have you tried? What did you like or hate about it?"
+   → *Reveals the competitive landscape and pricing anchor.*
+
+**For JTBD Switch sessions (Moesta), follow the 6 stages:**
+1. First Thought: "When did you first realize something needed to change? What triggered that?"
+2. Passive Looking: "At what point did you start casually noticing alternatives?"
+3. Active Looking: "When did you start seriously evaluating options?"
+4. Deciding: "Walk me through the moment you made the decision."
+5. Onboarding: "What was the first thing you did after you started?"
+6. Ongoing Use: "How is your situation different now? What can you do that you couldn't before?"
+
+Map the four forces during the session:
+- **Push** (frustration with current situation): listen for "I was frustrated by...", "It wasn't working because..."
+- **Pull** (attraction to new solution): listen for "I heard that...", "I wanted to be able to..."
+- **Anxiety** (fear of switching): listen for "I was worried that...", "I wasn't sure if..."
+- **Inertia** (attachment to old solution): listen for "I was used to...", "We had already..."
+
+**Probing techniques (NNG funnel):**
+- "Can you tell me more about that?"
+- "What do you mean by [vague word]?" — never let abstract words (easy, fast, better) pass without unpacking
+- "Why does that matter to you?"
+- **Silence** — wait 3–5 seconds before following up. Interviewees fill silence with the most honest answers.
+- "You mentioned X — can we go back to that?"
+- "Faster than what?" / "Better than how?" (Moesta) — contrast reveals meaning
+
+---
+
+#### Hypothesis check (Alvarez)
+
+For each of the top 3 critical hypotheses, include one targeted question. Order these by criticality —
+most important first (Constable: if the call cuts short, you've still tested the most critical hypothesis).
+
+Format:
+```
+Hypothesis: [belief]
+Question: [specific behavior-based question to test it]
+Confirmation signal: [what answer would confirm it]
+Refutation signal: [what answer would refute it]
+```
+
+---
+
+#### Closing (3–5 min)
+
+> "Is there anything about [problem area] you expected me to ask that I didn't?"
+> "Who else do you think I should talk to? Could you introduce me?"
+> "What would be most useful for me to send you as a follow-up?"
+
+**Forward action** (Alvarez): always end with a specific next step — an intro, a follow-up session, or sharing a prototype later.
+
+---
+
+#### Anti-patterns to avoid
+
+| What to avoid | Why |
+|---|---|
+| "Would you use X?" | Produces false positives — people say yes to be polite |
+| Pitching before the core questions | Biases every answer that follows |
+| Interpreting aloud while they talk | Shuts down their train of thought |
+| Asking compound questions | Interviewee answers only the easiest part |
+| Accepting vague answers without probing | "It was frustrating" tells you nothing |
+| Asking about hypothetical futures | Behavior prediction is unreliable |
+
+---
+
+### Prep Phase 4: Hand off
+
+Tell the user:
+
+> "Guide ready. Recommended duration: 30–45 min. The questions are ordered by importance — if the
+> call runs short, you've still covered the most critical hypothesis.
+>
+> When you're done with the call, run **/pm-add-feedback** with your notes (or your Granola
+> transcript) — it extracts the signal and updates the wiki Feedback page."
+
+This mode ends here. It writes nothing to the wiki.
+
+**STATUS: DONE**
+
+---
 
 ## Completion
 
