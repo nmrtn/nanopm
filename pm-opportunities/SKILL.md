@@ -441,6 +441,36 @@ _OPP_DIR=".nanopm/wiki/entities/opportunities"; mkdir -p "$_OPP_DIR"
 If `SCHEMA.md` was absent, the dedup gate below finds no existing files and every candidate is `new`
 (confidence 10) — i.e. the first ingest-candidate creates the first opportunity.
 
+### I.0b Bind the candidate inputs (parse the raw-source ref ONCE, before any write)
+
+The bookkeeping in I.3 references `_RAW_TYPE`, `_RAW_ID`, `_VERBATIM`, and `_CLAIM`. Bind them here,
+up front, from the candidate the caller handed in — so the manifest in I.3 lands in the RIGHT
+`raw/<type>/<id>` directory (an `interviews` source must not default to `feedback`) and never writes an
+empty claim. Parse the raw-source ref `raw/<type>/<id>` robustly (strip any extension — the id is the
+bare content hash):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+# From the candidate the caller handed in:
+_RAW_REF="<the raw-source ref the caller passed, e.g. raw/interviews/abc123>"
+_VERBATIM="<the exact verbatim/citation line from the candidate>"
+_CLAIM="<the one-line problem statement from the candidate>"
+# Parse raw/<type>/<id> → _RAW_TYPE (2nd path segment) and _RAW_ID (basename, extension stripped):
+_RAW_TYPE=$(printf '%s' "$_RAW_REF" | awk -F/ '{print $2}')
+_RAW_ID=$(basename "$_RAW_REF"); _RAW_ID="${_RAW_ID%.*}"
+# Guard: if the type/id can't be derived, the manifest write in I.3 is SKIPPED (not default-misfiled).
+if [ -z "$_RAW_TYPE" ] || [ -z "$_RAW_ID" ]; then
+  _MANIFEST_OK=0
+  echo "WARN: could not derive raw type/id from '$_RAW_REF' — the bidirectional manifest link will be SKIPPED"
+else
+  _MANIFEST_OK=1
+  echo "RAW_REF parsed: type=$_RAW_TYPE id=$_RAW_ID"
+fi
+```
+
+Carry `_RAW_TYPE`, `_RAW_ID`, `_VERBATIM`, `_CLAIM`, and `_MANIFEST_OK` through to I.3. The
+match/create logic (I.1 → I.2) is unchanged.
+
 ### I.1 Dedup gate (the reusable agent — same contract as Phase A)
 
 Run the ONE confirmed candidate through the **reusable dedup agent** so a programmatic write never
@@ -519,17 +549,22 @@ holds the raw-source ref):
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 _OPP_DIR=".nanopm/wiki/entities/opportunities"
-# _SLUG, _ACTION (matched|created), _PROV set above. _RAW_TYPE / _RAW_ID from the raw-source ref
-# (raw/<type>/<id>); _VERBATIM and _CLAIM (one-line problem) from the candidate.
+# _SLUG, _ACTION (matched|created), _PROV set above. _RAW_TYPE / _RAW_ID / _VERBATIM / _CLAIM and
+# _MANIFEST_OK were bound up front in I.0b — DO NOT default _RAW_TYPE to feedback here.
 if nanopm_opportunities_reindex; then
   printf '%s | %s: %s (%s) | /pm-opportunities --ingest-candidate\n' "$(date +%Y-%m-%d)" "${_ACTION:-created}" "${_SLUG:-?}" "${_PROV:-?}" >> "$_OPP_DIR/LOG.md"
   [ -n "${_SLUG:-}" ] && nanopm_wiki_doc_log pm-opportunities "${_ACTION:-create} entities/opportunities/${_SLUG}.md"
 else
   echo "ERROR: INDEX.md regeneration failed (see stderr). The opportunity file was written; fix python3 and re-run to rebuild the index."
 fi
-# Bidirectional link — source→opportunity edge on the raw manifest (the citation already points back):
-nanopm_raw_manifest "${_RAW_TYPE:-feedback}" "${_RAW_ID:?raw id required}" \
-  "{\"opportunity_slug\":\"${_SLUG}\",\"claim\":\"${_CLAIM}\",\"raw_line\":\"${_VERBATIM}\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+# Bidirectional link — source→opportunity edge on the raw manifest (the citation already points back).
+# Only write it when I.0b derived a real type/id; otherwise SKIP (never misfile under raw/feedback/).
+if [ "${_MANIFEST_OK:-0}" = "1" ]; then
+  nanopm_raw_manifest "$_RAW_TYPE" "$_RAW_ID" \
+    "{\"opportunity_slug\":\"${_SLUG}\",\"claim\":\"${_CLAIM}\",\"raw_line\":\"${_VERBATIM}\",\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+else
+  echo "WARN: manifest link skipped (no usable raw type/id) — report manifest_link: skipped in the result"
+fi
 ```
 
 ### I.4 Return a structured result (no Phase 5, no Phase-brief regen)
@@ -545,6 +580,7 @@ action: matched | created
 slug: <slug>
 provenance: <resulting provenance>
 related_to: <slug or empty>          # set on a sub-threshold create
+manifest_link: written | skipped    # skipped when I.0b couldn't derive raw type/id
 ===END-RESULT===
 ```
 
