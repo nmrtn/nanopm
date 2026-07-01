@@ -116,6 +116,26 @@ Or describe the feature in one sentence."
 
 Store the feature name as `_FEATURE`.
 
+## Phase 1.5: Surface related wiki context
+
+With `_FEATURE` captured, search for opportunities and objectives already grounded in this area —
+so the PRD cites real evidence rather than rediscovering what the wiki already tracks.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_FEATURE" opportunity 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_FEATURE" objective 3
+```
+
+For each result, **Read the full page** (path column) before Phase 2. The 200-char summary is
+never sufficient — provenance, verbatims, and OKR links live in the body. Carry the matched
+opportunity and objective slugs into Phase 3 as pre-loaded context for the "Ties to" fields.
+Fire 2–3 keyword variants if `_FEATURE` is described differently in the wiki.
+
 ## Phase 2: User research pull (parallel retrieval fan-out)
 
 Phase 2 pulls everything the spec needs from prior artifacts **without flooding your context

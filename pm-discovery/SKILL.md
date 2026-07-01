@@ -79,6 +79,26 @@ After the choice, prompt directly (no tool call): *"OK, you picked {category}. N
 
 This answer scopes everything that follows. Don't proceed with a vague answer — push for a specific question the discovery should answer.
 
+## Phase 1.5: Surface existing wiki context
+
+With `_DISCOVERY_QUESTION` captured, search the wiki for related opportunities and personas before
+mapping the opportunity space — so this run builds on existing context rather than starting from zero.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_DISCOVERY_QUESTION" opportunity 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_DISCOVERY_QUESTION" persona 3
+```
+
+For each result, **Read the full page** (path column) before Phase 2. Never act on the 200-char
+summary — the page body carries related evidence, provenance, and cross-links. If the searches
+return NO_RESULTS, proceed as if no prior context exists. Fire 2–3 keyword variants if phrasing
+of `_DISCOVERY_QUESTION` is abstract.
+
 ## Phase 2: The job to be done
 
 Ask as SEPARATE sequential AskUserQuestion calls — one call per question, never batched. Wait for the answer before asking the next. Skip if clearly answered by context.

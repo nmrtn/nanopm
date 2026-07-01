@@ -512,7 +512,8 @@ def _build_search_index(project: str) -> int:
                 title,
                 theme,
                 summary,
-                body
+                body,
+                tokenize = 'porter unicode61'
             )
         """)
         conn.executemany(
@@ -542,12 +543,14 @@ def cmd_search(args) -> int:
             return rc
 
     db = search_db_path(args.project)
-    # OR-join significant terms (>2 chars) so any term can match, ranked by
-    # how many terms the document hits. This suits PM queries like "user loses
-    # context between sessions" where the wiki uses different phrasing.
+    # Use FTS5's implicit AND (space-separated) so results are precise.
+    # OR-joining was too broad — "user loses context between sessions" would
+    # match almost everything via "user OR sessions". Let the LLM reformulate
+    # with synonyms and fire 2–3 targeted queries instead.
+    # Porter stemming (configured at index-build time) handles "session/sessions".
     import re as _re
     terms = [t for t in _re.findall(r'\w+', args.query) if len(t) > 2]
-    fts_query = " OR ".join(terms) if terms else args.query
+    fts_query = " ".join(terms) if terms else args.query
 
     conn = sqlite3.connect(db)
     try:

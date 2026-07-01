@@ -1719,6 +1719,10 @@ nanopm_wiki_ensure() {
   for t in feedback competitors data interviews git-activity; do
     mkdir -p "$raw/$t" 2>/dev/null
   done
+  # Rebuild derived catalog if missing (gitignored — fresh clone has entity pages but not index.md)
+  if [ ! -f "$wiki/index.md" ] && [ -d "$wiki/entities" ]; then
+    "$HOME/.nanopm/bin/nanopm-ingest-agent" --project "$root" reindex >/dev/null 2>&1 || true
+  fi
   # Write the schema atomically (temp + rename, pid-suffixed) so two skills
   # scaffolding at once can't tear NANOPM-WIKI.md — the bins lock their writes;
   # this is the one wiki writer outside that lock.
