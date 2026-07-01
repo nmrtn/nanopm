@@ -65,16 +65,25 @@ SUPABASE_PAGES_TABLE = "nanopm_wiki_pages"
 
 
 def _supabase_creds(project: str) -> tuple[str | None, str | None]:
-    """Return (url, key) from ~/.nanopm/config, or (None, None) if not set."""
-    config = Path.home() / ".nanopm" / "config"
-    url = key = None
-    if config.is_file():
-        for line in config.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.startswith("supabase_url="):
-                url = line.split("=", 1)[1].strip()
-            elif line.startswith("supabase_key="):
-                key = line.split("=", 1)[1].strip()
-    return url, key
+    """Return (url, key) for Supabase.
+    Resolution order: env vars → ~/.nanopm/.env file."""
+    import os
+    url = os.environ.get("NANOPM_SUPABASE_URL")
+    key = os.environ.get("NANOPM_SUPABASE_KEY")
+    if not url or not key:
+        env_file = Path.home() / ".nanopm" / ".env"
+        if env_file.is_file():
+            for line in env_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                v = v.strip().strip("\"'")
+                if k == "NANOPM_SUPABASE_URL" and not url:
+                    url = v
+                elif k == "NANOPM_SUPABASE_KEY" and not key:
+                    key = v
+    return url or None, key or None
 
 
 def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:

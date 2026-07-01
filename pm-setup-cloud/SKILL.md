@@ -46,23 +46,34 @@ Ask the user if they already have a Supabase project for nanopm:
 - **No** → tell them: "Create a free project at https://supabase.com. In your project, go to Settings → API to find your URL and anon key. Come back when you have them ready."
 - **Yes** → proceed.
 
-**Never ask the user to paste their URL or key into the chat.** Credentials must not appear in the conversation. Instead, tell the user to run these two commands themselves in their terminal (using `! command` prefix to run in-session), replacing the placeholders:
+**Never ask the user to paste their URL or key into the chat.** Credentials must not appear in the conversation. Instead, tell the user to create or edit `~/.nanopm/.env` in their own terminal or editor. Show them the exact format:
 
 ```
-! nanopm_config_set supabase_url "https://YOUR-PROJECT-REF.supabase.co"
-! nanopm_config_set supabase_key "YOUR-ANON-KEY"
+# ~/.nanopm/.env — never commit this file
+NANOPM_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+NANOPM_SUPABASE_KEY=YOUR-ANON-KEY
 ```
 
-Ask them to confirm when they've run both commands.
+They can create it with:
+```
+! cat > ~/.nanopm/.env << 'EOF'
+NANOPM_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+NANOPM_SUPABASE_KEY=YOUR-ANON-KEY
+EOF
+```
+
+(They fill in the real values themselves — never paste them into chat.)
+
+Ask them to confirm when done.
 
 
 ## Phase 3: Verify config and run migration
 
-Once the user confirms, verify the credentials were written (without printing them):
+Once the user confirms, verify the credentials are present (without printing them):
 
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null
-nanopm_supabase_configured && echo "CREDENTIALS: present" || echo "CREDENTIALS: missing — please re-run the commands above"
+nanopm_supabase_configured && echo "CREDENTIALS: present" || echo "CREDENTIALS: missing — please check ~/.nanopm/.env"
 ```
 
 Run the database migration. Try the Supabase MCP first (preferred — no CLI needed), then fall back to instructions:
@@ -109,7 +120,7 @@ CLOUD_CONFIGURED ✓
 
 To share with a teammate:
   1. Send them the Supabase URL + anon key out-of-band (Slack DM, 1Password, etc.)
-  2. They run /pm-setup-cloud — the skill will tell them to paste the credentials
-     directly in their own terminal, never into the chat
-  3. From then on, sync is automatic
+  2. They create ~/.nanopm/.env with the same values (never in chat)
+  3. They run /pm-setup-cloud — it verifies credentials and does the initial pull
+  4. From then on, sync is automatic
 ```

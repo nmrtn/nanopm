@@ -1857,10 +1857,18 @@ nanopm_wiki_search() {
 }
 
 nanopm_supabase_configured() {
-  # True (exit 0) when supabase_url and supabase_key are both set in config.
+  # True (exit 0) when NANOPM_SUPABASE_URL and NANOPM_SUPABASE_KEY are available.
+  # Resolution order: env vars → ~/.nanopm/.env file.
   local url key
-  url=$(nanopm_config_get supabase_url 2>/dev/null || true)
-  key=$(nanopm_config_get supabase_key 2>/dev/null || true)
+  url="${NANOPM_SUPABASE_URL:-}"
+  key="${NANOPM_SUPABASE_KEY:-}"
+  if [ -z "$url" ] || [ -z "$key" ]; then
+    local env_file="$HOME/.nanopm/.env"
+    if [ -f "$env_file" ]; then
+      url=$(grep '^NANOPM_SUPABASE_URL=' "$env_file" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+      key=$(grep '^NANOPM_SUPABASE_KEY=' "$env_file" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+    fi
+  fi
   [ -n "$url" ] && [ -n "$key" ]
 }
 
