@@ -609,8 +609,15 @@ def cmd_sync(args) -> int:
     url, key = _supabase_creds(args.project)
     if not url or not key:
         return err("Supabase not configured — set supabase_url and supabase_key in ~/.nanopm/config")
+    # Derived files (gitignored, regenerated on every reindex) must not be synced:
+    # - index.md / log.md at the wiki root
+    # - INDEX.md / LOG.md / SCHEMA.md inside every entities/<type>/ dir
+    # These are already in HOUSEKEEPING for entity dirs; extend the same rule to root.
+    SKIP_ON_SYNC = {"index.md", "log.md"} | HOUSEKEEPING
     pushed = 0
     for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP_ON_SYNC:
+            continue
         content = f.read_text(encoding="utf-8", errors="replace")
         rel = f.relative_to(wiki).as_posix()
         _supabase_upsert_page(args.project, rel, content)
