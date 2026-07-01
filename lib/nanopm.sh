@@ -1872,6 +1872,19 @@ with open(os.environ["NANOPM_FILE"], "a", encoding="utf-8") as f:
     echo "nanopm: nanopm_raw_manifest: could not write manifest (disk full?)" >&2; return 1; }
 }
 
+nanopm_wiki_search() {
+  # Usage: nanopm_wiki_search <query> [type] [limit]
+  # Searches the SQLite FTS5 index (.nanopm/search.db). Auto-rebuilds the index
+  # from wiki markdown files if stale or missing (safe on a fresh clone).
+  # Output: one TSV line per result — slug, type, path, title, provenance, priority, summary.
+  # Prints NO_RESULTS if nothing matched.
+  local query="$1" type="${2:-}" limit="${3:-5}"
+  local _BIN; _BIN="$HOME/.nanopm/bin"
+  local args=("--query" "$query" "--limit" "$limit")
+  [ -n "$type" ] && args+=("--type" "$type")
+  "$_BIN/nanopm-ingest-agent" search "${args[@]}"
+}
+
 # ── Migration-on-upgrade (vNext) ─────────────────────────────────────────────
 #
 # A project that adopted the wiki but still carries legacy flat Define/Plan docs
