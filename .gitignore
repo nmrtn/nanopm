@@ -1,4 +1,10 @@
-.nanopm/
+# nanopm — track wiki and raw sources, ignore generated/derived/runtime files
+.nanopm/NANOPM-WIKI.md
+.nanopm/CONTEXT-SUMMARY.md
+.nanopm/PLAN-SUMMARY.md
+.nanopm/search.db
+.nanopm/wiki/.lock
+.nanopm/wiki/.last-lint
 BRAND.md
 icon-sketches/
 *.log

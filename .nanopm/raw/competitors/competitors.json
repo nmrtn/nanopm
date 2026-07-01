@@ -1,0 +1,108 @@
+{
+  "competitors": [
+    {
+      "name": "deanpeters Product-Manager-Skills",
+      "slug": "deanpeters-pm-skills",
+      "pages": {
+        "changelog": "https://raw.githubusercontent.com/deanpeters/Product-Manager-Skills/main/README.md",
+        "api_docs": "https://raw.githubusercontent.com/deanpeters/Product-Manager-Skills/main/PLANS.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/deanpeters/Product-Manager-Skills/git/trees/main?recursive=1"
+      },
+      "last_checked": "2026-06-03T14:33:22Z"
+    },
+    {
+      "name": "gstack",
+      "slug": "gstack",
+      "pages": {
+        "changelog": "https://raw.githubusercontent.com/garrytan/gstack/main/CHANGELOG.md",
+        "api_docs": "https://raw.githubusercontent.com/garrytan/gstack/main/README.md",
+        "pricing": null,
+        "other": null
+      },
+      "last_checked": "2026-06-03T14:33:22Z"
+    },
+    {
+      "name": "prawduct",
+      "slug": "prawduct",
+      "pages": {
+        "changelog": null,
+        "api_docs": "https://raw.githubusercontent.com/brookstalley/prawduct/main/README.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/brookstalley/prawduct/git/trees/main?recursive=1"
+      },
+      "last_checked": "2026-06-03T14:33:22Z"
+    },
+    {
+      "name": "mycelium",
+      "slug": "mycelium",
+      "pages": {
+        "changelog": "https://raw.githubusercontent.com/haabe/mycelium/main/docs/changelog.md",
+        "api_docs": "https://raw.githubusercontent.com/haabe/mycelium/main/README.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/haabe/mycelium/git/trees/main?recursive=1"
+      },
+      "last_checked": "2026-06-03T14:33:22Z"
+    },
+    {
+      "name": "PMPrompt",
+      "slug": "pmprompt",
+      "pages": {
+        "changelog": null,
+        "api_docs": "https://pmprompt.com/agent-skills",
+        "pricing": "https://pmprompt.com/upgrade",
+        "other": "https://pmprompt.com"
+      },
+      "last_checked": null,
+      "urls_verified": false
+    },
+    {
+      "name": "product-on-purpose/pm-skills",
+      "slug": "product-on-purpose-pm-skills",
+      "pages": {
+        "changelog": "https://github.com/product-on-purpose/pm-skills/releases",
+        "api_docs": "https://product-on-purpose.github.io/pm-skills/",
+        "pricing": null,
+        "other": "https://api.github.com/repos/product-on-purpose/pm-skills/git/trees/main?recursive=1"
+      },
+      "last_checked": null,
+      "urls_verified": false
+    },
+    {
+      "name": "Agentic Project Management (APM)",
+      "slug": "agentic-pm-apm",
+      "pages": {
+        "changelog": "https://raw.githubusercontent.com/sdi2200262/agentic-project-management/main/CHANGELOG.md",
+        "api_docs": "https://raw.githubusercontent.com/sdi2200262/agentic-project-management/main/README.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/sdi2200262/agentic-project-management/git/trees/main?recursive=1"
+      },
+      "last_checked": null,
+      "urls_verified": false
+    },
+    {
+      "name": "assimovt/productskills",
+      "slug": "assimovt-productskills",
+      "pages": {
+        "changelog": null,
+        "api_docs": "https://raw.githubusercontent.com/assimovt/productskills/main/README.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/assimovt/productskills/git/trees/main?recursive=1"
+      },
+      "last_checked": null,
+      "urls_verified": false
+    },
+    {
+      "name": "phuryn/pm-skills",
+      "slug": "phuryn-pm-skills",
+      "pages": {
+        "changelog": null,
+        "api_docs": "https://raw.githubusercontent.com/phuryn/pm-skills/main/README.md",
+        "pricing": null,
+        "other": "https://api.github.com/repos/phuryn/pm-skills/git/trees/main?recursive=1"
+      },
+      "last_checked": null,
+      "urls_verified": false
+    }
+  ]
+}
