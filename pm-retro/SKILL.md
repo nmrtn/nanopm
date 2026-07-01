@@ -34,6 +34,25 @@ nanopm_context_read pm-retro
 
 If prior retro found: "Prior retro from {ts}. This run covers commits since then."
 
+## Phase 0.5: Surface objectives and carry-forward items
+
+Pull the specific OKRs and open opportunities before the full query — so the retro
+compares commits against measurable key results, not just broad plan summaries:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "objective key result okr goal" objective 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "roadmap carry-forward shipped" doc 3
+```
+
+For each result, **Read the full page** (path column). Hold the specific KRs — use them
+in Phase 4 to check whether commits moved any measurable needle, not just whether they
+loosely map to a roadmap label.
+
 ## Phase 1: Context assembly (query the wiki) + git repo check
 
 The retro compares the **planned** work (the roadmap) against the **actual** work (git
