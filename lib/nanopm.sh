@@ -997,53 +997,20 @@ nanopm_company_list() {
   ls -1 "$d" 2>/dev/null
 }
 
-# Internal: make .nanopm/<doc>.md a live link into the company folder — IF this
-# repo is linked AND the doc exists somewhere. Migrates a real local copy up
-# first. Crucially, it creates a symlink ONLY when the company doc exists, so a
-# not-yet-written doc is left alone (no dangling links). Echoes the doc name when
-# it migrated a real local copy up (so the caller can report it).
 _nanopm_company_adopt() {
-  local doc="$1" dir link target bk n
-  dir=$(nanopm_company_dir); [ -n "$dir" ] || return 0   # repo not linked → no-op
-  link=".nanopm/$doc.md"; target="$dir/$doc.md"
-  if [ -f "$link" ] && [ ! -L "$link" ]; then
-    mkdir -p "$dir"
-    if [ -e "$target" ]; then
-      # Company already has this doc — keep it, back up the local copy under a
-      # name that never clobbers a prior backup (.local-backup, .1, .2, …).
-      bk="$link.local-backup"; n=1
-      while [ -e "$bk" ]; do bk="$link.local-backup.$n"; n=$((n + 1)); done
-      mv "$link" "$bk"
-    else mv "$link" "$target"; echo "$doc"; fi      # migrated a real local copy up
-  fi
-  [ -e "$target" ] && ln -sfn "$target" "$link"      # live link only — never dangling
+  # DEPRECATED: company-level symlink sharing removed in favour of .nanopm/wiki/docs/
+  return 0
 }
 
 nanopm_company_link() {
-  # Link this repo to a company and share its company-level docs. Docs that
-  # already exist (a local copy to migrate up, or a sibling repo's copy) are
-  # adopted now; docs not yet written are shared later, by nanopm_company_publish
-  # when a skill writes them — so we never leave a dangling symlink in .nanopm/.
-  local name="$1" slug migrated
-  [ -n "$name" ] || { echo "nanopm: company name required" >&2; return 1; }
-  nanopm_company_set "$name" || return 1
-  slug=$(nanopm_company_slug "$name")
-  mkdir -p "$(nanopm_company_dir)" .nanopm
-  # Literal list (not an unquoted var) so word-splitting works in bash AND zsh.
-  migrated=$(for doc in VISION-MISSION BUSINESS-MODEL ORG; do _nanopm_company_adopt "$doc"; done | tr '\n' ' ' | sed 's/ *$//')
-  echo "COMPANY_LINKED: $name"
-  [ -n "$migrated" ] && echo "  Moved your existing $migrated up into the shared company folder."
-  echo "  Mission, business model & org for '$name' are now shared across all your"
-  echo "  '$name' repos — stored once in ~/.nanopm/companies/$slug/, linked into this"
-  echo "  repo's .nanopm/. Commit .nanopm-company so other repos/teammates inherit it."
+  # DEPRECATED: company docs now live in .nanopm/wiki/docs/ and are shared via git.
+  echo "nanopm: nanopm_company_link is deprecated and has no effect." \
+       "Company docs now live in .nanopm/wiki/docs/ and are shared via git." >&2
 }
 
 nanopm_company_publish() {
-  # Call right AFTER a company skill writes .nanopm/<doc>.md: shares it at the
-  # company level (moves it up + live symlink) if this repo is linked to a
-  # company. No-op when the repo isn't linked. Usage: nanopm_company_publish ORG
-  [ -n "$1" ] || return 0
-  _nanopm_company_adopt "$1" >/dev/null
+  # DEPRECATED: no-op. Company docs are written directly to .nanopm/wiki/docs/.
+  return 0
 }
 
 # ── Define-phase mode + retrieval (v0.11.0+) ─────────────────────────────────
@@ -1928,6 +1895,41 @@ nanopm_migrate_on_upgrade() {
   echo "nanopm: migrated $missing legacy doc(s) into wiki/ — the wiki is now canonical (flat copies kept; run nanopm-migrate-to-wiki --finalize to remove them)."
 }
 
+# Auto-copy ~/.nanopm/companies/<slug>/ docs into .nanopm/wiki/docs/ once.
+# Skips files already present in the wiki. Writes .migrated marker so the copy
+# runs exactly once, even if the companies/ folder is never cleaned up.
+nanopm_migrate_company_docs() {
+  local root nano name slug company_dir dest marker src_file doc_slug dest_file
+  root="$(_nanopm_project_root)"
+  nano="$root/.nanopm"
+  [ -d "$nano/wiki" ] || return 0   # wiki not adopted yet — nothing to do
+
+  name=$(nanopm_company_get)
+  [ -n "$name" ] || return 0
+  slug=$(nanopm_company_slug "$name")
+  company_dir="$HOME/.nanopm/companies/$slug"
+  [ -d "$company_dir" ] || return 0
+
+  marker="$company_dir/.migrated"
+  [ -f "$marker" ] && return 0   # already ran for this company
+
+  dest="$nano/wiki/docs"
+  mkdir -p "$dest"
+  local copied=0
+  for src_file in "$company_dir"/*.md; do
+    [ -f "$src_file" ] || continue
+    # Normalize: VISION-MISSION.md → vision-mission.md
+    doc_slug=$(basename "$src_file" .md | tr '[:upper:]' '[:lower:]')
+    dest_file="$dest/$doc_slug.md"
+    [ -f "$dest_file" ] && continue   # wiki version already exists — skip
+    cp "$src_file" "$dest_file"
+    copied=$((copied + 1))
+  done
+  touch "$marker"
+  [ "$copied" -gt 0 ] && echo "nanopm: copied $copied company doc(s) from ~/.nanopm/companies/$slug/ into .nanopm/wiki/docs/ (run-once migration)."
+  return 0
+}
+
 # ── Wiki doc-page write contract (vNext, Option A — wiki-canonical writes) ────
 #
 # Under wiki-canonical writes a Define/Plan skill files its output as a wiki DOC
@@ -2612,6 +2614,9 @@ nanopm_preamble() {
   # (copy mode), so per-doc reads resolve the wiki path instead of "missing" →
   # rebuild-over. No-op after the first post-upgrade run.
   nanopm_migrate_on_upgrade
+  # One-time copy of ~/.nanopm/companies/<slug>/ docs into .nanopm/wiki/docs/
+  # for the companies/ → wiki/docs/ deprecation. Skips files already in the wiki.
+  nanopm_migrate_company_docs
   # Wiki catalog — what pages exist, read on demand. Replaces the old habit of
   # loading the whole raw event log into every run.
   nanopm_load_index
