@@ -1,7 +1,7 @@
 # nanopm
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.24.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.26.0-blue.svg)](CHANGELOG.md)
 
 A PM skill pack for AI coding agents. Runs the PM workflow end-to-end — company + product context, the three external signals, the planning cycle (challenge, strategy, roadmap, PRD), and the day-to-day ops (an adversarial challenge, a jam with Nano, the standup, the weekly update) — inside the agent you already use. Keeps typed state across sessions. Won't write a PRD until you name what would prove your bet wrong.
 
@@ -19,8 +19,8 @@ The PM work that catches that (challenge, strategy, falsification, roadmap, retr
 
 nanopm runs the whole cycle where you already work, with two structural properties:
 
-1. **Every artifact lands in typed, schema-validated state.** Each skill writes to `~/.nanopm/projects/{slug}/{type}.jsonl`. The next skill reads from there. No grep on markdown, no silent corruption, no `tail -1 | cut -d'|'` parsing.
-2. **Adversarial gates on the claims that matter.** Every strategy needs a falsifiable bet. Every NOW roadmap item needs a measurable outcome with a timeframe. Every PRD needs a paragraph stating what would prove it wrong. Each gate is a subagent against a rubric plus a state validator. A skill cannot complete unless a well-formed record actually lands.
+1. **Every artifact lands in a maintained wiki.** Each skill writes to `.nanopm/wiki/` — a compact, always-current set of Markdown pages the next skill reads at preamble time. No starting cold, no stacking duplicate notes. The wiki compounds: a new feedback session grounds existing opportunities in fresh verbatims; a new strategy links back to the OKRs that defined the bet.
+2. **Adversarial gates on the claims that matter.** Every strategy needs a falsifiable bet. Every NOW roadmap item needs a measurable outcome with a timeframe. Every PRD needs a paragraph stating what would prove it wrong. Each gate is a subagent against a rubric. A skill cannot complete unless a well-formed page actually lands.
 
 One command runs the full pipeline: `/pm-run`. Or invoke any skill standalone.
 
@@ -131,6 +131,7 @@ Commands are namespaced (`/nanopm:pm-run`) and updates flow through Claude Code'
 /pm-add-feedback     → add feedback from any source → archive raw → ground opportunities in verbatims
 /pm-weekly-update    → draft stakeholder update email (CEO, investor, or team), adapted to audience
 /pm-data             → answer a product question using PostHog or Amplitude — trends, funnels, retention
+/pm-setup-cloud      → configure Supabase cloud sync — team sharing across machines without merge conflicts
 ```
 
 The pipeline compounds. Every skill also works standalone.
@@ -187,12 +188,10 @@ nanopm remembers across sessions, so each run builds on the last instead of star
 
 - **Two briefs, always loaded.** `wiki/overview/company.md` (who the company is) and `wiki/overview/current-work.md` (the bet, the OKRs, what's NOW) are regenerated when their phase changes and reloaded into every run — so all work shares one baseline instead of drifting.
 - **Entity pages that compound.** Personas, competitors, opportunities, solutions, objectives, features, and people each get a page that many sources refine over time, with citations — new evidence supersedes old claims (keeping the history) instead of stacking duplicate notes. Solutions link back to their parent opportunity (one edge of the Opportunity Solution Tree), navigable from either end.
-- **Just files + git.** No database, no server. A project's `.nanopm/` is two layers: `raw/` (immutable sources — connector pulls, the typed event log, page snapshots) and `wiki/` (all generated content — the briefs, skill outputs, compounding entity pages). Plain Markdown you can read, diff, and edit.
-- **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions (and warns when a `challenges`/`strategy` page drifts past 20 commits); an ingest pass dedupes by citation. Writes apply directly — there's no pre-write approval queue; quality is kept honest *after the fact* by the judgment lint (write freely, lint surfaces, you curate).
-
-Alongside the wiki, PM **decisions** are recorded as append-only, schema-validated JSONL under `~/.nanopm/projects/{slug}/` — typed `bet`, `target`, `question`, `scope-out`… records, each carrying confidence (1–10) and provenance. Every write goes through a validator that enforces the schema and fails loud on bad input — no silent appends. Re-run `/pm-challenge-me` six months later and it reads the prior decisions before asking anything new.
-
-> **Status:** the always-loaded briefs and the maintenance loop are wired; the signal skills dispatch the ingest bookkeeper to write entity pages directly after each run, and the lint health pass (structural + judgment) runs daily. Still maturing — ingest quality compounds as you feed it real interviews, feedback, and data, and not every skill writes entity pages yet.
+- **Keyword search across the wiki.** A SQLite FTS5 index (`.nanopm/search.db`) lets any skill surface the most relevant pages by keyword before reading or writing — so a new feedback session finds the matching opportunity instead of duplicating it, and a new PRD finds the OKRs it should reference. Porter stemming, auto-rebuilt on a fresh clone.
+- **Just files + git.** No database, no server. A project's `.nanopm/` is two layers: `raw/` (immutable sources — verbatim feedback archives, connector pulls, interview transcripts) and `wiki/` (all generated content — the briefs, skill outputs, compounding entity pages). Both layers are tracked in git so a `git pull` shares the full PM memory with your team. Plain Markdown you can read, diff, and edit.
+- **Optional cloud sync.** For teams that need real-time sync without merge conflicts, `/pm-setup-cloud` connects a Supabase project — wiki pages upsert automatically after every skill run, and the preamble pulls remote changes before each run. Local-first: everything still writes to disk first; Supabase is additive. Git-only is the default and always works.
+- **Health tooling.** A lint pass flags stale pages, orphans, broken links, and contradictions; an ingest pass dedupes by citation. Writes apply directly — there's no pre-write approval queue; quality is kept honest *after the fact* by the judgment lint (write freely, lint surfaces, you curate).
 
 ---
 
@@ -201,7 +200,7 @@ Alongside the wiki, PM **decisions** are recorded as append-only, schema-validat
 | | nanopm | DIY prompts in your agent | Notion / Linear | ChatGPT |
 |---|---|---|---|---|
 | Lives in your editor | ✅ | ✅ | ❌ | ❌ |
-| Typed memory across sessions | ✅ schema-validated JSONL | ❌ | ⚠️ manual writes | ❌ |
+| Typed memory across sessions | ✅ maintained wiki + git | ❌ | ⚠️ manual writes | ❌ |
 | Full PM pipeline (challenge → PRD) | ✅ | ⚠️ if you reprompt every time | ❌ | ❌ |
 | Reads your codebase | ✅ | ✅ | ❌ | ❌ |
 | Adversarial gates on bets & outcomes | ✅ subagent + state validator | ❌ | ❌ | ❌ |
