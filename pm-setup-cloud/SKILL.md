@@ -42,22 +42,27 @@ Read the output above.
 
 ## Phase 2: Get the Supabase project details
 
-Ask the user:
+Ask the user if they already have a Supabase project for nanopm:
+- **No** → tell them: "Create a free project at https://supabase.com. In your project, go to Settings → API to find your URL and anon key. Come back when you have them ready."
+- **Yes** → proceed.
 
-- Do they already have a Supabase project for nanopm?
-  - **Yes** → ask them to paste their Project URL (e.g. `https://xxx.supabase.co`) and anon key
-  - **No** → tell them: "Create a free project at https://supabase.com → Settings → API to find your URL and anon key. Come back when you have them."
+**Never ask the user to paste their URL or key into the chat.** Credentials must not appear in the conversation. Instead, tell the user to run these two commands themselves in their terminal (using `! command` prefix to run in-session), replacing the placeholders:
 
-Once you have URL and key, proceed to Phase 3.
+```
+! nanopm_config_set supabase_url "https://YOUR-PROJECT-REF.supabase.co"
+! nanopm_config_set supabase_key "YOUR-ANON-KEY"
+```
+
+Ask them to confirm when they've run both commands.
 
 
-## Phase 3: Write config and run migration
+## Phase 3: Verify config and run migration
+
+Once the user confirms, verify the credentials were written (without printing them):
 
 ```bash
-# Write credentials to ~/.nanopm/config
-nanopm_config_set supabase_url "<URL>"
-nanopm_config_set supabase_key "<KEY>"
-echo "CONFIG_WRITTEN: supabase_url and supabase_key saved to ~/.nanopm/config"
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null
+nanopm_supabase_configured && echo "CREDENTIALS: present" || echo "CREDENTIALS: missing — please re-run the commands above"
 ```
 
 Run the database migration. Try the Supabase MCP first (preferred — no CLI needed), then fall back to instructions:
@@ -103,7 +108,8 @@ CLOUD_CONFIGURED ✓
              of each skill run (throttled to once per 10 minutes).
 
 To share with a teammate:
-  1. They run /pm-setup-cloud and enter the same Supabase URL + key
-  2. They run: nanopm-ingest-agent --project . pull
+  1. Send them the Supabase URL + anon key out-of-band (Slack DM, 1Password, etc.)
+  2. They run /pm-setup-cloud — the skill will tell them to paste the credentials
+     directly in their own terminal, never into the chat
   3. From then on, sync is automatic
 ```
