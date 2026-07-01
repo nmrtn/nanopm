@@ -99,6 +99,20 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_retrieval_prompt pm-personas "$(nanopm_wiki_doc_path personas)" "primary persona and their job-to-be-done, secondary persona, anti-persona, the one bet on who we build for"
 ```
 
+Then surface any accumulated feedback verbatims and opportunity signals from the wiki — so personas are grounded in real user language, not just prior artifacts:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "user problem pain frustration feedback" opportunity 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "persona user segment" persona 3
+```
+
+For each result, **Read the full page** (path column). In Phase 2A/2B, use verbatims from opportunity pages to sharpen "today's workaround" and "the switch" — real user language beats inference.
+
 Keep the returned digest; it is your cross-document context for the rest of the run.
 
 ---

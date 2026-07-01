@@ -2601,6 +2601,7 @@ nanopm_preamble() {
   # with header field >12 chars. Claude tolerates longer but renders better short.
   # Use a short noun-phrase header per call.
   echo "PORTABILITY: AskUserQuestion 'header' MUST be a short noun phrase ≤12 chars"
+  echo "WIKI_SEARCH_AVAILABLE: run nanopm_wiki_search <query> [type] [limit] at any point to pull relevant wiki context — always Read the full page via the path column, never act on the 200-char summary alone"
   # Voice directive — all nanopm skills follow this register
   # Load ethos (shapes advisor voice across all skills)
   # Installed at ~/.nanopm/ETHOS.md by setup

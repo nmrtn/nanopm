@@ -74,6 +74,15 @@ nanopm_query_prompt "For mapping user feedback against the plan, list the curren
 
 Hold the returned synthesis for the Phase 4 mapping. If the synthesis reports no roadmap page exists, every theme will be marked "❌ not addressed" there.
 
+Also search the wiki for existing opportunity entities — so Phase 3 synthesis can annotate themes against opportunities already documented (rather than treating each run as if nothing is known):
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "opportunity user problem pain unmet need" opportunity 10
+```
+
+For each result, **Read the full page** (path column). In Phase 3, when clustering themes, cross-reference each theme against the opportunity pages: "this theme aligns with opportunity X (priority: {priority})" — surface whether the feedback confirms, deepens, or contradicts the ranked opportunity list.
+
 ## Phase 2: Fetch feedback data
 
 For each source at tier 1/2/3, collect feedback. Process sources in parallel where possible.
