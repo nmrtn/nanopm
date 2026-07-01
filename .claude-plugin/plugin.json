@@ -42,6 +42,7 @@
     "./pm-data",
     "./pm-brainstorm",
     "./pm-opportunities",
-    "./pm-solutions"
+    "./pm-solutions",
+    "./pm-setup-cloud"
   ]
 }

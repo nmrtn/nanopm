@@ -1856,6 +1856,32 @@ nanopm_wiki_search() {
   "$_BIN/nanopm-ingest-agent" search "${args[@]}"
 }
 
+nanopm_supabase_configured() {
+  # True (exit 0) when supabase_url and supabase_key are both set in config.
+  local url key
+  url=$(nanopm_config_get supabase_url 2>/dev/null || true)
+  key=$(nanopm_config_get supabase_key 2>/dev/null || true)
+  [ -n "$url" ] && [ -n "$key" ]
+}
+
+nanopm_pull_from_supabase() {
+  # Pull wiki pages updated on Supabase since the last pull. Throttled to once
+  # per 10 minutes. Best-effort — failure is always silent.
+  nanopm_supabase_configured || return 0
+  local root marker now last ingest
+  root="$(_nanopm_project_root)"
+  marker="$HOME/.nanopm/projects/${_SLUG:-unknown}/.supabase-last-pull"
+  now=$(date +%s)
+  if [ -f "$marker" ]; then
+    last=$(cat "$marker" 2>/dev/null || echo 0)
+    [ $(( now - last )) -lt 600 ] && return 0
+  fi
+  ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  [ -x "$ingest" ] || return 0
+  "$ingest" --project "$root" pull >/dev/null 2>&1 || true
+  echo "$now" > "$marker" 2>/dev/null || true
+}
+
 # ── Migration-on-upgrade (vNext) ─────────────────────────────────────────────
 #
 # A project that adopted the wiki but still carries legacy flat Define/Plan docs
@@ -2614,6 +2640,9 @@ nanopm_preamble() {
   # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
   # creates nothing that already exists, never overwrites a page or the schema.
   nanopm_wiki_ensure
+  # Pull any wiki pages updated on Supabase since the last pull. Throttled
+  # to once per 10 minutes. No-op when Supabase is not configured.
+  nanopm_pull_from_supabase
   # Migration-on-upgrade: bring any legacy flat Define/Plan docs into the wiki once
   # (copy mode), so per-doc reads resolve the wiki path instead of "missing" →
   # rebuild-over. No-op after the first post-upgrade run.

@@ -23,6 +23,8 @@ Subcommands:
   citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
   apply            write a wiki page directly (locked, single-writer-per-file)
   raw-check        is a raw source already archived? (content-hash dedup — see below)
+  sync             push all local wiki pages to Supabase (bulk upsert — requires config)
+  pull             fetch wiki pages updated on Supabase to local wiki (remote wins)
   search-index     build/rebuild the SQLite FTS5 search index (.nanopm/search.db)
   search           query the search index (auto-rebuilds if stale)
 
@@ -47,14 +49,71 @@ import argparse
 import contextlib
 import datetime as _dt
 import hashlib
+import json as _json
 import sqlite3
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 try:
     import fcntl  # POSIX (macOS / Linux) — nanopm's supported hosts
 except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
     fcntl = None
+
+SUPABASE_PAGES_TABLE = "nanopm_wiki_pages"
+
+
+def _supabase_creds(project: str) -> tuple[str | None, str | None]:
+    """Return (url, key) from ~/.nanopm/config, or (None, None) if not set."""
+    config = Path.home() / ".nanopm" / "config"
+    url = key = None
+    if config.is_file():
+        for line in config.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("supabase_url="):
+                url = line.split("=", 1)[1].strip()
+            elif line.startswith("supabase_key="):
+                key = line.split("=", 1)[1].strip()
+    return url, key
+
+
+def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
+    """Upsert one wiki page to Supabase. Best-effort — never raises."""
+    url, key = _supabase_creds(project)
+    if not url or not key:
+        return
+    try:
+        fm, body = parse_frontmatter(content)
+        project_slug = Path(project).resolve().name
+        row = {
+            "project_slug": project_slug,
+            "path": rel_path,
+            "slug": fm.get("slug", ""),
+            "type": fm.get("type", ""),
+            "provenance": fm.get("provenance", ""),
+            "priority": fm.get("priority", ""),
+            "title": fm.get("title") or Path(rel_path).stem.replace("-", " "),
+            "theme": fm.get("theme", ""),
+            "summary": _truncate(summary_line(body)),
+            "body": body,
+            "content": content,
+            "last_updated": fm.get("last_updated") or fm.get("generated", ""),
+        }
+        endpoint = f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+        req = urllib.request.Request(
+            endpoint,
+            data=_json.dumps(row).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass  # best-effort: local write already succeeded
 
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
@@ -358,6 +417,9 @@ def cmd_apply(args) -> int:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
     print(f"APPLIED {args.target}")
+    # Push to Supabase when configured — best-effort, non-blocking.
+    rel = dest.relative_to(wiki_dir(args.project)).as_posix()
+    _supabase_upsert_page(args.project, rel, content)
     return 0
 
 
@@ -529,6 +591,65 @@ def _build_search_index(project: str) -> int:
     return 0
 
 
+def cmd_sync(args) -> int:
+    """Push all local wiki pages to Supabase (bulk upsert). Used for initial
+    setup or after a bulk import (e.g. a teammate sharing their wiki)."""
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        return err("Supabase not configured — set supabase_url and supabase_key in ~/.nanopm/config")
+    pushed = 0
+    for f in sorted(wiki.rglob("*.md")):
+        content = f.read_text(encoding="utf-8", errors="replace")
+        rel = f.relative_to(wiki).as_posix()
+        _supabase_upsert_page(args.project, rel, content)
+        pushed += 1
+    print(f"sync: pushed {pushed} page(s) to Supabase ({url.split('//')[1].split('.')[0]})")
+    return 0
+
+
+def cmd_pull(args) -> int:
+    """Fetch wiki pages updated on Supabase and write them locally. Remote wins
+    on conflict (last_updated comparison). Runs reindex after pulling new pages.
+    No-op when Supabase is not configured."""
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+            f"?project_slug=eq.{project_slug}&select=path,content,last_updated"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        return 0  # best-effort
+    wiki = wiki_dir(args.project)
+    pulled = 0
+    for row in rows:
+        dest = wiki / row["path"]
+        if dest.is_file():
+            local_fm, _ = parse_frontmatter(dest.read_text(encoding="utf-8", errors="replace"))
+            local_ts = local_fm.get("last_updated") or local_fm.get("generated", "")
+            remote_ts = row.get("last_updated") or ""
+            if local_ts >= remote_ts:
+                continue  # local is current or newer
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(row["content"], encoding="utf-8")
+        pulled += 1
+    if pulled:
+        import argparse as _ap
+        cmd_reindex(_ap.Namespace(project=args.project, dry_run=False))
+    print(f"pull: {pulled} page(s) updated from Supabase")
+    return 0
+
+
 def cmd_search_index(args) -> int:
     """Force-rebuild the FTS5 search index unconditionally."""
     return _build_search_index(args.project)
@@ -611,6 +732,12 @@ def main() -> int:
     rc.add_argument("--type", required=True, help="raw subdir: feedback | interviews | data | …")
     rc.add_argument("--hash", default="", help="content hash to check; omit to hash stdin instead")
     rc.set_defaults(func=cmd_raw_check)
+
+    sy = sub.add_parser("sync", help="push all local wiki pages to Supabase (bulk upsert)")
+    sy.set_defaults(func=cmd_sync)
+
+    pl = sub.add_parser("pull", help="fetch wiki pages updated on Supabase to local wiki")
+    pl.set_defaults(func=cmd_pull)
 
     si = sub.add_parser("search-index", help="build/rebuild the SQLite FTS5 search index")
     si.set_defaults(func=cmd_search_index)
