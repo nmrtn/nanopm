@@ -60,6 +60,12 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
 # dir name; overview and docs are their own groups.
 ENTITY_ORDER = ["personas", "competitors", "opportunities", "solutions", "objectives", "features", "people"]
 
+# Entity groups whose item count is unbounded (grows with every feedback/discovery
+# cycle). Instead of enumerating every page (which bloats the always-loaded index),
+# emit a single pointer line to the group's INDEX.md. An agent needing the full list
+# drills into that file; the root index stays fast and compact.
+UNBOUNDED_ENTITY_GROUPS = {"opportunities", "solutions", "competitors"}
+
 # Entity-section housekeeping files (the opportunities DB's INDEX/LOG/SCHEMA) are not
 # entity pages: they carry no page frontmatter and must stay OUT of the always-loaded
 # catalog (LOG.md in particular must never enter index.md). Same skiplist the
@@ -230,17 +236,29 @@ def cmd_reindex(args) -> int:
             continue
         pages.sort(key=lambda p: p["last_updated"], reverse=True)
         out.append(f"## {group.capitalize()}")
-        for p in pages:
-            bits = [f"**[{p['title']}]({p['path']})**"]
-            if p["provenance"]:
-                bits.append(p["provenance"])
-            if p["last_updated"]:
-                bits.append(p["last_updated"])
-            line = " · ".join(bits)
-            if p["summary"]:
-                line += f" — {p['summary']}"
-            out.append(f"- {line}")
-            total += 1
+        if group in UNBOUNDED_ENTITY_GROUPS:
+            # Unbounded collection: emit one pointer line to the group INDEX.md so
+            # the root index stays compact. Agent drills in to see individual items.
+            n = len(pages)
+            latest = pages[0]["last_updated"] if pages else ""
+            index_rel = f"entities/{group}/INDEX.md"
+            bits = [f"**[{group.capitalize()} ({n})](entities/{group}/INDEX.md)**"]
+            if latest:
+                bits.append(f"latest {latest}")
+            out.append("- " + " · ".join(bits) + f" — see [{index_rel}]({index_rel}) for the full list")
+            total += n
+        else:
+            for p in pages:
+                bits = [f"**[{p['title']}]({p['path']})**"]
+                if p["provenance"]:
+                    bits.append(p["provenance"])
+                if p["last_updated"]:
+                    bits.append(p["last_updated"])
+                line = " · ".join(bits)
+                if p["summary"]:
+                    line += f" — {p['summary']}"
+                out.append(f"- {line}")
+                total += 1
         out.append("")
 
     # Foldered collections (prds/, tasks/, weekly-updates/, standups/, …): one bounded
