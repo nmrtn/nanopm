@@ -40,7 +40,8 @@ create table if not exists nanopm_wiki_log (
   created_at   timestamptz default now()
 );
 
--- RLS: enabled but permissive for now (anon key, project scoping enforced by app).
+-- RLS: enabled but permissive for now (publishable key + app-enforced project scoping).
+-- Use the publishable key (sb_publishable_...) in ~/.nanopm/.env — it satisfies RLS.
 -- Tighten with JWT claims in Phase 5.5.
 alter table nanopm_wiki_pages enable row level security;
 alter table nanopm_wiki_log   enable row level security;

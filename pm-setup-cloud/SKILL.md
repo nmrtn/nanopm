@@ -51,8 +51,10 @@ Ask the user if they already have a Supabase project for nanopm:
 ```
 # ~/.nanopm/.env — never commit this file
 NANOPM_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
-NANOPM_SUPABASE_KEY=YOUR-ANON-KEY
+NANOPM_SUPABASE_KEY=sb_publishable_YOUR-KEY
 ```
+
+Tell them: "In your Supabase project go to Settings → API Keys. Use the **Publishable key** (starts with `sb_publishable_`) — it works with RLS enabled. Do NOT use the Secret key (`sb_secret_`) for this; that's for privileged server-side use only."
 
 They can create it with:
 ```
