@@ -2065,7 +2065,7 @@ EOF
 #   e.g. nanopm_wiki_doc_log pm-product "wrote docs/product.md"
 # Appends:  ## [YYYY-MM-DD] ingest | <skill>: <title>
 nanopm_wiki_doc_log() {
-  local skill="${1:-}" title="${2:-}" op="${3:-ingest}" root ingest
+  local skill="${1:-}" title="${2:-}" op="${3:-ingest}" root ingest wiki_rel
   [ -n "$skill" ] && [ -n "$title" ] || return 0
   root="$(_nanopm_project_root)"
   ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
@@ -2073,6 +2073,15 @@ nanopm_wiki_doc_log() {
   [ -x "$ingest" ] || return 0
   command -v python3 >/dev/null 2>&1 || return 0
   "$ingest" --project "$root" log --op "$op" --title "${skill}: ${title}" >/dev/null 2>&1 || true
+  # Auto-push to Supabase when configured — extract the wiki-relative path from the
+  # title (convention: "wrote docs/X.md", "add entities/Y.md", "create entities/Z.md")
+  # and push the file so doc pages sync automatically without a manual 'sync'. Entity
+  # pages written via `apply` already push there; this closes the gap for doc pages
+  # written directly by skills. Idempotent upsert — safe to call twice. Best-effort.
+  wiki_rel="${title#* }"  # strip leading verb word ("wrote ", "add ", "create ", …)
+  if [ -n "$wiki_rel" ] && nanopm_supabase_configured 2>/dev/null; then
+    "$ingest" --project "$root" push-file --target "$wiki_rel" >/dev/null 2>&1 || true
+  fi
   return 0
 }
 

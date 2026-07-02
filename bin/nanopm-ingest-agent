@@ -666,6 +666,28 @@ def cmd_pull(args) -> int:
     return 0
 
 
+def cmd_push_file(args) -> int:
+    """Push a single existing wiki file to Supabase by its wiki-relative path.
+    Called automatically by nanopm_wiki_doc_log after every skill write so doc
+    pages reach Supabase without a manual 'sync' step."""
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    wiki = wiki_dir(args.project)
+    dest = (wiki / args.target).resolve()
+    # Security: path must stay inside the wiki directory
+    try:
+        dest.relative_to(wiki.resolve())
+    except ValueError:
+        return err(f"target {args.target!r} escapes wiki — refused")
+    if not dest.is_file():
+        return 0  # file may not exist yet on first call — silent no-op
+    content = dest.read_text(encoding="utf-8", errors="replace")
+    _supabase_upsert_page(args.project, args.target, content)
+    print(f"pushed: {args.target}")
+    return 0
+
+
 def cmd_search_index(args) -> int:
     """Force-rebuild the FTS5 search index unconditionally."""
     return _build_search_index(args.project)
@@ -754,6 +776,10 @@ def main() -> int:
 
     pl = sub.add_parser("pull", help="fetch wiki pages updated on Supabase to local wiki")
     pl.set_defaults(func=cmd_pull)
+
+    pf = sub.add_parser("push-file", help="push a single wiki file to Supabase (auto-called by nanopm_wiki_doc_log)")
+    pf.add_argument("--target", required=True, help="wiki-relative path (e.g. docs/retro-2026-07-02.md)")
+    pf.set_defaults(func=cmd_push_file)
 
     si = sub.add_parser("search-index", help="build/rebuild the SQLite FTS5 search index")
     si.set_defaults(func=cmd_search_index)
