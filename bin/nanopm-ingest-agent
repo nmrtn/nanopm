@@ -23,6 +23,8 @@ Subcommands:
   citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
   apply            write a wiki page directly (locked, single-writer-per-file)
   raw-check        is a raw source already archived? (content-hash dedup — see below)
+  search-index     build/rebuild the SQLite FTS5 search index (.nanopm/search.db)
+  search           query the search index (auto-rebuilds if stale)
 
 Usage:
   nanopm-ingest-agent reindex [--project DIR]
@@ -32,8 +34,12 @@ Usage:
   nanopm-ingest-agent apply --target wiki/entities/personas/theo.md [--project DIR] < content.md
   nanopm-ingest-agent raw-check --type feedback --hash 9f86d081884c [--project DIR]
   nanopm-ingest-agent raw-check --type feedback < source.txt   # hash stdin, then check
+  nanopm-ingest-agent search-index [--project DIR]
+  nanopm-ingest-agent search --query "context fatigue" [--type opportunities] [--limit 5] [--project DIR]
 
-Exit codes: reindex/log/apply -> 0 ok, 1 error. citation-check/raw-check -> 0 DUPLICATE, 1 NEW, 2 error.
+Exit codes: reindex/log/apply/search-index -> 0 ok, 1 error.
+            citation-check/raw-check -> 0 DUPLICATE, 1 NEW, 2 error.
+            search -> 0 ok (prints NO_RESULTS if nothing matched), 1 error.
 """
 from __future__ import annotations
 
@@ -41,6 +47,7 @@ import argparse
 import contextlib
 import datetime as _dt
 import hashlib
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -52,6 +59,12 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
 ENTITY_ORDER = ["personas", "competitors", "opportunities", "solutions", "objectives", "features", "people"]
+
+# Entity groups whose item count is unbounded (grows with every feedback/discovery
+# cycle). Instead of enumerating every page (which bloats the always-loaded index),
+# emit a single pointer line to the group's INDEX.md. An agent needing the full list
+# drills into that file; the root index stays fast and compact.
+UNBOUNDED_ENTITY_GROUPS = {"opportunities", "solutions", "competitors"}
 
 # Entity-section housekeeping files (the opportunities DB's INDEX/LOG/SCHEMA) are not
 # entity pages: they carry no page frontmatter and must stay OUT of the always-loaded
@@ -223,17 +236,29 @@ def cmd_reindex(args) -> int:
             continue
         pages.sort(key=lambda p: p["last_updated"], reverse=True)
         out.append(f"## {group.capitalize()}")
-        for p in pages:
-            bits = [f"**[{p['title']}]({p['path']})**"]
-            if p["provenance"]:
-                bits.append(p["provenance"])
-            if p["last_updated"]:
-                bits.append(p["last_updated"])
-            line = " · ".join(bits)
-            if p["summary"]:
-                line += f" — {p['summary']}"
-            out.append(f"- {line}")
-            total += 1
+        if group in UNBOUNDED_ENTITY_GROUPS:
+            # Unbounded collection: emit one pointer line to the group INDEX.md so
+            # the root index stays compact. Agent drills in to see individual items.
+            n = len(pages)
+            latest = pages[0]["last_updated"] if pages else ""
+            index_rel = f"entities/{group}/INDEX.md"
+            bits = [f"**[{group.capitalize()} ({n})](entities/{group}/INDEX.md)**"]
+            if latest:
+                bits.append(f"latest {latest}")
+            out.append("- " + " · ".join(bits) + f" — see [{index_rel}]({index_rel}) for the full list")
+            total += n
+        else:
+            for p in pages:
+                bits = [f"**[{p['title']}]({p['path']})**"]
+                if p["provenance"]:
+                    bits.append(p["provenance"])
+                if p["last_updated"]:
+                    bits.append(p["last_updated"])
+                line = " · ".join(bits)
+                if p["summary"]:
+                    line += f" — {p['summary']}"
+                out.append(f"- {line}")
+                total += 1
         out.append("")
 
     # Foldered collections (prds/, tasks/, weekly-updates/, standups/, …): one bounded
@@ -407,6 +432,157 @@ def cmd_raw_check(args) -> int:
     return 1
 
 
+
+# ---------------------------------------------------------------------------
+# Search layer — SQLite FTS5 index over wiki entity and docs pages.
+# The DB is a derived artifact (gitignored); it auto-rebuilds from the wiki
+# files which ARE in git, so a fresh clone always gets correct results.
+# ---------------------------------------------------------------------------
+
+SEARCH_DB = "search.db"
+
+
+def search_db_path(project: str) -> Path:
+    return Path(project) / ".nanopm" / SEARCH_DB
+
+
+def collect_search_pages(wiki: Path) -> list[dict]:
+    """Collect all indexable wiki pages (entities + docs) with their metadata."""
+    pages: list[dict] = []
+
+    def _add(rtype: str, f: Path) -> None:
+        try:
+            text = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return
+        fm, body = parse_frontmatter(text)
+        pages.append({
+            "slug": f.stem,
+            "type": rtype,
+            "path": f.relative_to(wiki).as_posix(),
+            "title": fm.get("title", f.stem.replace("-", " ")),
+            "theme": fm.get("theme", ""),
+            "provenance": fm.get("provenance", ""),
+            "priority": fm.get("priority", ""),
+            "summary": _truncate(summary_line(body), 200),
+            "body": body,
+        })
+
+    ent = wiki / "entities"
+    if ent.is_dir():
+        for sub in sorted(p for p in ent.iterdir() if p.is_dir()):
+            for f in sorted(sub.glob("*.md")):
+                if f.name not in HOUSEKEEPING:
+                    _add(sub.name, f)
+
+    docs = wiki / "docs"
+    if docs.is_dir():
+        for f in sorted(docs.glob("*.md")):
+            _add("docs", f)
+
+    return pages
+
+
+def _is_search_stale(project: str) -> bool:
+    """True if any wiki markdown file is newer than the search DB, or DB missing."""
+    db = search_db_path(project)
+    if not db.exists():
+        return True
+    db_mtime = db.stat().st_mtime
+    wiki = wiki_dir(project)
+    return any(f.stat().st_mtime > db_mtime for f in wiki.rglob("*.md"))
+
+
+def _build_search_index(project: str) -> int:
+    wiki = wiki_dir(project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    pages = collect_search_pages(wiki)
+    db = search_db_path(project)
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("DROP TABLE IF EXISTS wiki_fts")
+        conn.execute("""
+            CREATE VIRTUAL TABLE wiki_fts USING fts5(
+                slug UNINDEXED,
+                type UNINDEXED,
+                provenance UNINDEXED,
+                priority UNINDEXED,
+                path UNINDEXED,
+                title,
+                theme,
+                summary,
+                body,
+                tokenize = 'porter unicode61'
+            )
+        """)
+        conn.executemany(
+            "INSERT INTO wiki_fts VALUES (?,?,?,?,?,?,?,?,?)",
+            [(p["slug"], p["type"], p["provenance"], p["priority"],
+              p["path"], p["title"], p["theme"], p["summary"], p["body"])
+             for p in pages],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    print(f"search-index: {len(pages)} page(s) indexed -> {db}")
+    return 0
+
+
+def cmd_search_index(args) -> int:
+    """Force-rebuild the FTS5 search index unconditionally."""
+    return _build_search_index(args.project)
+
+
+def cmd_search(args) -> int:
+    """Query the FTS5 index. Auto-rebuilds from wiki files if the DB is stale
+    or missing (e.g. fresh clone — the wiki files are in git, the DB is not)."""
+    if _is_search_stale(args.project):
+        rc = _build_search_index(args.project)
+        if rc != 0:
+            return rc
+
+    db = search_db_path(args.project)
+    # Use FTS5's implicit AND (space-separated) so results are precise.
+    # OR-joining was too broad — "user loses context between sessions" would
+    # match almost everything via "user OR sessions". Let the LLM reformulate
+    # with synonyms and fire 2–3 targeted queries instead.
+    # Porter stemming (configured at index-build time) handles "session/sessions".
+    import re as _re
+    terms = [t for t in _re.findall(r'\w+', args.query) if len(t) > 2]
+    fts_query = " ".join(terms) if terms else args.query
+
+    conn = sqlite3.connect(db)
+    try:
+        if args.type:
+            rows = conn.execute(
+                "SELECT slug, type, path, title, provenance, priority, summary "
+                "FROM wiki_fts WHERE wiki_fts MATCH ? AND type = ? "
+                "ORDER BY rank LIMIT ?",
+                (fts_query, args.type, args.limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT slug, type, path, title, provenance, priority, summary "
+                "FROM wiki_fts WHERE wiki_fts MATCH ? "
+                "ORDER BY rank LIMIT ?",
+                (fts_query, args.limit),
+            ).fetchall()
+    except sqlite3.OperationalError as exc:
+        return err(f"search query failed: {exc}")
+    finally:
+        conn.close()
+
+    if not rows:
+        print("NO_RESULTS")
+        return 0
+
+    for slug, rtype, path, title, provenance, priority, summary in rows:
+        parts = [slug, rtype, path, title, provenance, priority, summary]
+        print("\t".join(parts))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
@@ -435,6 +611,15 @@ def main() -> int:
     rc.add_argument("--type", required=True, help="raw subdir: feedback | interviews | data | …")
     rc.add_argument("--hash", default="", help="content hash to check; omit to hash stdin instead")
     rc.set_defaults(func=cmd_raw_check)
+
+    si = sub.add_parser("search-index", help="build/rebuild the SQLite FTS5 search index")
+    si.set_defaults(func=cmd_search_index)
+
+    se = sub.add_parser("search", help="query the search index (auto-rebuilds if stale)")
+    se.add_argument("--query", required=True, help="search terms")
+    se.add_argument("--type", default="", help="filter by entity type: opportunities | solutions | personas | docs | …")
+    se.add_argument("--limit", type=int, default=5, help="max results (default: 5)")
+    se.set_defaults(func=cmd_search)
 
     args = ap.parse_args()
     return args.func(args)

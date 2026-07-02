@@ -538,6 +538,17 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_wiki_ensure && echo "WIKI_READY" || echo "WIKI_SCAFFOLD_FAILED (skip ingest, finish normally)"
 ```
 
+Before writing competitor entity pages, search for existing ones to avoid duplicating a page that's
+already in the wiki under a slightly different slug:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "competitor" competitor 10
+```
+
+For each result, **Read the full page** (path column). Pass existing competitor slugs and titles to
+the ingest subagent so it updates in place rather than creating a second page for the same company.
+
 If `WIKI_READY`, print the canonical ingest prompt and **dispatch it with the Agent tool** (one subagent):
 
 ```bash

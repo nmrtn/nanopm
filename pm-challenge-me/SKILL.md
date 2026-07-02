@@ -74,6 +74,27 @@ If URL provided:
 If `_WEBSITE` already stored and `BROWSE_READY`: silently re-use stored URL (don't ask again).
 Offer re-fetch only if last run was >30 days ago: "Re-fetch from {url}? (y/N)"
 
+## Phase 1.5: Surface top opportunities and strategy
+
+Before the full context query, pull the highest-priority open opportunities and the
+current strategy — the adversarial challenge is sharpest when it attacks specific
+ranked bets, not just the broad preamble summary:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "opportunity user problem pain" opportunity 10
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "strategy bet positioning" doc 5
+```
+
+For each result, **Read the full page** (path column). Carry the top 3–5 unaddressed
+opportunities into Phase 5 (adversarial subagent prompt) — Challenge #1 (strategy) and
+Challenge #2 (users) land harder when they name a specific ranked opportunity the product
+is ignoring or mis-prioritizing, not a generic assumption.
+
 ## Phase 2: Context assembly (query the wiki)
 
 This skill is **evaluative**, not descriptive — so pull the upstream facts it builds on

@@ -249,8 +249,18 @@ Capture a single problem and slot it into the existing DB.
    (header `Question`): "What's the user problem? One or two sentences — the pain, not the solution."
    options `["Here it is", "Let Nano draft one from context"]`. If "Let Nano draft", infer a candidate
    from CONTEXT-SUMMARY (provenance `nano-hypothesis`).
-2. **Read SCHEMA + INDEX** to see the existing themes and avoid duplicating an opportunity. Read
+2. **Read SCHEMA + INDEX + search** to see existing themes and surface near-duplicates. Read
    `.nanopm/wiki/entities/opportunities/SCHEMA.md` and `.nanopm/wiki/entities/opportunities/INDEX.md`.
+   Then run a targeted FTS search for the candidate problem:
+   ```bash
+   source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+   nanopm_wiki_search "<the problem statement>" opportunity 5
+   ```
+   For each result, **Read the full page** (using the `path` column) before proceeding. Never
+   act on the truncated 200-char summary alone — the full page carries provenance, verbatims, and
+   `related_to` links that change the dedup judgment. Treat strong FTS matches as pre-evidence for the
+   dedup agent: if the search already surfaces an obvious match, pre-fill the dedup agent's expected
+   verdict; if it returns NO_RESULTS, dedup is still required (the index may lag or phrasing may differ).
 3. **Dedup gate (the reusable agent).** Before writing, run the candidate through the dedup agent so
    you don't create a near-duplicate of something already in the DB. Print its prompt with the one
    candidate and dispatch it via the **Agent tool**:

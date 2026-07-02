@@ -60,6 +60,25 @@ Read `_PRD_FILE`. Extract:
 
 Derive the feature slug from the PRD filename: lowercase, hyphens, max 40 chars. Store as `_FEATURE_SLUG`.
 
+## Phase 2.5: Surface related wiki context
+
+With `_FEATURE_SLUG` and the PRD read, search for related opportunities and existing solutions —
+so tasks are grounded in the opportunity they serve and avoid duplicating prior work.
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_FEATURE_SLUG" opportunity 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "$_FEATURE_SLUG" solution 5
+```
+
+For each result, **Read the full page** (path column). Never act on the 200-char summary. Carry
+matched opportunities into the breakdown so each task group can reference the opportunity slug it
+serves — this is how the breakdown stays connected to the discovery layer.
+
 ## Phase 3: Pick the handoff target
 
 nanopm produces the breakdown; the handoff target is where the work actually goes. The six targets are peers — pick whichever fits how this team or project ships work.

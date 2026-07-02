@@ -43,6 +43,23 @@ nanopm_context_read pm-roadmap
 
 ## Phase 1: Context assembly (query the wiki)
 
+First, pull the top objectives and opportunities by keyword — fast FTS lookup before the
+heavier query synthesis:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "objective key result OKR" objective 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "opportunity user problem" opportunity 10
+```
+
+For each result, **Read the full page** (path column) — never act on the 200-char summary.
+Use matched objectives to anchor sequencing and matched opportunities to tag `📣 signal-backed`
+roadmap items. Then:
+
 Read upstream context through the **query primitive** — one read-side call that
 synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
 pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason

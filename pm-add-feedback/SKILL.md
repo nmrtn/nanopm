@@ -87,7 +87,11 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 nanopm_wiki_ensure && echo "WIKI_READY" || echo "WIKI_SCAFFOLD_FAILED"
 _OPP_DIR=".nanopm/wiki/entities/opportunities"
 [ -f "$_OPP_DIR/SCHEMA.md" ] && echo "OPP_DB: exists" || echo "OPP_DB: none (Pass 1 will match nothing — everything becomes a NEW opportunity proposal)"
+# Warn on first raw archive: verbatims are committed to git (visible to all collaborators)
+[ -d ".nanopm/raw" ] || echo "RAW_NOTICE: First time archiving raw feedback — these verbatim files will be committed to git and visible to everyone with repo access. If you need verbatims to stay private, use a hosted/Enterprise setup instead."
 ```
+
+If `RAW_NOTICE:` is in the output above, surface it to the user once before proceeding and ask them to confirm they're OK committing verbatims to git (or suggest they set up hosted mode). This is a one-time gate — once `.nanopm/raw/` exists the notice won't appear again.
 
 If the opportunity DB does not exist yet, Pass 1 has nothing to match against — say so, and treat all
 extracted signal as Pass-2 candidates (you can also suggest `/pm-opportunities bootstrap` first for a
@@ -244,6 +248,18 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/de
 _OPP_DIR=".nanopm/wiki/entities/opportunities"
 grep -hE '^(title|theme):' "$_OPP_DIR"/*.md 2>/dev/null   # existing titles + themes to match against
 ```
+
+For each extracted claim, also run a targeted FTS search to surface keyword-matching opportunities:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "<claim text>" opportunity 5
+```
+
+For each FTS result, **Read the full page** (using the `path` column) before making a match judgment.
+Never act on the 200-char summary alone — the page body carries verbatims, `related_to` links, and
+provenance that change whether this claim upgrades an existing opportunity or seeds a new one. Fire
+2–3 targeted queries per claim if phrasing varies (the LLM does the semantic layer).
 
 For each claim, decide: does it describe **the same user problem** as an existing opportunity?
 

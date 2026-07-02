@@ -86,6 +86,21 @@ From the question, identify:
 - **Time range:** default last 30 days unless question implies otherwise
 - **Key events needed:** list the event names to fetch
 
+## Phase 1.5: Surface related opportunities
+
+Now that the question is defined, search for opportunities related to the behavior or
+metric being measured — so the interpretation in Phase 4 connects each data point to the
+user problem it's meant to illuminate, not just a free-floating number:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "<key terms from the question — e.g. 'activation onboarding' or 'retention churn'>" opportunity 5
+```
+
+For each result, **Read the full page** (path column). In Phase 4, anchor each finding to
+the relevant opportunity: "this drop-off maps to opportunity X (priority: high)" is a
+stronger insight than the number alone.
+
 ## Phase 2: Detect available analytics tier
 
 ```bash

@@ -39,6 +39,24 @@ Key things to extract (from the Phase 1 synthesis + the plan overview loaded at 
 - Challenge session findings (gap, recommended next skill, what you're building)
 - Prior objectives (if any) — flag which ones were hit or missed
 
+## Phase 0.5: Surface existing objectives and top opportunities
+
+Before the full context synthesis, pull the top opportunities and any existing objectives by keyword
+— fast FTS lookup that surfaces the most relevant evidence before the heavier query_prompt:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "objective key result goal" objective 5
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "opportunity user problem" opportunity 10
+```
+
+For each result, **Read the full page** (path column). Carry prior objectives into Phase 2 as the
+"already committed to" baseline — new OKRs should close gaps or supersede them, never silently overlap.
+
 ## Phase 1: Context check (query the wiki)
 
 Read upstream context through the **query primitive** — one read-side call that

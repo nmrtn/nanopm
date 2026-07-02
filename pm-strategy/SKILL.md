@@ -37,6 +37,22 @@ If found: "Prior strategy found from {ts}. This run will produce a revised strat
 
 ## Phase 1: Context assembly (query the wiki)
 
+First, pull the top opportunities and competitors by keyword — fast FTS lookup before the
+heavier query synthesis:
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "strategy opportunity" opportunity 10
+```
+
+```bash
+source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
+nanopm_wiki_search "competitor market" competitor 5
+```
+
+For each result, **Read the full page** (path column) — the summary is truncated and loses the
+evidence layer. Fire additional targeted queries if the product has a known focus area. Then:
+
 Read upstream context through the **query primitive** — one read-side call that
 synthesizes the relevant wiki pages, instead of bespoke per-doc reads (the recipe
 pattern: query → reasoning → ingest). The raw docs stay out of this run; you reason
