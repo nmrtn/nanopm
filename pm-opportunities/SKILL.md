@@ -141,7 +141,7 @@ For each PRESENT doc, dispatch ONE retrieval subagent via the **Agent tool**, pr
 ```bash
 source ~/.nanopm/lib/nanopm.sh 2>/dev/null || source .nanopm/lib/nanopm.sh 2>/dev/null || true
 nanopm_retrieval_prompt pm-opportunities ".nanopm/wiki/entities/opportunities/INDEX.md" \
-  "distinct user problems / pain points / unmet needs, each with its strongest attributed verbatim quote or data point and the user segment it affects"
+  "user needs, desired outcomes, and jobs to be done — the capability or result users want, not the pain they're experiencing today — each with its strongest attributed verbatim quote or data point and the user segment it affects"
 ```
 
 Opportunities derived from these digests are **`evidence-backed`**. **Zero-feedback fallback:** if both
@@ -246,7 +246,7 @@ Go to Phase 5.
 Capture a single problem and slot it into the existing DB.
 
 1. **Get the problem.** Either the user named it (use that), or ask via `AskUserQuestion`
-   (header `Question`): "What's the user problem? One or two sentences — the pain, not the solution."
+   (header `Question`): "What does the user need or want to be able to do? One or two sentences — the desired outcome, not the current pain."
    options `["Here it is", "Let Nano draft one from context"]`. If "Let Nano draft", infer a candidate
    from CONTEXT-SUMMARY (provenance `nano-hypothesis`).
 2. **Read SCHEMA + INDEX + search** to see existing themes and surface near-duplicates. Read

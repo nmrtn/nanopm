@@ -1245,7 +1245,7 @@ for uncertain agent-linked matches).
 ```markdown
 ---
 id: <kebab-slug>
-title: "<the user problem, in plain language>"
+title: "<short, outcome-framed noun phrase — e.g. 'Know which feature to ship next', not 'No prioritization clarity'>"
 theme: <one L1 theme>
 status: draft                 # draft | defining | review | ready-for-solutions
 priority: medium              # high | medium | low  (judgment)
@@ -1253,6 +1253,7 @@ provenance: nano-hypothesis   # nano-hypothesis | user-stated | evidence-backed
 evidence_sources: []          # e.g. [user-verbatim, behavioral-data, market-signal]
 linked_objectives: []         # optional KR ids from OBJECTIVES.md
 related_to: []                # optional sibling slugs (a loose link the dedup agent didn't merge)
+company_lever: ""             # optional: what company outcome does solving this move?
 last_updated: <YYYY-MM-DD>
 ---
 
@@ -1856,6 +1857,40 @@ nanopm_wiki_search() {
   "$_BIN/nanopm-ingest-agent" search "${args[@]}"
 }
 
+nanopm_supabase_configured() {
+  # True (exit 0) when NANOPM_SUPABASE_URL and NANOPM_SUPABASE_KEY are available.
+  # Resolution order: env vars → ~/.nanopm/.env file.
+  local url key
+  url="${NANOPM_SUPABASE_URL:-}"
+  key="${NANOPM_SUPABASE_KEY:-}"
+  if [ -z "$url" ] || [ -z "$key" ]; then
+    local env_file="$HOME/.nanopm/.env"
+    if [ -f "$env_file" ]; then
+      url=$(grep '^NANOPM_SUPABASE_URL=' "$env_file" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+      key=$(grep '^NANOPM_SUPABASE_KEY=' "$env_file" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+    fi
+  fi
+  [ -n "$url" ] && [ -n "$key" ]
+}
+
+nanopm_pull_from_supabase() {
+  # Pull wiki pages updated on Supabase since the last pull. Throttled to once
+  # per 10 minutes. Best-effort — failure is always silent.
+  nanopm_supabase_configured || return 0
+  local root marker now last ingest
+  root="$(_nanopm_project_root)"
+  marker="$HOME/.nanopm/projects/${_SLUG:-unknown}/.supabase-last-pull"
+  now=$(date +%s)
+  if [ -f "$marker" ]; then
+    last=$(cat "$marker" 2>/dev/null || echo 0)
+    [ $(( now - last )) -lt 600 ] && return 0
+  fi
+  ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  [ -x "$ingest" ] || return 0
+  "$ingest" --project "$root" pull >/dev/null 2>&1 || true
+  echo "$now" > "$marker" 2>/dev/null || true
+}
+
 # ── Migration-on-upgrade (vNext) ─────────────────────────────────────────────
 #
 # A project that adopted the wiki but still carries legacy flat Define/Plan docs
@@ -2031,7 +2066,7 @@ EOF
 #   e.g. nanopm_wiki_doc_log pm-product "wrote docs/product.md"
 # Appends:  ## [YYYY-MM-DD] ingest | <skill>: <title>
 nanopm_wiki_doc_log() {
-  local skill="${1:-}" title="${2:-}" op="${3:-ingest}" root ingest
+  local skill="${1:-}" title="${2:-}" op="${3:-ingest}" root ingest wiki_rel
   [ -n "$skill" ] && [ -n "$title" ] || return 0
   root="$(_nanopm_project_root)"
   ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
@@ -2039,6 +2074,15 @@ nanopm_wiki_doc_log() {
   [ -x "$ingest" ] || return 0
   command -v python3 >/dev/null 2>&1 || return 0
   "$ingest" --project "$root" log --op "$op" --title "${skill}: ${title}" >/dev/null 2>&1 || true
+  # Auto-push to Supabase when configured — extract the wiki-relative path from the
+  # title (convention: "wrote docs/X.md", "add entities/Y.md", "create entities/Z.md")
+  # and push the file so doc pages sync automatically without a manual 'sync'. Entity
+  # pages written via `apply` already push there; this closes the gap for doc pages
+  # written directly by skills. Idempotent upsert — safe to call twice. Best-effort.
+  wiki_rel="${title#* }"  # strip leading verb word ("wrote ", "add ", "create ", …)
+  if [ -n "$wiki_rel" ] && nanopm_supabase_configured 2>/dev/null; then
+    "$ingest" --project "$root" push-file --target "$wiki_rel" >/dev/null 2>&1 || true
+  fi
   return 0
 }
 
@@ -2615,6 +2659,27 @@ nanopm_preamble() {
   # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
   # creates nothing that already exists, never overwrites a page or the schema.
   nanopm_wiki_ensure
+  # Push any locally modified wiki pages to Supabase before reading context.
+  # Throttled to once per 10 minutes (same cadence as pull) so a large wiki
+  # doesn't add file-hashing I/O to every rapid-fire skill run.
+  local _ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  local _push_marker="$HOME/.nanopm/projects/${_SLUG:-unknown}/.supabase-last-push"
+  local _push_now _push_last
+  _push_now=$(date +%s)
+  if [ -x "$_ingest" ] && nanopm_supabase_configured 2>/dev/null; then
+    _push_skip=0
+    if [ -f "$_push_marker" ]; then
+      _push_last=$(cat "$_push_marker" 2>/dev/null || echo 0)
+      [ $(( _push_now - _push_last )) -lt 600 ] && _push_skip=1
+    fi
+    if [ "$_push_skip" = "0" ]; then
+      "$_ingest" --project "$(_nanopm_project_root)" push-pending >/dev/null 2>&1 || true
+      echo "$_push_now" > "$_push_marker" 2>/dev/null || true
+    fi
+  fi
+  # Pull any wiki pages updated on Supabase since the last pull. Throttled
+  # to once per 10 minutes. No-op when Supabase is not configured.
+  nanopm_pull_from_supabase
   # Migration-on-upgrade: bring any legacy flat Define/Plan docs into the wiki once
   # (copy mode), so per-doc reads resolve the wiki path instead of "missing" →
   # rebuild-over. No-op after the first post-upgrade run.

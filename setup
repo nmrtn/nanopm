@@ -317,7 +317,7 @@ ok "Connectors installed"
 
 # ── install skills ────────────────────────────────────────────────────────────
 step "Installing skills"
-_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-add-feedback pm-standup pm-weekly-update pm-data pm-brainstorm pm-opportunities pm-solutions"
+_SKILL_LIST="pm-vision-mission pm-business-model pm-org pm-product pm-personas pm-discovery pm-challenge-me pm-objectives pm-strategy pm-roadmap pm-prd pm-breakdown pm-retro pm-run pm-upgrade pm-user-feedback pm-competitors-intel pm-add-feedback pm-standup pm-weekly-update pm-data pm-brainstorm pm-opportunities pm-solutions pm-setup-cloud"
 _SKILL_COUNT=$(set -- $_SKILL_LIST; echo $#)
 
 # deps-only (plugin bootstrap): skip the skill copy entirely — the Claude Code
