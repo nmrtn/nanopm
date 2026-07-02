@@ -186,7 +186,7 @@ def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
             "content": content,
             "last_updated": fm.get("last_updated") or fm.get("generated", ""),
         }
-        endpoint = f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+        endpoint = f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}?on_conflict=project_slug,path"
         req = urllib.request.Request(
             endpoint,
             data=_json.dumps(row).encode(),
@@ -253,7 +253,7 @@ def _supabase_upsert_raw(project: str, rel_path: str, content: str) -> None:
             "file_size": len(content.encode("utf-8", errors="replace")),
         }
         req = urllib.request.Request(
-            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}",
+            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}?on_conflict=project_slug,path",
             data=_json.dumps(row).encode(),
             headers={
                 "apikey": key,
