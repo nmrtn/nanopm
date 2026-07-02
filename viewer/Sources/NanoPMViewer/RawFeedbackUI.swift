@@ -202,7 +202,11 @@ struct RawFeedbackOverviewView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }.width(90)
                 }
-                .onChange(of: selection) { _, id in if let id { onOpen(id) } }
+                // `selection` is the row's id (content-hash stem); `onOpen` expects
+                // the full relativePath (raw/<type>/<id>.md) — same as the sidebar tag.
+                .onChange(of: selection) { _, id in
+                    if let id, let src = sources.first(where: { $0.id == id }) { onOpen(src.relativePath) }
+                }
             }
         }
         .background(Color.npPaper)
