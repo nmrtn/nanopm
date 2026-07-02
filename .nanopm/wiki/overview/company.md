@@ -1,37 +1,38 @@
 ---
 type: overview
 section: define
-generated: 2026-06-26
-sources: [vision-mission.md, business-model.md, org.md, product.md, personas.md]
+generated: 2026-06-29
+sources: [vision-mission, business-model, org, product, personas]
 ---
 
 # PM Context Brief
-Generated 2026-06-26 · Project: nanopm · Sources: vision-mission.md, business-model.md, org.md, product.md, personas.md
+Generated 2026-06-29 · Project: nanopm · Sources: vision-mission, business-model, org, product, personas
 
 ## What we do
-nanopm is a free, open-source (MIT) skill pack of ~20 `/pm-*` commands that install into an AI coding agent (Claude Code, Mistral Vibe, OpenAI Codex) and turn it into an autonomous PM running the full product loop — discover → decide → plan → build → learn — from the terminal where the builder already codes. Its differentiator is an LLM-wiki memory layer the agent owns and refines: immutable raw sources feed into LLM-authored wiki pages, with a company brief and a plan brief injected into every skill run so context compounds across sessions instead of resetting to zero. A read-only macOS SwiftUI viewer renders the wiki by phase. The product is mechanically complete across four phases (Define / Discover / Plan / Build) plus daily ops; whether it is actually wanted is the open question.
+nanopm is a pack of 24 markdown "skills" plus a shared bash runtime, Python validators, and a SwiftUI macOS viewer prototype that turns an AI coding agent (Claude Code / Mistral Vibe / OpenAI Codex) into a PM. Each skill is a structured prompt the agent executes: it queries what's known in a **maintained LLM-wiki** at `.nanopm/wiki/` (Karpathy's pattern — ingest / query / lint), reasons, reads the codebase or site, and writes a human-readable artifact back. The next skill reads from there — planning compounds across sessions instead of bouncing across ChatGPT / Notion / Linear where nothing knows the code. Since v0.23.0–0.24.0 the wiki hosts a working **Teresa-Torres Opportunity Solution Tree** (Outcomes → Opportunities → Solutions → PRD): planning skills now query the ranked opportunities and `/pm-solutions` seeds `/pm-prd <chosen-solution-slug>`. Adversarial gates refuse to complete strategy / roadmap / PRD / solutions runs without a falsifiable bet (segment + behavior + metric + timeframe). Built engine + recipes: every skill is a thin recipe over shared query → reasoning → ingest primitives.
 _More detail: `.nanopm/wiki/docs/product.md`_
 
 ## Who it's for
-**Primary — Solo-builder Sam:** a solo founder who is simultaneously PM, engineer, and founder, coding with an AI agent in their terminal. Job to be done: run the full product loop without leaving the coding environment, and feel like a real PM process is running alongside them — not ad hoc decisions in their head. Anti-persona: **Established-PM Pat** — a product manager at a company that already has a PM seat; nanopm would duplicate, not replace, their function, and their feature requests would pull the product off its terminal-first axis.
+Primary: **Terminal-native Theo** — a solo founder / indie hacker shipping with an AI coding agent, no dedicated PM, lives in the terminal. His JTBD: catch wrong-direction work before weeks are spent, and make planning compound across sessions instead of evaporating across four tools that don't know the code. Secondary (unvalidated, assumed): **Designer-founder Dani**, who ships with an agent but does not live in the terminal — the explicit bet behind the macOS viewer; she earns "primary" only once Theo's cohort retains AND the viewer cohort retains higher. Anti-persona: non-builders evaluating nanopm as standalone PM SaaS (a Notion/Linear replacement) who will not run an AI coding agent — serving them means rebuilding as PM SaaS and killing the agent-native value prop.
 _More detail: `.nanopm/wiki/docs/personas.md`_
 
 ## How we make money
-No revenue today; monetization is explicitly undecided and deliberately deferred. The tool is free OSS. GTM is developer-led and bottom-up: zero-friction install (`curl | bash` or native Claude Code plugin), the macOS viewer as a hook, word-of-mouth in AI coding agent communities (Claude Code Discord, the plugin marketplace). Distribution is untested — no organic install rate exists yet. Unit economics: N/A (near-zero marginal cost — it's markdown, bash, and the user's own LLM).
+We don't — **free MIT-licensed open-source skill pack, monetization deliberately deferred.** Zero revenue by design; distribution is a free `curl | bash` setup script plus GitHub clone. One pricing tier ($0, nothing gated); the CLI pack and macOS viewer ship as a single MIT bundle. No GTM motion exists — distribution is incidental (GitHub repo, README, word of mouth), there's no GTM or user-research owner, and cohorts are recruited by hand. Riskiest assumption: that deferral is a safe sequence rather than a way to keep building a free tool that never crosses into a business. Falsifiable trigger: if either Q3 2026 proof cohort reads PASS, name a revenue model within 30 days.
 _More detail: `.nanopm/wiki/docs/business-model.md`_
 
 ## Why we exist
-**Mission:** replace the PM workflow end-to-end for AI coding agents — give the solo builder an autonomous PM that runs the whole product loop in the same terminal as their code. **Vision (3–5 yr):** become the PM layer for agentic development, with memory that compounds across sessions for anyone building with an AI coding agent. **Stage:** early / pre-product-market-fit; open-source project, not a company; zero external users; the core loop works mechanically but its value is unproven. The one belief everything rests on (currently unproven): that solo builders want an autonomous, compounding PM loop in their terminal rather than Notion, ChatGPT, or their own head.
+**Mission:** give solo founders and PMs building with AI coding agents an AI PM OS that automates discovery, signal surfacing, and continuous strategy revision — so deciding *what to build next* stops being the human bottleneck. **Vision (3–5 yr):** the product team is 90% automated (directional, assumed); the PM loop runs continuously alongside the coding agent — scanning sources, surfacing/validating signal, revising strategy — shortening build–measure–learn from quarters to days, with the human making only the calls that require taste, ethics, and no's. The viewer is instrumentation toward that loop, not a competing destination. **Stage: Pre-PMF** — two-person side project, 27 GitHub stars · 1 fork · 0 external issues · 0 retention measured, no named cohort recruited. Q3 2026 is an explicit *proof quarter* for one question: is form factor the adoption blocker, or is the value? Values: problem first · falsify before you commit · subtract before you add · ship to learn · adversarial honesty.
 _More detail: `.nanopm/wiki/docs/vision-mission.md`_
 
 ## Who decides
-Open-source project — no legal entity, no funding, no employees. **Nicolas** (maintainer/founder) is the sole decision-maker on scope and releases; he is in practice also the PM, lead engineer, and designer. **Guillaume** is the major contributor, driving substantial work via pull requests reviewed and merged by Nicolas. All product functions — product, engineering, design, docs, release — sit with the maintainer. The PM nanopm automates is the maintainer's own role, which is both its strongest signal (genuine dogfooding) and its biggest blind spot (n=1 view of the user).
+A two-person side project: **Nicolas Martin** (`nmrtn`, co-founder, repo of record, 53 commits/12mo) and **Guillaume Simon** (`guillaumesimon`, co-founder, 34 commits/12mo, recent Define + viewer work). Both contribute code; **both decide everything together — no formal split, no designated tiebreaker, no decision log.** Decisions happen in DMs/calls and are not recorded; GitHub is the tool of record and `.nanopm/` artifacts capture PM thinking but not the "we agreed X" moments. No external stakeholders, investors, or paying customers; weekly hours are the binding constraint, not roles.
 _More detail: `.nanopm/wiki/docs/org.md`_
 
 ## What's NOT known yet
-- **Whether the core value is wanted.** Zero external users have run the full pipeline unprompted. The load-bearing belief — that solo builders want autonomous PM in their terminal — is assumed, not evidenced.
-- **Distribution.** No organic install rate exists; the GTM motion is untested.
-- **Monetization path.** Deliberately undecided; not a gap to fill now, but to note for downstream planning.
-- **Small-team persona (Mia).** Named as a future secondary target but entirely unvalidated — no small team has ever run nanopm. Treat as hypothesis only.
-- **Memory layer adoption.** The LLM-wiki is new and heavier than a low-signal project may need; real-world friction is unknown.
-- **n=1 blind spot.** All validation is against the maintainer's own workflow; gap between "one person confirms this" and "10 strangers adopt the habit loop" is the critical unknown.
+- **Zero external validation.** No named cohort recruited, 0 pipeline runs measured on any external user, 0 retention data (instrumentation removed v0.4→v0.6, not re-enabled) — every claim about real users is a hypothesis. The biggest gap is an action gap, not a hiring gap.
+- **The One Belief is unproven:** that a real founder/PM voluntarily returns to a full nanopm pipeline within 21 days. If false, no form factor saves the product.
+- **OST end-to-end loop is wired but unused.** No founder has taken an opportunity → `/pm-solutions` → chosen solution → `/pm-prd` → shipped feature — not even internally. The chain compiles; usage is the next falsification.
+- **The memory bet is validated by wiring, not use.** Whether the judgment lint catches real contradictions the structural pass misses has a 3-week falsification window and zero data yet — if it surfaces nothing real, removing the pre-write gate was premature.
+- **One product or two?** CLI skill pack vs. macOS viewer diverge in audience (Theo vs. Dani); which surface is canonical is unanswered, and the viewer bet (form factor, not value, is the blocker) is unvalidated.
+- **No revenue model, no GTM, no unit economics** — all premature until retention proves; no GTM or user-research owner exists in the org, and decisions aren't logged.
+- **Positioning lag:** the README still sells nanopm defensively ("building the wrong thing fast"), one notch below the "AI PM OS" ambition the product already embodies, and under-tells the macOS surface and the OST chain.

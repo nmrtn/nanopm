@@ -1,6 +1,81 @@
 {
   "competitors": [
     {
+      "name": "ChatPRD",
+      "slug": "chatprd",
+      "pages": {
+        "changelog": "https://www.chatprd.ai/changelog",
+        "api_docs": null,
+        "pricing": "https://www.chatprd.ai/pricing",
+        "other": "https://www.chatprd.ai"
+      },
+      "last_checked": "2026-06-15T10:33:46Z"
+    },
+    {
+      "name": "Linear",
+      "slug": "linear",
+      "pages": {
+        "changelog": "https://linear.app/changelog",
+        "api_docs": "https://linear.app/developers/agents",
+        "pricing": "https://linear.app/pricing",
+        "other": "https://linear.app/agents"
+      },
+      "last_checked": "2026-06-15T10:33:46Z"
+    },
+    {
+      "name": "Cursor",
+      "slug": "cursor",
+      "pages": {
+        "changelog": "https://cursor.com/changelog",
+        "api_docs": "https://docs.cursor.com",
+        "pricing": "https://cursor.com/pricing",
+        "other": "https://cursor.com/features"
+      },
+      "last_checked": "2026-06-15T10:33:46Z"
+    },
+    {
+      "name": "GitHub Spec Kit",
+      "slug": "spec-kit",
+      "pages": {
+        "changelog": "https://github.com/github/spec-kit/releases",
+        "api_docs": null,
+        "pricing": null,
+        "other": "https://github.com/github/spec-kit"
+      },
+      "last_checked": "2026-06-15T10:33:46Z",
+      "urls_verified": true,
+      "added": "2026-06-15T10:33:46Z",
+      "source": "pm-competitors-intel discovery 2026-06-15"
+    },
+    {
+      "name": "BMad Method",
+      "slug": "bmad-method",
+      "pages": {
+        "changelog": null,
+        "api_docs": null,
+        "pricing": null,
+        "other": "https://docs.bmad-method.org/"
+      },
+      "last_checked": "2026-06-15T10:33:46Z",
+      "urls_verified": true,
+      "added": "2026-06-15T10:33:46Z",
+      "source": "pm-competitors-intel discovery 2026-06-15"
+    },
+    {
+      "name": "PM Skills (productcompass)",
+      "slug": "pm-skills",
+      "pages": {
+        "changelog": null,
+        "api_docs": null,
+        "pricing": null,
+        "other": "https://www.productcompass.pm/p/pm-skills-2-red-team-ship"
+      },
+      "last_checked": "2026-06-15T10:33:46Z",
+      "urls_verified": true,
+      "added": "2026-06-15T10:33:46Z",
+      "source": "pm-competitors-intel discovery 2026-06-15"
+    },
+    {
       "name": "deanpeters Product-Manager-Skills",
       "slug": "deanpeters-pm-skills",
       "pages": {
