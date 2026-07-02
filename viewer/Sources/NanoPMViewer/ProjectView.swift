@@ -300,8 +300,8 @@ struct ProjectView: View {
                 Task {
                     isRefreshing = true
                     async let refresh: () = store.refresh()
-                    async let push: () = syncMonitor.push()
-                    _ = await (refresh, push)
+                    async let pushPull: () = syncMonitor.pushAndPull()
+                    _ = await (refresh, pushPull)
                     isRefreshing = false
                 }
             } label: {
@@ -314,7 +314,7 @@ struct ProjectView: View {
             .buttonStyle(ActionButtonStyle())
             .fixedSize()
             .disabled(isRefreshing || syncMonitor.isSyncing)
-            .help(isRefreshing || syncMonitor.isSyncing ? "Refreshing and syncing…" : "Re-read .nanopm/ and push pending changes")
+            .help(isRefreshing || syncMonitor.isSyncing ? "Refreshing and syncing…" : "Re-read .nanopm/, push local changes, pull remote changes")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
@@ -328,7 +328,7 @@ struct ProjectView: View {
         }
         .onChange(of: runManager.hasActiveRuns) { _, hasActive in
             guard !hasActive else { return }
-            Task { await syncMonitor.push() }
+            Task { await syncMonitor.pushAndPull() }
         }
     }
 

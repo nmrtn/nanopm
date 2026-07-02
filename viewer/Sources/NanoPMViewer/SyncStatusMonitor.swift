@@ -13,6 +13,7 @@ final class SyncStatusMonitor: ObservableObject {
 
     @Published var status: Status = .idle
     @Published var isSyncing = false
+    @Published var pullPending: Int = 0
     private var lastProjectPath = ""
 
     func check(projectPath: String) async {
@@ -27,23 +28,47 @@ final class SyncStatusMonitor: ObservableObject {
         let quoted = ShellRunner.quote(projectPath)
         let cmd = "\(ShellRunner.quote(agentPath)) --project \(quoted) status 2>/dev/null"
         guard let output = try? await ShellRunner.runAsync(cmd) else { return }
-        status = Self.parse(output)
+        status = Self.parseLocalStatus(output)
     }
 
-    /// Push only pending (modified/untracked) files to Supabase, then refresh status.
-    func push() async {
+    /// Check how many Supabase pages are newer than local (metadata-only network call).
+    func checkRemote() async {
+        guard !lastProjectPath.isEmpty else { return }
+        let agentPath = NSHomeDirectory() + "/.nanopm/bin/nanopm-ingest-agent"
+        let cmd = "\(ShellRunner.quote(agentPath)) --project \(ShellRunner.quote(lastProjectPath)) remote-status 2>/dev/null"
+        guard let output = try? await ShellRunner.runAsync(cmd) else { return }
+        // Parse "remote status: N page(s) to pull"
+        for line in output.components(separatedBy: "\n") {
+            if line.hasPrefix("remote status:") {
+                let n = line.components(separatedBy: ": ").dropFirst().joined(separator: ": ")
+                    .components(separatedBy: " ").first.flatMap(Int.init) ?? 0
+                pullPending = n
+                return
+            }
+        }
+    }
+
+    /// Push pending local changes then pull remote changes, then refresh both badges.
+    /// Push runs first so local edits win on any same-file conflict.
+    func pushAndPull() async {
         guard !isSyncing, !lastProjectPath.isEmpty else { return }
         isSyncing = true
-        let agentPath = NSHomeDirectory() + "/.nanopm/bin/nanopm-ingest-agent"
-        let cmd = "\(ShellRunner.quote(agentPath)) --project \(ShellRunner.quote(lastProjectPath)) push-pending 2>/dev/null"
-        _ = try? await ShellRunner.runAsync(cmd)
+        let agent = ShellRunner.quote(NSHomeDirectory() + "/.nanopm/bin/nanopm-ingest-agent")
+        let proj  = ShellRunner.quote(lastProjectPath)
+        _ = try? await ShellRunner.runAsync("\(agent) --project \(proj) push-pending 2>/dev/null")
+        _ = try? await ShellRunner.runAsync("\(agent) --project \(proj) pull 2>/dev/null")
         isSyncing = false
-        await check(projectPath: lastProjectPath)
+        async let localCheck: () = check(projectPath: lastProjectPath)
+        async let remoteCheck: () = checkRemote()
+        _ = await (localCheck, remoteCheck)
     }
+
+    /// Convenience — existing call sites that only needed push now get push+pull.
+    func push() async { await pushAndPull() }
 
     // Parse "sync status: N in sync · M modified locally · K never synced"
     // and "raw sync status: …" — both sections use the same middle-dot format.
-    private static func parse(_ output: String) -> Status {
+    private static func parseLocalStatus(_ output: String) -> Status {
         var wikiPending = 0
         var rawPending  = 0
         for line in output.components(separatedBy: "\n") {
@@ -64,39 +89,76 @@ final class SyncStatusMonitor: ObservableObject {
 struct SyncStatusBadge: View {
     @ObservedObject var monitor: SyncStatusMonitor
 
+    private var pushCount: Int {
+        if case .pending(let w, let r) = monitor.status { return w + r }
+        return 0
+    }
+    private var pullCount: Int { monitor.pullPending }
+    private var isClean: Bool {
+        if case .clean = monitor.status { return pullCount == 0 }
+        return false
+    }
+
     var body: some View {
-        switch monitor.status {
-        case .idle, .notConfigured:
+        if monitor.status == .idle || monitor.status == .notConfigured {
             EmptyView()
-        case .clean:
+        } else if monitor.isSyncing {
+            HStack(spacing: 4) {
+                ProgressView().controlSize(.mini)
+                Text("Syncing…").font(.caption).foregroundStyle(Color.npAmber)
+            }
+        } else if isClean {
             HStack(spacing: 4) {
                 Circle().fill(Color.npOlive).frame(width: 6, height: 6)
                 Text("In sync").font(.caption).foregroundStyle(.secondary)
             }
             .help("All content backed up to Supabase")
-        case .pending(let wiki, let raw):
-            Button { Task { await monitor.push() } } label: {
+        } else {
+            Button { Task { await monitor.pushAndPull() } } label: {
                 HStack(spacing: 4) {
-                    if monitor.isSyncing {
-                        ProgressView().controlSize(.mini)
-                    } else {
+                    if pushCount > 0 {
                         Circle().fill(Color.npAmber).frame(width: 6, height: 6)
+                    } else {
+                        Circle().fill(Color.blue).frame(width: 6, height: 6)
                     }
-                    Text(monitor.isSyncing ? "Syncing…" : "\(wiki + raw) to sync")
-                        .font(.caption)
-                        .foregroundStyle(Color.npAmber)
+                    Text(badgeLabel).font(.caption).foregroundStyle(badgeTint)
                 }
             }
             .buttonStyle(.plain)
-            .disabled(monitor.isSyncing)
-            .help(monitor.isSyncing ? "Pushing to Supabase…" : pendingHelp(wiki: wiki, raw: raw))
+            .help(badgeHelp)
         }
     }
 
-    private func pendingHelp(wiki: Int, raw: Int) -> String {
-        var parts: [String] = []
-        if wiki > 0 { parts.append("\(wiki) wiki file(s)") }
-        if raw  > 0 { parts.append("\(raw) raw file(s)") }
-        return "\(parts.joined(separator: " and ")) not yet pushed — click to push now"
+    private var badgeLabel: String {
+        switch (pushCount, pullCount) {
+        case (let p, let r) where p > 0 && r > 0: return "\(p) to sync · \(r) to pull"
+        case (let p, _) where p > 0:              return "\(p) to sync"
+        default:                                   return "\(pullCount) to pull"
+        }
+    }
+
+    private var badgeTint: Color {
+        pushCount > 0 ? Color.npAmber : .blue
+    }
+
+    private var badgeHelp: String {
+        switch (pushCount, pullCount) {
+        case (let p, let r) where p > 0 && r > 0:
+            return "\(p) local change(s) to push and \(r) remote page(s) to pull — click to sync"
+        case (let p, _) where p > 0:
+            return "\(p) local change(s) not yet pushed — click to push now"
+        default:
+            return "\(pullCount) remote page(s) newer than local — click to pull now"
+        }
+    }
+}
+
+extension SyncStatusMonitor.Status: Equatable {
+    static func == (lhs: SyncStatusMonitor.Status, rhs: SyncStatusMonitor.Status) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.clean, .clean), (.notConfigured, .notConfigured): return true
+        case (.pending(let lw, let lr), .pending(let rw, let rr)): return lw == rw && lr == rr
+        default: return false
+        }
     }
 }

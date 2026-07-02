@@ -1031,6 +1031,55 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_remote_status(args) -> int:
+    """Check how many Supabase pages are newer than local. Fetches only path +
+    last_updated metadata (no content) — fast enough to run on every explicit
+    refresh. Prints 'remote status: N page(s) to pull'. No-op if not configured."""
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        print("remote status: 0 page(s) to pull")
+        return 0
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+            f"?project_slug=eq.{project_slug}&select=path,last_updated"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        print("remote status: 0 page(s) to pull")
+        return 0
+    wiki = wiki_dir(args.project)
+    state = _load_sync_state(args.project)
+    to_pull = 0
+    for row in rows:
+        dest = wiki / row["path"]
+        try:
+            dest.resolve().relative_to(wiki.resolve())
+        except ValueError:
+            continue  # path escapes wiki dir — skip
+        remote_ts = row.get("last_updated") or ""
+        if dest.is_file():
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(row["path"])
+            # Respect the same hand-edit protection as cmd_pull: skip files the
+            # user modified locally so we don't flag them as "pull needed" when
+            # the local edit should win.
+            if stored_hash and _content_hash(local_content) != stored_hash:
+                continue
+            local_fm, _ = parse_frontmatter(local_content)
+            local_ts = local_fm.get("last_updated") or local_fm.get("generated", "")
+            if local_ts >= remote_ts:
+                continue  # local is current or newer
+        to_pull += 1
+    print(f"remote status: {to_pull} page(s) to pull")
+    return 0
+
+
 def cmd_push_pending(args) -> int:
     """Push only local wiki pages and raw files that differ from the last sync
     (modified locally or never synced). O(pending) not O(all) — fast catch-up
@@ -1105,6 +1154,9 @@ def main() -> int:
 
     pp = sub.add_parser("push-pending", help="push only modified/untracked wiki pages to Supabase (fast catch-up)")
     pp.set_defaults(func=cmd_push_pending)
+
+    rs = sub.add_parser("remote-status", help="check how many Supabase pages are newer than local (metadata only)")
+    rs.set_defaults(func=cmd_remote_status)
 
     pl = sub.add_parser("pull", help="fetch wiki pages and raw sources updated on Supabase to local")
     pl.set_defaults(func=cmd_pull)

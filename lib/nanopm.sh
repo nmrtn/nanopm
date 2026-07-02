@@ -2657,6 +2657,14 @@ nanopm_preamble() {
   # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
   # creates nothing that already exists, never overwrites a page or the schema.
   nanopm_wiki_ensure
+  # Push any locally modified wiki pages to Supabase before reading context,
+  # so a skill on this machine always starts from the latest local state. Fast:
+  # only pushes files whose hash differs from the last sync. No-op when Supabase
+  # is not configured or no files are pending.
+  local _ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  if [ -x "$_ingest" ] && nanopm_supabase_configured 2>/dev/null; then
+    "$_ingest" --project "$(_nanopm_project_root)" push-pending >/dev/null 2>&1 || true
+  fi
   # Pull any wiki pages updated on Supabase since the last pull. Throttled
   # to once per 10 minutes. No-op when Supabase is not configured.
   nanopm_pull_from_supabase
