@@ -21,6 +21,7 @@ struct ProjectView: View {
     let onSwitchProject: () -> Void
 
     @StateObject private var store: ArtifactStore
+    @StateObject private var syncMonitor = SyncStatusMonitor()
     @EnvironmentObject private var runManager: RunManager
     @Environment(\.openWindow) private var openWindow
     @State private var selection: String?
@@ -31,6 +32,7 @@ struct ProjectView: View {
     @State private var weeklyUpdatesExpanded = false
     @State private var standupsExpanded = false
     @State private var rawFeedbackExpanded = false
+    @State private var isRefreshing = false
     /// Archived interview/feedback sources, loaded off disk (any extension — the
     /// scanner only keeps md/json/jsonl). Drives the "Raw feedback" nav entry.
     @State private var rawSources: [RawSource] = []
@@ -289,19 +291,45 @@ struct ProjectView: View {
             .buttonStyle(.borderless)
             .help("What NanoPM remembers about this project — every skill run leaves a trace here")
 
+            SyncStatusBadge(monitor: syncMonitor)
+
             Spacer()
 
             Button {
-                Task { await store.refresh() }
+                guard !isRefreshing else { return }
+                Task {
+                    isRefreshing = true
+                    async let refresh: () = store.refresh()
+                    async let pushPull: () = syncMonitor.pushAndPull()
+                    _ = await (refresh, pushPull)
+                    isRefreshing = false
+                }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                if isRefreshing || syncMonitor.isSyncing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                }
             }
             .buttonStyle(ActionButtonStyle())
             .fixedSize()
-            .help("Re-read .nanopm/ from disk")
+            .disabled(isRefreshing || syncMonitor.isSyncing)
+            .help(isRefreshing || syncMonitor.isSyncing ? "Refreshing and syncing…" : "Re-read .nanopm/, push local changes, pull remote changes")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
+        .task(id: project.path) {
+            // Polling loop — stable across view re-evaluations, cancelled only
+            // when project changes or the view leaves the hierarchy.
+            while !Task.isCancelled {
+                await syncMonitor.check(projectPath: project.path)
+                try? await Task.sleep(for: .seconds(15))
+            }
+        }
+        .onChange(of: runManager.hasActiveRuns) { _, hasActive in
+            guard !hasActive else { return }
+            Task { await syncMonitor.pushAndPull() }
+        }
     }
 
     /// The amber "needs you" pill shown in the footer while runs wait on input.

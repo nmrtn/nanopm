@@ -23,6 +23,10 @@ Subcommands:
   citation-check   is a citation already on a page? (dedup gate — NEW vs DUPLICATE)
   apply            write a wiki page directly (locked, single-writer-per-file)
   raw-check        is a raw source already archived? (content-hash dedup — see below)
+  sync             push all local wiki pages to Supabase (bulk upsert — requires config)
+  pull             fetch wiki pages updated on Supabase to local wiki (newest wins; local hand edits protected)
+  push-file        push a single wiki file to Supabase (called by nanopm_wiki_doc_log)
+  status           show which local pages were modified since the last Supabase sync (offline)
   search-index     build/rebuild the SQLite FTS5 search index (.nanopm/search.db)
   search           query the search index (auto-rebuilds if stale)
 
@@ -47,14 +51,238 @@ import argparse
 import contextlib
 import datetime as _dt
 import hashlib
+import json as _json
 import sqlite3
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 try:
     import fcntl  # POSIX (macOS / Linux) — nanopm's supported hosts
 except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
     fcntl = None
+
+SUPABASE_PAGES_TABLE    = "nanopm_wiki_pages"
+SUPABASE_RAW_TABLE      = "nanopm_raw_sources"
+SUPABASE_PROJECTS_TABLE = "nanopm_projects"
+
+
+def _supabase_creds() -> tuple[str | None, str | None]:
+    """Return (url, key) for Supabase.
+    Resolution order: env vars → ~/.nanopm/.env file."""
+    import os
+    url = os.environ.get("NANOPM_SUPABASE_URL")
+    key = os.environ.get("NANOPM_SUPABASE_KEY")
+    if not url or not key:
+        env_file = Path.home() / ".nanopm" / ".env"
+        if env_file.is_file():
+            for line in env_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                v = v.strip().strip("\"'")
+                if k == "NANOPM_SUPABASE_URL" and not url:
+                    url = v
+                elif k == "NANOPM_SUPABASE_KEY" and not key:
+                    key = v
+    return url or None, key or None
+
+
+# ---------------------------------------------------------------------------
+# Sync-state: content-hash tracking for push/pull conflict detection
+# ---------------------------------------------------------------------------
+# After every successful push or pull we record sha256(content) per wiki path
+# in ~/.nanopm/sync-state/{project_slug}.json.  On the next pull we can tell
+# whether the local file was hand-edited since the last sync (hash diverged)
+# rather than relying solely on the `last_updated` frontmatter timestamp, which
+# is only bumped by skills — not by hand edits.
+
+def _sync_state_path(project: str) -> Path:
+    state_dir = Path.home() / ".nanopm" / "sync-state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    # Use full resolved path hash so two repos with the same directory name
+    # (e.g. ~/work/alpha and ~/clients/alpha) don't share the same state file.
+    full_path = str(Path(project).resolve())
+    key = hashlib.sha256(full_path.encode()).hexdigest()[:16]
+    slug = Path(project).resolve().name
+    new_path = state_dir / f"{slug}-{key}.json"
+    # One-time migration: move slug-only state file to the new slug+hash name.
+    old_path = state_dir / f"{slug}.json"
+    if old_path.is_file() and not new_path.is_file():
+        try:
+            old_path.rename(new_path)
+        except OSError:
+            pass
+    return new_path
+
+def _load_sync_state(project: str) -> dict:
+    p = _sync_state_path(project)
+    if p.is_file():
+        try:
+            return _json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def _save_sync_state(project: str, state: dict) -> None:
+    try:
+        _sync_state_path(project).write_text(_json.dumps(state, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+def _content_hash(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _supabase_ensure_project(project: str) -> None:
+    """Register this project in the nanopm_projects table (the multi-tenant registry).
+
+    The wiki/raw tables are already multi-tenant — every row carries project_slug and
+    a shared Supabase instance holds many projects (no DB-per-project). But nothing
+    enumerates *which* projects live there; nanopm_projects is that registry (one row
+    per project), so a shared DB is self-describing and a teammate's viewer can list
+    projects instead of having to know each slug.
+
+    Fires ONE insert per project: guarded by a '__project_registered__' sentinel in the
+    per-project sync-state (keys are looked up by exact path elsewhere, never iterated,
+    so the sentinel is inert), so it never adds a per-page HTTP call on bulk sync or the
+    per-write auto-push. Uses ignore-duplicates so an existing/edited registry row is
+    never clobbered. Best-effort — never raises; the page/raw push already succeeded."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return
+    project_slug = Path(project).resolve().name
+    state = _load_sync_state(project)
+    if state.get("__project_registered__") == project_slug:
+        return
+    try:
+        req = urllib.request.Request(
+            f"{url}/rest/v1/{SUPABASE_PROJECTS_TABLE}",
+            data=_json.dumps({"slug": project_slug, "name": project_slug}).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=ignore-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        state["__project_registered__"] = project_slug
+        _save_sync_state(project, state)
+    except Exception:
+        pass  # registry is best-effort; the page/raw sync already succeeded
+
+
+def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
+    """Upsert one wiki page to Supabase. Best-effort — never raises."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return
+    _supabase_ensure_project(project)
+    try:
+        fm, body = parse_frontmatter(content)
+        project_slug = Path(project).resolve().name
+        row = {
+            "project_slug": project_slug,
+            "path": rel_path,
+            "slug": fm.get("slug", ""),
+            "type": fm.get("type", ""),
+            "provenance": fm.get("provenance", ""),
+            "priority": fm.get("priority", ""),
+            "title": fm.get("title") or Path(rel_path).stem.replace("-", " "),
+            "theme": fm.get("theme", ""),
+            "summary": _truncate(summary_line(body)),
+            "body": body,
+            "content": content,
+            "last_updated": fm.get("last_updated") or fm.get("generated", ""),
+        }
+        endpoint = f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}?on_conflict=project_slug,path"
+        req = urllib.request.Request(
+            endpoint,
+            data=_json.dumps(row).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        # Push succeeded — record hash as the new sync baseline
+        state = _load_sync_state(project)
+        state[rel_path] = _content_hash(content)
+        _save_sync_state(project, state)
+    except Exception:
+        pass  # best-effort: local write already succeeded
+
+
+def _supabase_log_entry(project: str, op: str, title: str, day: str) -> None:
+    """Mirror a wiki log heartbeat to Supabase. Best-effort — never raises."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return
+    try:
+        project_slug = Path(project).resolve().name
+        row = {"project_slug": project_slug, "op": op, "title": title, "day": day}
+        req = urllib.request.Request(
+            f"{url}/rest/v1/nanopm_wiki_log",
+            data=_json.dumps(row).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+
+def _supabase_upsert_raw(project: str, rel_path: str, content: str) -> None:
+    """Upsert one raw source file to Supabase. Best-effort — never raises."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return
+    _supabase_ensure_project(project)
+    try:
+        project_slug = Path(project).resolve().name
+        parts = Path(rel_path).parts
+        raw_type = parts[0] if parts else ""
+        stem = Path(rel_path).name.split(".")[0]
+        raw_id = stem if len(stem) == 12 and all(c in "0123456789abcdef" for c in stem) else None
+        content_hash = _content_hash(content)
+        row = {
+            "project_slug": project_slug,
+            "type": raw_type,
+            "raw_id": raw_id,
+            "path": rel_path,
+            "content": content,
+            "content_hash": content_hash,
+            "file_size": len(content.encode("utf-8", errors="replace")),
+        }
+        req = urllib.request.Request(
+            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}?on_conflict=project_slug,path",
+            data=_json.dumps(row).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        state = _load_sync_state(project)
+        state["raw/" + rel_path] = content_hash
+        _save_sync_state(project, state)
+    except Exception:
+        pass
 
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
@@ -87,6 +315,10 @@ def err(msg: str) -> int:
 
 def wiki_dir(project: str) -> Path:
     return Path(project) / ".nanopm" / "wiki"
+
+
+def raw_dir(project: str) -> Path:
+    return Path(project) / ".nanopm" / "raw"
 
 
 @contextlib.contextmanager
@@ -307,6 +539,8 @@ def cmd_log(args) -> int:
             if not existing.endswith("\n"):
                 existing += "\n"
             lg.write_text(existing + line + "\n", encoding="utf-8")
+    if not args.dry_run:
+        _supabase_log_entry(args.project, args.op, args.title, day)
     print(f"log: {line}" + (" (dry-run)" if args.dry_run else ""))
     return 0
 
@@ -358,6 +592,9 @@ def cmd_apply(args) -> int:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
     print(f"APPLIED {args.target}")
+    # Push to Supabase when configured — best-effort, non-blocking.
+    rel = dest.relative_to(wiki_dir(args.project)).as_posix()
+    _supabase_upsert_page(args.project, rel, content)
     return 0
 
 
@@ -529,6 +766,189 @@ def _build_search_index(project: str) -> int:
     return 0
 
 
+def cmd_sync(args) -> int:
+    """Push all local wiki pages to Supabase (bulk upsert). Used for initial
+    setup or after a bulk import (e.g. a teammate sharing their wiki)."""
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    url, key = _supabase_creds()
+    if not url or not key:
+        return err("Supabase not configured — set NANOPM_SUPABASE_URL and NANOPM_SUPABASE_KEY in ~/.nanopm/.env")
+    # Derived files (regenerated on every reindex) must not be synced:
+    # - index.md / log.md at the wiki root
+    # - INDEX.md / LOG.md inside every entities/<type>/ dir
+    # SCHEMA.md is user-editable and written once at bootstrap — it is NOT derived
+    # and must be pushed/pulled like any other wiki file.
+    SKIP_ON_SYNC = {"index.md", "log.md", "INDEX.md", "LOG.md"}
+    pushed = 0
+    for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP_ON_SYNC:
+            continue
+        content = f.read_text(encoding="utf-8", errors="replace")
+        rel = f.relative_to(wiki).as_posix()
+        _supabase_upsert_page(args.project, rel, content)
+        pushed += 1
+    try:
+        _slug_hint = url.split("//")[1].split(".")[0]
+    except (IndexError, AttributeError):
+        _slug_hint = "?"
+    print(f"sync: pushed {pushed} page(s) to Supabase ({_slug_hint})")
+    raw = raw_dir(args.project)
+    raw_pushed = 0
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
+            _supabase_upsert_raw(args.project, rel, content)
+            raw_pushed += 1
+    print(f"sync: pushed {raw_pushed} raw source(s) to Supabase")
+    return 0
+
+
+def cmd_pull(args) -> int:
+    """Fetch wiki pages updated on Supabase and write them locally. Newest wins
+    on conflict (last_updated comparison); local wins on tie. Hand edits detected
+    via content hash are skipped rather than silently overwritten. Runs reindex
+    after pulling new pages. No-op when Supabase is not configured."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,content,last_updated"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        return 0  # best-effort
+    wiki = wiki_dir(args.project)
+    state = _load_sync_state(args.project)
+    pulled = 0
+    skipped_edits = 0
+    for row in rows:
+        try:
+            dest = wiki / row["path"]
+            dest.resolve().relative_to(wiki.resolve())
+        except (ValueError, TypeError):
+            continue  # skip — bad path or path escapes wiki dir
+        if not row.get("content"):
+            continue  # skip null/empty content — never write an empty file from a remote row
+        if dest.is_file():
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(row["path"])
+            if stored_hash is None or _content_hash(local_content) != stored_hash:
+                # Local file was never synced (stored_hash is None) or was modified
+                # since the last sync (hash mismatch). Protect it rather than silently
+                # overwriting — the user can run 'sync' to push their version first.
+                skipped_edits += 1
+                continue
+            local_fm, _ = parse_frontmatter(local_content)
+            local_ts = (local_fm.get("last_updated") or local_fm.get("generated", ""))[:10]
+            remote_ts = (row.get("last_updated") or "")[:10]
+            if local_ts >= remote_ts:
+                continue  # local is current or newer (and unmodified since last sync)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(row["content"], encoding="utf-8")
+        state[row["path"]] = _content_hash(row.get("content") or "")
+        pulled += 1
+    _save_sync_state(args.project, state)
+    if pulled:
+        import argparse as _ap
+        cmd_reindex(_ap.Namespace(project=args.project, dry_run=False))
+    if skipped_edits:
+        print(f"pull: {pulled} page(s) updated, {skipped_edits} skipped (local edits detected — run 'sync' to push your changes first)")
+    else:
+        print(f"pull: {pulled} page(s) updated from Supabase")
+    cmd_raw_pull(args)
+    return 0
+
+
+def cmd_raw_pull(args) -> int:
+    """Fetch raw sources from Supabase and write them locally. Hand edits
+    detected via content hash are skipped. No-op when Supabase not configured."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return 0
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,content,content_hash"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        return 0
+    raw = raw_dir(args.project)
+    state = _load_sync_state(args.project)
+    pulled = 0
+    skipped_edits = 0
+    for row in rows:
+        try:
+            state_key = "raw/" + row["path"]
+            dest = raw / row["path"]
+            dest.resolve().relative_to(raw.resolve())
+        except (ValueError, TypeError):
+            continue  # skip — bad path or path escapes raw dir
+        if not row.get("content"):
+            continue  # skip null/empty content
+        if dest.is_file():
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(state_key)
+            if stored_hash and _content_hash(local_content) != stored_hash:
+                skipped_edits += 1
+                continue
+            remote_hash = row.get("content_hash") or ""
+            if remote_hash and _content_hash(local_content) == remote_hash:
+                continue  # already in sync
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(row["content"], encoding="utf-8")
+        state[state_key] = _content_hash(row["content"])
+        pulled += 1
+    _save_sync_state(args.project, state)
+    if skipped_edits:
+        print(f"raw-pull: {pulled} file(s) updated, {skipped_edits} skipped (local edits — run 'sync' to push first)")
+    else:
+        print(f"raw-pull: {pulled} file(s) updated from Supabase")
+    return 0
+
+
+def cmd_push_file(args) -> int:
+    """Push a single existing wiki file to Supabase by its wiki-relative path.
+    Called automatically by nanopm_wiki_doc_log after every skill write so doc
+    pages reach Supabase without a manual 'sync' step."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    wiki = wiki_dir(args.project)
+    dest = (wiki / args.target).resolve()
+    # Security: path must stay inside the wiki directory
+    try:
+        dest.relative_to(wiki.resolve())
+    except ValueError:
+        return err(f"target {args.target!r} escapes wiki — refused")
+    if not dest.is_file():
+        return 0  # file may not exist yet on first call — silent no-op
+    content = dest.read_text(encoding="utf-8", errors="replace")
+    _supabase_upsert_page(args.project, args.target, content)
+    print(f"pushed: {args.target}")
+    return 0
+
+
 def cmd_search_index(args) -> int:
     """Force-rebuild the FTS5 search index unconditionally."""
     return _build_search_index(args.project)
@@ -552,15 +972,38 @@ def cmd_search(args) -> int:
     terms = [t for t in _re.findall(r'\w+', args.query) if len(t) > 2]
     fts_query = " ".join(terms) if terms else args.query
 
+    # The index stores types as directory names (plural: "opportunities",
+    # "personas", …) but skill files historically passed singular forms
+    # ("opportunity", "persona", …). Normalize at query time so both work.
+    _TYPE_ALIASES = {
+        "opportunity": "opportunities",
+        "persona": "personas",
+        "competitor": "competitors",
+        "solution": "solutions",
+        "objective": "objectives",
+        "feature": "features",
+        "person": "people",
+        "doc": "docs",
+    }
+    qtype = _TYPE_ALIASES.get(args.type, args.type) if args.type else args.type
+
     conn = sqlite3.connect(db)
     try:
-        if args.type:
+        if qtype:
             rows = conn.execute(
                 "SELECT slug, type, path, title, provenance, priority, summary "
                 "FROM wiki_fts WHERE wiki_fts MATCH ? AND type = ? "
                 "ORDER BY rank LIMIT ?",
-                (fts_query, args.type, args.limit),
+                (fts_query, qtype, args.limit),
             ).fetchall()
+            # FTS keyword miss but type is known — fall back to type-only scan
+            # so discovery queries (load all opportunities) never silently fail.
+            if not rows:
+                rows = conn.execute(
+                    "SELECT slug, type, path, title, provenance, priority, summary "
+                    "FROM wiki_fts WHERE type = ? LIMIT ?",
+                    (qtype, args.limit),
+                ).fetchall()
         else:
             rows = conn.execute(
                 "SELECT slug, type, path, title, provenance, priority, summary "
@@ -580,6 +1023,150 @@ def cmd_search(args) -> int:
     for slug, rtype, path, title, provenance, priority, summary in rows:
         parts = [slug, rtype, path, title, provenance, priority, summary]
         print("\t".join(parts))
+    return 0
+
+
+def cmd_status(args) -> int:
+    """Show which local wiki pages have been modified since the last Supabase sync.
+    Reads the local sync-state hash file — does not contact Supabase."""
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    state = _load_sync_state(args.project)
+    SKIP = {"index.md", "log.md", "INDEX.md", "LOG.md"}  # SCHEMA.md is user-editable — track it
+    modified, clean, untracked = [], [], []
+    for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP:
+            continue
+        rel = str(f.relative_to(wiki))
+        content = f.read_text(encoding="utf-8", errors="replace")
+        stored = state.get(rel)
+        if stored is None:
+            untracked.append(rel)
+        elif _content_hash(content) == stored:
+            clean.append(rel)
+        else:
+            modified.append(rel)
+    print(f"sync status: {len(clean)} in sync · {len(modified)} modified locally · {len(untracked)} never synced")
+    for p in modified:
+        print(f"  M {p}")
+    for p in untracked:
+        print(f"  ? {p}")
+    raw = raw_dir(args.project)
+    raw_modified, raw_clean, raw_untracked = [], [], []
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
+            stored = state.get("raw/" + rel)
+            if stored is None:
+                raw_untracked.append(rel)
+            elif _content_hash(content) == stored:
+                raw_clean.append(rel)
+            else:
+                raw_modified.append(rel)
+    print(f"raw sync status: {len(raw_clean)} in sync · {len(raw_modified)} modified locally · {len(raw_untracked)} never synced")
+    for p in raw_modified:
+        print(f"  M {p}")
+    for p in raw_untracked:
+        print(f"  ? {p}")
+    return 0
+
+
+def cmd_remote_status(args) -> int:
+    """Check how many Supabase pages are newer than local. Fetches only path +
+    last_updated metadata (no content) — fast enough to run on every explicit
+    refresh. Prints 'remote status: N page(s) to pull'. No-op if not configured."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        print("remote status: 0 page(s) to pull")
+        return 0
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,last_updated"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        print("remote status: 0 page(s) to pull")
+        return 0
+    wiki = wiki_dir(args.project)
+    state = _load_sync_state(args.project)
+    to_pull = 0
+    for row in rows:
+        dest = wiki / row["path"]
+        try:
+            dest.resolve().relative_to(wiki.resolve())
+        except ValueError:
+            continue  # path escapes wiki dir — skip
+        remote_ts = row.get("last_updated") or ""
+        if dest.is_file():
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(row["path"])
+            # Respect the same hand-edit protection as cmd_pull: skip files the
+            # user modified locally so we don't flag them as "pull needed" when
+            # the local edit should win.
+            if stored_hash and _content_hash(local_content) != stored_hash:
+                continue
+            local_fm, _ = parse_frontmatter(local_content)
+            local_ts = (local_fm.get("last_updated") or local_fm.get("generated", ""))[:10]
+            if local_ts >= remote_ts[:10]:
+                continue  # local is current or newer
+        to_pull += 1
+    print(f"remote status: {to_pull} page(s) to pull")
+    return 0
+
+
+def cmd_push_pending(args) -> int:
+    """Push only local wiki pages and raw files that differ from the last sync
+    (modified locally or never synced). O(pending) not O(all) — fast catch-up
+    after a failed inline auto-push. No-op when Supabase not configured."""
+    url, key = _supabase_creds()
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return 0
+    state = _load_sync_state(args.project)
+    SKIP = {"index.md", "log.md", "INDEX.md", "LOG.md"}
+    pushed = 0
+    for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP:
+            continue
+        rel = f.relative_to(wiki).as_posix()
+        content = f.read_text(encoding="utf-8", errors="replace")
+        stored = state.get(rel)
+        if stored is not None and _content_hash(content) == stored:
+            continue  # already in sync
+        _supabase_upsert_page(args.project, rel, content)
+        pushed += 1
+    raw = raw_dir(args.project)
+    raw_pushed = 0
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
+            stored = state.get("raw/" + rel)
+            if stored is not None and _content_hash(content) == stored:
+                continue  # already in sync
+            _supabase_upsert_raw(args.project, rel, content)
+            raw_pushed += 1
+    print(f"push-pending: {pushed} page(s) pushed, {raw_pushed} raw file(s) pushed")
     return 0
 
 
@@ -611,6 +1198,28 @@ def main() -> int:
     rc.add_argument("--type", required=True, help="raw subdir: feedback | interviews | data | …")
     rc.add_argument("--hash", default="", help="content hash to check; omit to hash stdin instead")
     rc.set_defaults(func=cmd_raw_check)
+
+    sy = sub.add_parser("sync", help="push all local wiki pages to Supabase (bulk upsert)")
+    sy.set_defaults(func=cmd_sync)
+
+    pp = sub.add_parser("push-pending", help="push only modified/untracked wiki pages to Supabase (fast catch-up)")
+    pp.set_defaults(func=cmd_push_pending)
+
+    rs = sub.add_parser("remote-status", help="check how many Supabase pages are newer than local (metadata only)")
+    rs.set_defaults(func=cmd_remote_status)
+
+    pl = sub.add_parser("pull", help="fetch wiki pages and raw sources updated on Supabase to local")
+    pl.set_defaults(func=cmd_pull)
+
+    rpl = sub.add_parser("raw-pull", help="fetch raw sources from Supabase (wiki-only pull: use 'pull')")
+    rpl.set_defaults(func=cmd_raw_pull)
+
+    pf = sub.add_parser("push-file", help="push a single wiki file to Supabase (auto-called by nanopm_wiki_doc_log)")
+    pf.add_argument("--target", required=True, help="wiki-relative path (e.g. docs/retro-2026-07-02.md)")
+    pf.set_defaults(func=cmd_push_file)
+
+    st = sub.add_parser("status", help="show pages modified locally since the last Supabase sync")
+    st.set_defaults(func=cmd_status)
 
     si = sub.add_parser("search-index", help="build/rebuild the SQLite FTS5 search index")
     si.set_defaults(func=cmd_search_index)
