@@ -64,6 +64,7 @@ except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
     fcntl = None
 
 SUPABASE_PAGES_TABLE = "nanopm_wiki_pages"
+SUPABASE_RAW_TABLE   = "nanopm_raw_sources"
 
 
 def _supabase_creds(project: str) -> tuple[str | None, str | None]:
@@ -186,6 +187,46 @@ def _supabase_log_entry(project: str, op: str, title: str, day: str) -> None:
     except Exception:
         pass
 
+
+def _supabase_upsert_raw(project: str, rel_path: str, content: str) -> None:
+    """Upsert one raw source file to Supabase. Best-effort — never raises."""
+    url, key = _supabase_creds(project)
+    if not url or not key:
+        return
+    try:
+        project_slug = Path(project).resolve().name
+        parts = Path(rel_path).parts
+        raw_type = parts[0] if parts else ""
+        stem = Path(rel_path).name.split(".")[0]
+        raw_id = stem if len(stem) == 12 and all(c in "0123456789abcdef" for c in stem) else None
+        content_hash = _content_hash(content)
+        row = {
+            "project_slug": project_slug,
+            "type": raw_type,
+            "raw_id": raw_id,
+            "path": rel_path,
+            "content": content,
+            "content_hash": content_hash,
+            "file_size": len(content.encode("utf-8", errors="replace")),
+        }
+        req = urllib.request.Request(
+            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}",
+            data=_json.dumps(row).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        state = _load_sync_state(project)
+        state["raw/" + rel_path] = content_hash
+        _save_sync_state(project, state)
+    except Exception:
+        pass
+
 # Section grouping for the index, in display order. entities/<type> groups use the
 # dir name; overview and docs are their own groups.
 ENTITY_ORDER = ["personas", "competitors", "opportunities", "solutions", "objectives", "features", "people"]
@@ -217,6 +258,10 @@ def err(msg: str) -> int:
 
 def wiki_dir(project: str) -> Path:
     return Path(project) / ".nanopm" / "wiki"
+
+
+def raw_dir(project: str) -> Path:
+    return Path(project) / ".nanopm" / "raw"
 
 
 @contextlib.contextmanager
@@ -687,6 +732,17 @@ def cmd_sync(args) -> int:
         _supabase_upsert_page(args.project, rel, content)
         pushed += 1
     print(f"sync: pushed {pushed} page(s) to Supabase ({url.split('//')[1].split('.')[0]})")
+    raw = raw_dir(args.project)
+    raw_pushed = 0
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            content = f.read_text(encoding="utf-8", errors="replace")
+            _supabase_upsert_raw(args.project, rel, content)
+            raw_pushed += 1
+    print(f"sync: pushed {raw_pushed} raw source(s) to Supabase")
     return 0
 
 
@@ -743,6 +799,54 @@ def cmd_pull(args) -> int:
         print(f"pull: {pulled} page(s) updated, {skipped_edits} skipped (local edits detected — run 'sync' to push your changes first)")
     else:
         print(f"pull: {pulled} page(s) updated from Supabase")
+    cmd_raw_pull(args)
+    return 0
+
+
+def cmd_raw_pull(args) -> int:
+    """Fetch raw sources from Supabase and write them locally. Hand edits
+    detected via content hash are skipped. No-op when Supabase not configured."""
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        return 0
+    project_slug = Path(args.project).resolve().name
+    try:
+        endpoint = (
+            f"{url}/rest/v1/{SUPABASE_RAW_TABLE}"
+            f"?project_slug=eq.{project_slug}&select=path,content,content_hash"
+        )
+        req = urllib.request.Request(
+            endpoint,
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+        )
+        rows = _json.loads(urllib.request.urlopen(req, timeout=10).read())
+    except Exception:
+        return 0
+    raw = raw_dir(args.project)
+    state = _load_sync_state(args.project)
+    pulled = 0
+    skipped_edits = 0
+    for row in rows:
+        state_key = "raw/" + row["path"]
+        dest = raw / row["path"]
+        if dest.is_file():
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(state_key)
+            if stored_hash and _content_hash(local_content) != stored_hash:
+                skipped_edits += 1
+                continue
+            remote_hash = row.get("content_hash") or ""
+            if remote_hash and _content_hash(local_content) == remote_hash:
+                continue  # already in sync
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(row["content"], encoding="utf-8")
+        state[state_key] = _content_hash(row["content"])
+        pulled += 1
+    _save_sync_state(args.project, state)
+    if skipped_edits:
+        print(f"raw-pull: {pulled} file(s) updated, {skipped_edits} skipped (local edits — run 'sync' to push first)")
+    else:
+        print(f"raw-pull: {pulled} file(s) updated from Supabase")
     return 0
 
 
@@ -848,6 +952,26 @@ def cmd_status(args) -> int:
         print(f"  M {p}")
     for p in untracked:
         print(f"  ? {p}")
+    raw = raw_dir(args.project)
+    raw_modified, raw_clean, raw_untracked = [], [], []
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            content = f.read_text(encoding="utf-8", errors="replace")
+            stored = state.get("raw/" + rel)
+            if stored is None:
+                raw_untracked.append(rel)
+            elif _content_hash(content) == stored:
+                raw_clean.append(rel)
+            else:
+                raw_modified.append(rel)
+    print(f"raw sync status: {len(raw_clean)} in sync · {len(raw_modified)} modified locally · {len(raw_untracked)} never synced")
+    for p in raw_modified:
+        print(f"  M {p}")
+    for p in raw_untracked:
+        print(f"  ? {p}")
     return 0
 
 
@@ -883,8 +1007,11 @@ def main() -> int:
     sy = sub.add_parser("sync", help="push all local wiki pages to Supabase (bulk upsert)")
     sy.set_defaults(func=cmd_sync)
 
-    pl = sub.add_parser("pull", help="fetch wiki pages updated on Supabase to local wiki")
+    pl = sub.add_parser("pull", help="fetch wiki pages and raw sources updated on Supabase to local")
     pl.set_defaults(func=cmd_pull)
+
+    rpl = sub.add_parser("raw-pull", help="fetch raw sources from Supabase (wiki-only pull: use 'pull')")
+    rpl.set_defaults(func=cmd_raw_pull)
 
     pf = sub.add_parser("push-file", help="push a single wiki file to Supabase (auto-called by nanopm_wiki_doc_log)")
     pf.add_argument("--target", required=True, help="wiki-relative path (e.g. docs/retro-2026-07-02.md)")
