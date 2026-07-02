@@ -731,7 +731,11 @@ def cmd_sync(args) -> int:
         rel = f.relative_to(wiki).as_posix()
         _supabase_upsert_page(args.project, rel, content)
         pushed += 1
-    print(f"sync: pushed {pushed} page(s) to Supabase ({url.split('//')[1].split('.')[0]})")
+    try:
+        _slug_hint = url.split("//")[1].split(".")[0]
+    except (IndexError, AttributeError):
+        _slug_hint = "?"
+    print(f"sync: pushed {pushed} page(s) to Supabase ({_slug_hint})")
     raw = raw_dir(args.project)
     raw_pushed = 0
     if raw.is_dir():
@@ -792,8 +796,8 @@ def cmd_pull(args) -> int:
             if local_ts >= remote_ts:
                 continue  # local is current or newer (and unmodified since last sync)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(row["content"], encoding="utf-8")
-        state[row["path"]] = _content_hash(row["content"])
+        dest.write_text(row.get("content") or "", encoding="utf-8")
+        state[row["path"]] = _content_hash(row.get("content") or "")
         pulled += 1
     _save_sync_state(args.project, state)
     if pulled:
@@ -847,8 +851,8 @@ def cmd_raw_pull(args) -> int:
             if remote_hash and _content_hash(local_content) == remote_hash:
                 continue  # already in sync
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(row["content"], encoding="utf-8")
-        state[state_key] = _content_hash(row["content"])
+        dest.write_text(row.get("content") or "", encoding="utf-8")
+        state[state_key] = _content_hash(row.get("content") or "")
         pulled += 1
     _save_sync_state(args.project, state)
     if skipped_edits:

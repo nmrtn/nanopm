@@ -61,6 +61,7 @@ They can create it with:
 NANOPM_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
 NANOPM_SUPABASE_KEY=YOUR-ANON-KEY
 EOF
+chmod 600 ~/.nanopm/.env
 ```
 
 (They fill in the real values themselves — never paste them into chat.)
