@@ -972,15 +972,38 @@ def cmd_search(args) -> int:
     terms = [t for t in _re.findall(r'\w+', args.query) if len(t) > 2]
     fts_query = " ".join(terms) if terms else args.query
 
+    # The index stores types as directory names (plural: "opportunities",
+    # "personas", …) but skill files historically passed singular forms
+    # ("opportunity", "persona", …). Normalize at query time so both work.
+    _TYPE_ALIASES = {
+        "opportunity": "opportunities",
+        "persona": "personas",
+        "competitor": "competitors",
+        "solution": "solutions",
+        "objective": "objectives",
+        "feature": "features",
+        "person": "people",
+        "doc": "docs",
+    }
+    qtype = _TYPE_ALIASES.get(args.type, args.type) if args.type else args.type
+
     conn = sqlite3.connect(db)
     try:
-        if args.type:
+        if qtype:
             rows = conn.execute(
                 "SELECT slug, type, path, title, provenance, priority, summary "
                 "FROM wiki_fts WHERE wiki_fts MATCH ? AND type = ? "
                 "ORDER BY rank LIMIT ?",
-                (fts_query, args.type, args.limit),
+                (fts_query, qtype, args.limit),
             ).fetchall()
+            # FTS keyword miss but type is known — fall back to type-only scan
+            # so discovery queries (load all opportunities) never silently fail.
+            if not rows:
+                rows = conn.execute(
+                    "SELECT slug, type, path, title, provenance, priority, summary "
+                    "FROM wiki_fts WHERE type = ? LIMIT ?",
+                    (qtype, args.limit),
+                ).fetchall()
         else:
             rows = conn.execute(
                 "SELECT slug, type, path, title, provenance, priority, summary "
