@@ -53,12 +53,16 @@ final class SyncStatusMonitor: ObservableObject {
     func pushAndPull() async {
         guard !isSyncing, !lastProjectPath.isEmpty else { return }
         isSyncing = true
+        // Capture path before first suspension point — polling loop can mutate
+        // lastProjectPath while we're awaiting, causing post-sync checks to target
+        // the wrong project.
+        let projectPath = lastProjectPath
         let agent = ShellRunner.quote(NSHomeDirectory() + "/.nanopm/bin/nanopm-ingest-agent")
-        let proj  = ShellRunner.quote(lastProjectPath)
+        let proj  = ShellRunner.quote(projectPath)
         _ = try? await ShellRunner.runAsync("\(agent) --project \(proj) push-pending 2>/dev/null")
         _ = try? await ShellRunner.runAsync("\(agent) --project \(proj) pull 2>/dev/null")
         isSyncing = false
-        async let localCheck: () = check(projectPath: lastProjectPath)
+        async let localCheck: () = check(projectPath: projectPath)
         async let remoteCheck: () = checkRemote()
         _ = await (localCheck, remoteCheck)
     }

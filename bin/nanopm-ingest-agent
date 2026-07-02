@@ -69,7 +69,7 @@ SUPABASE_RAW_TABLE      = "nanopm_raw_sources"
 SUPABASE_PROJECTS_TABLE = "nanopm_projects"
 
 
-def _supabase_creds(project: str) -> tuple[str | None, str | None]:
+def _supabase_creds() -> tuple[str | None, str | None]:
     """Return (url, key) for Supabase.
     Resolution order: env vars → ~/.nanopm/.env file."""
     import os
@@ -103,7 +103,20 @@ def _supabase_creds(project: str) -> tuple[str | None, str | None]:
 def _sync_state_path(project: str) -> Path:
     state_dir = Path.home() / ".nanopm" / "sync-state"
     state_dir.mkdir(parents=True, exist_ok=True)
-    return state_dir / f"{Path(project).resolve().name}.json"
+    # Use full resolved path hash so two repos with the same directory name
+    # (e.g. ~/work/alpha and ~/clients/alpha) don't share the same state file.
+    full_path = str(Path(project).resolve())
+    key = hashlib.sha256(full_path.encode()).hexdigest()[:16]
+    slug = Path(project).resolve().name
+    new_path = state_dir / f"{slug}-{key}.json"
+    # One-time migration: move slug-only state file to the new slug+hash name.
+    old_path = state_dir / f"{slug}.json"
+    if old_path.is_file() and not new_path.is_file():
+        try:
+            old_path.rename(new_path)
+        except OSError:
+            pass
+    return new_path
 
 def _load_sync_state(project: str) -> dict:
     p = _sync_state_path(project)
@@ -138,7 +151,7 @@ def _supabase_ensure_project(project: str) -> None:
     so the sentinel is inert), so it never adds a per-page HTTP call on bulk sync or the
     per-write auto-push. Uses ignore-duplicates so an existing/edited registry row is
     never clobbered. Best-effort — never raises; the page/raw push already succeeded."""
-    url, key = _supabase_creds(project)
+    url, key = _supabase_creds()
     if not url or not key:
         return
     project_slug = Path(project).resolve().name
@@ -166,7 +179,7 @@ def _supabase_ensure_project(project: str) -> None:
 
 def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
     """Upsert one wiki page to Supabase. Best-effort — never raises."""
-    url, key = _supabase_creds(project)
+    url, key = _supabase_creds()
     if not url or not key:
         return
     _supabase_ensure_project(project)
@@ -210,7 +223,7 @@ def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
 
 def _supabase_log_entry(project: str, op: str, title: str, day: str) -> None:
     """Mirror a wiki log heartbeat to Supabase. Best-effort — never raises."""
-    url, key = _supabase_creds(project)
+    url, key = _supabase_creds()
     if not url or not key:
         return
     try:
@@ -233,7 +246,7 @@ def _supabase_log_entry(project: str, op: str, title: str, day: str) -> None:
 
 def _supabase_upsert_raw(project: str, rel_path: str, content: str) -> None:
     """Upsert one raw source file to Supabase. Best-effort — never raises."""
-    url, key = _supabase_creds(project)
+    url, key = _supabase_creds()
     if not url or not key:
         return
     _supabase_ensure_project(project)
@@ -759,7 +772,7 @@ def cmd_sync(args) -> int:
     wiki = wiki_dir(args.project)
     if not wiki.is_dir():
         return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         return err("Supabase not configured — set NANOPM_SUPABASE_URL and NANOPM_SUPABASE_KEY in ~/.nanopm/.env")
     # Derived files (regenerated on every reindex) must not be synced:
@@ -803,7 +816,7 @@ def cmd_pull(args) -> int:
     on conflict (last_updated comparison); local wins on tie. Hand edits detected
     via content hash are skipped rather than silently overwritten. Runs reindex
     after pulling new pages. No-op when Supabase is not configured."""
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         return 0  # not configured — silent no-op
     project_slug = Path(args.project).resolve().name
@@ -824,11 +837,13 @@ def cmd_pull(args) -> int:
     pulled = 0
     skipped_edits = 0
     for row in rows:
-        dest = wiki / row["path"]
         try:
+            dest = wiki / row["path"]
             dest.resolve().relative_to(wiki.resolve())
-        except ValueError:
-            continue  # skip — path escapes wiki dir
+        except (ValueError, TypeError):
+            continue  # skip — bad path or path escapes wiki dir
+        if not row.get("content"):
+            continue  # skip null/empty content — never write an empty file from a remote row
         if dest.is_file():
             local_content = dest.read_text(encoding="utf-8", errors="replace")
             stored_hash = state.get(row["path"])
@@ -844,7 +859,7 @@ def cmd_pull(args) -> int:
             if local_ts >= remote_ts:
                 continue  # local is current or newer (and unmodified since last sync)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(row.get("content") or "", encoding="utf-8")
+        dest.write_text(row["content"], encoding="utf-8")
         state[row["path"]] = _content_hash(row.get("content") or "")
         pulled += 1
     _save_sync_state(args.project, state)
@@ -862,7 +877,7 @@ def cmd_pull(args) -> int:
 def cmd_raw_pull(args) -> int:
     """Fetch raw sources from Supabase and write them locally. Hand edits
     detected via content hash are skipped. No-op when Supabase not configured."""
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         return 0
     project_slug = Path(args.project).resolve().name
@@ -883,12 +898,14 @@ def cmd_raw_pull(args) -> int:
     pulled = 0
     skipped_edits = 0
     for row in rows:
-        state_key = "raw/" + row["path"]
-        dest = raw / row["path"]
         try:
+            state_key = "raw/" + row["path"]
+            dest = raw / row["path"]
             dest.resolve().relative_to(raw.resolve())
-        except ValueError:
-            continue  # skip — path escapes raw dir
+        except (ValueError, TypeError):
+            continue  # skip — bad path or path escapes raw dir
+        if not row.get("content"):
+            continue  # skip null/empty content
         if dest.is_file():
             local_content = dest.read_text(encoding="utf-8", errors="replace")
             stored_hash = state.get(state_key)
@@ -899,8 +916,8 @@ def cmd_raw_pull(args) -> int:
             if remote_hash and _content_hash(local_content) == remote_hash:
                 continue  # already in sync
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(row.get("content") or "", encoding="utf-8")
-        state[state_key] = _content_hash(row.get("content") or "")
+        dest.write_text(row["content"], encoding="utf-8")
+        state[state_key] = _content_hash(row["content"])
         pulled += 1
     _save_sync_state(args.project, state)
     if skipped_edits:
@@ -914,7 +931,7 @@ def cmd_push_file(args) -> int:
     """Push a single existing wiki file to Supabase by its wiki-relative path.
     Called automatically by nanopm_wiki_doc_log after every skill write so doc
     pages reach Supabase without a manual 'sync' step."""
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         return 0  # not configured — silent no-op
     wiki = wiki_dir(args.project)
@@ -1042,7 +1059,7 @@ def cmd_remote_status(args) -> int:
     """Check how many Supabase pages are newer than local. Fetches only path +
     last_updated metadata (no content) — fast enough to run on every explicit
     refresh. Prints 'remote status: N page(s) to pull'. No-op if not configured."""
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         print("remote status: 0 page(s) to pull")
         return 0
@@ -1091,7 +1108,7 @@ def cmd_push_pending(args) -> int:
     """Push only local wiki pages and raw files that differ from the last sync
     (modified locally or never synced). O(pending) not O(all) — fast catch-up
     after a failed inline auto-push. No-op when Supabase not configured."""
-    url, key = _supabase_creds(args.project)
+    url, key = _supabase_creds()
     if not url or not key:
         return 0  # not configured — silent no-op
     wiki = wiki_dir(args.project)

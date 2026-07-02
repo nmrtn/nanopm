@@ -2657,13 +2657,23 @@ nanopm_preamble() {
   # content always has a wiki to land in (wiki-canonical writes, R4). Idempotent:
   # creates nothing that already exists, never overwrites a page or the schema.
   nanopm_wiki_ensure
-  # Push any locally modified wiki pages to Supabase before reading context,
-  # so a skill on this machine always starts from the latest local state. Fast:
-  # only pushes files whose hash differs from the last sync. No-op when Supabase
-  # is not configured or no files are pending.
+  # Push any locally modified wiki pages to Supabase before reading context.
+  # Throttled to once per 10 minutes (same cadence as pull) so a large wiki
+  # doesn't add file-hashing I/O to every rapid-fire skill run.
   local _ingest="$HOME/.nanopm/bin/nanopm-ingest-agent"
+  local _push_marker="$HOME/.nanopm/projects/${_SLUG:-unknown}/.supabase-last-push"
+  local _push_now _push_last
+  _push_now=$(date +%s)
   if [ -x "$_ingest" ] && nanopm_supabase_configured 2>/dev/null; then
-    "$_ingest" --project "$(_nanopm_project_root)" push-pending >/dev/null 2>&1 || true
+    _push_skip=0
+    if [ -f "$_push_marker" ]; then
+      _push_last=$(cat "$_push_marker" 2>/dev/null || echo 0)
+      [ $(( _push_now - _push_last )) -lt 600 ] && _push_skip=1
+    fi
+    if [ "$_push_skip" = "0" ]; then
+      "$_ingest" --project "$(_nanopm_project_root)" push-pending >/dev/null 2>&1 || true
+      echo "$_push_now" > "$_push_marker" 2>/dev/null || true
+    fi
   fi
   # Pull any wiki pages updated on Supabase since the last pull. Throttled
   # to once per 10 minutes. No-op when Supabase is not configured.
