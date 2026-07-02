@@ -316,7 +316,7 @@ struct ProjectView: View {
         }
         .onChange(of: runManager.hasActiveRuns) { _, hasActive in
             guard !hasActive else { return }
-            Task { await syncMonitor.check(projectPath: project.path) }
+            Task { await syncMonitor.push() }
         }
     }
 

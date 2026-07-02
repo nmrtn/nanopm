@@ -1031,6 +1031,46 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_push_pending(args) -> int:
+    """Push only local wiki pages and raw files that differ from the last sync
+    (modified locally or never synced). O(pending) not O(all) — fast catch-up
+    after a failed inline auto-push. No-op when Supabase not configured."""
+    url, key = _supabase_creds(args.project)
+    if not url or not key:
+        return 0  # not configured — silent no-op
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return 0
+    state = _load_sync_state(args.project)
+    SKIP = {"index.md", "log.md", "INDEX.md", "LOG.md"}
+    pushed = 0
+    for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP:
+            continue
+        rel = f.relative_to(wiki).as_posix()
+        content = f.read_text(encoding="utf-8", errors="replace")
+        stored = state.get(rel)
+        if stored is not None and _content_hash(content) == stored:
+            continue  # already in sync
+        _supabase_upsert_page(args.project, rel, content)
+        pushed += 1
+    raw = raw_dir(args.project)
+    raw_pushed = 0
+    if raw.is_dir():
+        for f in sorted(raw.rglob("*")):
+            if f.is_dir():
+                continue
+            rel = f.relative_to(raw).as_posix()
+            content = f.read_text(encoding="utf-8", errors="replace")
+            stored = state.get("raw/" + rel)
+            if stored is not None and _content_hash(content) == stored:
+                continue  # already in sync
+            _supabase_upsert_raw(args.project, rel, content)
+            raw_pushed += 1
+    print(f"push-pending: {pushed} page(s) pushed, {raw_pushed} raw file(s) pushed")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
@@ -1062,6 +1102,9 @@ def main() -> int:
 
     sy = sub.add_parser("sync", help="push all local wiki pages to Supabase (bulk upsert)")
     sy.set_defaults(func=cmd_sync)
+
+    pp = sub.add_parser("push-pending", help="push only modified/untracked wiki pages to Supabase (fast catch-up)")
+    pp.set_defaults(func=cmd_push_pending)
 
     pl = sub.add_parser("pull", help="fetch wiki pages and raw sources updated on Supabase to local")
     pl.set_defaults(func=cmd_pull)
