@@ -295,7 +295,10 @@ struct ProjectView: View {
             Spacer()
 
             Button {
-                Task { await store.refresh() }
+                Task {
+                    await store.refresh()
+                    await syncMonitor.check(projectPath: project.path)
+                }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
@@ -308,7 +311,7 @@ struct ProjectView: View {
         .task(id: project.path) {
             await syncMonitor.check(projectPath: project.path)
         }
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
             Task { await syncMonitor.check(projectPath: project.path) }
         }
         .onChange(of: runManager.hasActiveRuns) { _, hasActive in
