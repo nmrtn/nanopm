@@ -24,7 +24,9 @@ Subcommands:
   apply            write a wiki page directly (locked, single-writer-per-file)
   raw-check        is a raw source already archived? (content-hash dedup — see below)
   sync             push all local wiki pages to Supabase (bulk upsert — requires config)
-  pull             fetch wiki pages updated on Supabase to local wiki (remote wins)
+  pull             fetch wiki pages updated on Supabase to local wiki (newest wins; local hand edits protected)
+  push-file        push a single wiki file to Supabase (called by nanopm_wiki_doc_log)
+  status           show which local pages were modified since the last Supabase sync (offline)
   search-index     build/rebuild the SQLite FTS5 search index (.nanopm/search.db)
   search           query the search index (auto-rebuilds if stale)
 
@@ -86,6 +88,39 @@ def _supabase_creds(project: str) -> tuple[str | None, str | None]:
     return url or None, key or None
 
 
+# ---------------------------------------------------------------------------
+# Sync-state: content-hash tracking for push/pull conflict detection
+# ---------------------------------------------------------------------------
+# After every successful push or pull we record sha256(content) per wiki path
+# in ~/.nanopm/sync-state/{project_slug}.json.  On the next pull we can tell
+# whether the local file was hand-edited since the last sync (hash diverged)
+# rather than relying solely on the `last_updated` frontmatter timestamp, which
+# is only bumped by skills — not by hand edits.
+
+def _sync_state_path(project: str) -> Path:
+    state_dir = Path.home() / ".nanopm" / "sync-state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    return state_dir / f"{Path(project).resolve().name}.json"
+
+def _load_sync_state(project: str) -> dict:
+    p = _sync_state_path(project)
+    if p.is_file():
+        try:
+            return _json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def _save_sync_state(project: str, state: dict) -> None:
+    try:
+        _sync_state_path(project).write_text(_json.dumps(state, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+def _content_hash(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
+
+
 def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
     """Upsert one wiki page to Supabase. Best-effort — never raises."""
     url, key = _supabase_creds(project)
@@ -121,6 +156,10 @@ def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5)
+        # Push succeeded — record hash as the new sync baseline
+        state = _load_sync_state(project)
+        state[rel_path] = _content_hash(content)
+        _save_sync_state(project, state)
     except Exception:
         pass  # best-effort: local write already succeeded
 
@@ -652,9 +691,10 @@ def cmd_sync(args) -> int:
 
 
 def cmd_pull(args) -> int:
-    """Fetch wiki pages updated on Supabase and write them locally. Remote wins
-    on conflict (last_updated comparison). Runs reindex after pulling new pages.
-    No-op when Supabase is not configured."""
+    """Fetch wiki pages updated on Supabase and write them locally. Newest wins
+    on conflict (last_updated comparison); local wins on tie. Hand edits detected
+    via content hash are skipped rather than silently overwritten. Runs reindex
+    after pulling new pages. No-op when Supabase is not configured."""
     url, key = _supabase_creds(args.project)
     if not url or not key:
         return 0  # not configured — silent no-op
@@ -672,22 +712,37 @@ def cmd_pull(args) -> int:
     except Exception:
         return 0  # best-effort
     wiki = wiki_dir(args.project)
+    state = _load_sync_state(args.project)
     pulled = 0
+    skipped_edits = 0
     for row in rows:
         dest = wiki / row["path"]
         if dest.is_file():
-            local_fm, _ = parse_frontmatter(dest.read_text(encoding="utf-8", errors="replace"))
+            local_content = dest.read_text(encoding="utf-8", errors="replace")
+            stored_hash = state.get(row["path"])
+            if stored_hash and _content_hash(local_content) != stored_hash:
+                # Local file was modified since the last sync (hand edit or out-of-band
+                # write that didn't go through a skill). Protect it rather than silently
+                # overwriting — the user can run 'sync' to push their version first.
+                skipped_edits += 1
+                continue
+            local_fm, _ = parse_frontmatter(local_content)
             local_ts = local_fm.get("last_updated") or local_fm.get("generated", "")
             remote_ts = row.get("last_updated") or ""
             if local_ts >= remote_ts:
-                continue  # local is current or newer
+                continue  # local is current or newer (and unmodified since last sync)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(row["content"], encoding="utf-8")
+        state[row["path"]] = _content_hash(row["content"])
         pulled += 1
+    _save_sync_state(args.project, state)
     if pulled:
         import argparse as _ap
         cmd_reindex(_ap.Namespace(project=args.project, dry_run=False))
-    print(f"pull: {pulled} page(s) updated from Supabase")
+    if skipped_edits:
+        print(f"pull: {pulled} page(s) updated, {skipped_edits} skipped (local edits detected — run 'sync' to push your changes first)")
+    else:
+        print(f"pull: {pulled} page(s) updated from Supabase")
     return 0
 
 
@@ -767,6 +822,35 @@ def cmd_search(args) -> int:
     return 0
 
 
+def cmd_status(args) -> int:
+    """Show which local wiki pages have been modified since the last Supabase sync.
+    Reads the local sync-state hash file — does not contact Supabase."""
+    wiki = wiki_dir(args.project)
+    if not wiki.is_dir():
+        return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
+    state = _load_sync_state(args.project)
+    SKIP = {"index.md", "log.md"} | HOUSEKEEPING
+    modified, clean, untracked = [], [], []
+    for f in sorted(wiki.rglob("*.md")):
+        if f.name in SKIP:
+            continue
+        rel = str(f.relative_to(wiki))
+        content = f.read_text(encoding="utf-8", errors="replace")
+        stored = state.get(rel)
+        if stored is None:
+            untracked.append(rel)
+        elif _content_hash(content) == stored:
+            clean.append(rel)
+        else:
+            modified.append(rel)
+    print(f"sync status: {len(clean)} in sync · {len(modified)} modified locally · {len(untracked)} never synced")
+    for p in modified:
+        print(f"  M {p}")
+    for p in untracked:
+        print(f"  ? {p}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--project", default=".", help="project root containing .nanopm/ (default: .)")
@@ -805,6 +889,9 @@ def main() -> int:
     pf = sub.add_parser("push-file", help="push a single wiki file to Supabase (auto-called by nanopm_wiki_doc_log)")
     pf.add_argument("--target", required=True, help="wiki-relative path (e.g. docs/retro-2026-07-02.md)")
     pf.set_defaults(func=cmd_push_file)
+
+    st = sub.add_parser("status", help="show pages modified locally since the last Supabase sync")
+    st.set_defaults(func=cmd_status)
 
     si = sub.add_parser("search-index", help="build/rebuild the SQLite FTS5 search index")
     si.set_defaults(func=cmd_search_index)
