@@ -55,6 +55,7 @@ import json as _json
 import sqlite3
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -787,7 +788,10 @@ def cmd_sync(args) -> int:
             if f.is_dir():
                 continue
             rel = f.relative_to(raw).as_posix()
-            content = f.read_text(encoding="utf-8", errors="replace")
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
             _supabase_upsert_raw(args.project, rel, content)
             raw_pushed += 1
     print(f"sync: pushed {raw_pushed} raw source(s) to Supabase")
@@ -806,7 +810,7 @@ def cmd_pull(args) -> int:
     try:
         endpoint = (
             f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
-            f"?project_slug=eq.{project_slug}&select=path,content,last_updated"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,content,last_updated"
         )
         req = urllib.request.Request(
             endpoint,
@@ -828,15 +832,15 @@ def cmd_pull(args) -> int:
         if dest.is_file():
             local_content = dest.read_text(encoding="utf-8", errors="replace")
             stored_hash = state.get(row["path"])
-            if stored_hash and _content_hash(local_content) != stored_hash:
-                # Local file was modified since the last sync (hand edit or out-of-band
-                # write that didn't go through a skill). Protect it rather than silently
+            if stored_hash is None or _content_hash(local_content) != stored_hash:
+                # Local file was never synced (stored_hash is None) or was modified
+                # since the last sync (hash mismatch). Protect it rather than silently
                 # overwriting — the user can run 'sync' to push their version first.
                 skipped_edits += 1
                 continue
             local_fm, _ = parse_frontmatter(local_content)
-            local_ts = local_fm.get("last_updated") or local_fm.get("generated", "")
-            remote_ts = row.get("last_updated") or ""
+            local_ts = (local_fm.get("last_updated") or local_fm.get("generated", ""))[:10]
+            remote_ts = (row.get("last_updated") or "")[:10]
             if local_ts >= remote_ts:
                 continue  # local is current or newer (and unmodified since last sync)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -865,7 +869,7 @@ def cmd_raw_pull(args) -> int:
     try:
         endpoint = (
             f"{url}/rest/v1/{SUPABASE_RAW_TABLE}"
-            f"?project_slug=eq.{project_slug}&select=path,content,content_hash"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,content,content_hash"
         )
         req = urllib.request.Request(
             endpoint,
@@ -1015,7 +1019,10 @@ def cmd_status(args) -> int:
             if f.is_dir():
                 continue
             rel = f.relative_to(raw).as_posix()
-            content = f.read_text(encoding="utf-8", errors="replace")
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
             stored = state.get("raw/" + rel)
             if stored is None:
                 raw_untracked.append(rel)
@@ -1043,7 +1050,7 @@ def cmd_remote_status(args) -> int:
     try:
         endpoint = (
             f"{url}/rest/v1/{SUPABASE_PAGES_TABLE}"
-            f"?project_slug=eq.{project_slug}&select=path,last_updated"
+            f"?project_slug=eq.{urllib.parse.quote(project_slug, safe='')}&select=path,last_updated"
         )
         req = urllib.request.Request(
             endpoint,
@@ -1072,8 +1079,8 @@ def cmd_remote_status(args) -> int:
             if stored_hash and _content_hash(local_content) != stored_hash:
                 continue
             local_fm, _ = parse_frontmatter(local_content)
-            local_ts = local_fm.get("last_updated") or local_fm.get("generated", "")
-            if local_ts >= remote_ts:
+            local_ts = (local_fm.get("last_updated") or local_fm.get("generated", ""))[:10]
+            if local_ts >= remote_ts[:10]:
                 continue  # local is current or newer
         to_pull += 1
     print(f"remote status: {to_pull} page(s) to pull")
@@ -1110,7 +1117,10 @@ def cmd_push_pending(args) -> int:
             if f.is_dir():
                 continue
             rel = f.relative_to(raw).as_posix()
-            content = f.read_text(encoding="utf-8", errors="replace")
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue  # skip binary or unreadable files
             stored = state.get("raw/" + rel)
             if stored is not None and _content_hash(content) == stored:
                 continue  # already in sync
