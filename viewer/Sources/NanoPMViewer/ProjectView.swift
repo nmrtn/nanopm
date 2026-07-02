@@ -291,16 +291,6 @@ struct ProjectView: View {
             .help("What NanoPM remembers about this project — every skill run leaves a trace here")
 
             SyncStatusBadge(monitor: syncMonitor)
-                .task(id: project.path) {
-                    await syncMonitor.check(projectPath: project.path)
-                }
-                .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
-                    Task { await syncMonitor.check(projectPath: project.path) }
-                }
-                .onChange(of: runManager.hasActiveRuns) { _, hasActive in
-                    guard !hasActive else { return }
-                    Task { await syncMonitor.check(projectPath: project.path) }
-                }
 
             Spacer()
 
@@ -315,6 +305,16 @@ struct ProjectView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
+        .task(id: project.path) {
+            await syncMonitor.check(projectPath: project.path)
+        }
+        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+            Task { await syncMonitor.check(projectPath: project.path) }
+        }
+        .onChange(of: runManager.hasActiveRuns) { _, hasActive in
+            guard !hasActive else { return }
+            Task { await syncMonitor.check(projectPath: project.path) }
+        }
     }
 
     /// The amber "needs you" pill shown in the footer while runs wait on input.
