@@ -295,10 +295,8 @@ struct ProjectView: View {
             Spacer()
 
             Button {
-                Task {
-                    await store.refresh()
-                    await syncMonitor.check(projectPath: project.path)
-                }
+                Task { await store.refresh() }
+                Task { await syncMonitor.check(projectPath: project.path) }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
