@@ -761,11 +761,12 @@ def cmd_sync(args) -> int:
     url, key = _supabase_creds(args.project)
     if not url or not key:
         return err("Supabase not configured — set NANOPM_SUPABASE_URL and NANOPM_SUPABASE_KEY in ~/.nanopm/.env")
-    # Derived files (gitignored, regenerated on every reindex) must not be synced:
+    # Derived files (regenerated on every reindex) must not be synced:
     # - index.md / log.md at the wiki root
-    # - INDEX.md / LOG.md / SCHEMA.md inside every entities/<type>/ dir
-    # These are already in HOUSEKEEPING for entity dirs; extend the same rule to root.
-    SKIP_ON_SYNC = {"index.md", "log.md"} | HOUSEKEEPING
+    # - INDEX.md / LOG.md inside every entities/<type>/ dir
+    # SCHEMA.md is user-editable and written once at bootstrap — it is NOT derived
+    # and must be pushed/pulled like any other wiki file.
+    SKIP_ON_SYNC = {"index.md", "log.md", "INDEX.md", "LOG.md"}
     pushed = 0
     for f in sorted(wiki.rglob("*.md")):
         if f.name in SKIP_ON_SYNC:
@@ -988,7 +989,7 @@ def cmd_status(args) -> int:
     if not wiki.is_dir():
         return err(f"{wiki} not found — run nanopm-migrate-to-wiki first")
     state = _load_sync_state(args.project)
-    SKIP = {"index.md", "log.md"} | HOUSEKEEPING
+    SKIP = {"index.md", "log.md", "INDEX.md", "LOG.md"}  # SCHEMA.md is user-editable — track it
     modified, clean, untracked = [], [], []
     for f in sorted(wiki.rglob("*.md")):
         if f.name in SKIP:
