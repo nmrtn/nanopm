@@ -307,10 +307,12 @@ struct ProjectView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
         .task(id: project.path) {
-            await syncMonitor.check(projectPath: project.path)
-        }
-        .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
-            Task { await syncMonitor.check(projectPath: project.path) }
+            // Polling loop — stable across view re-evaluations, cancelled only
+            // when project changes or the view leaves the hierarchy.
+            while !Task.isCancelled {
+                await syncMonitor.check(projectPath: project.path)
+                try? await Task.sleep(for: .seconds(15))
+            }
         }
         .onChange(of: runManager.hasActiveRuns) { _, hasActive in
             guard !hasActive else { return }
