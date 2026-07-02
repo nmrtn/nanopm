@@ -32,6 +32,7 @@ struct ProjectView: View {
     @State private var weeklyUpdatesExpanded = false
     @State private var standupsExpanded = false
     @State private var rawFeedbackExpanded = false
+    @State private var isRefreshing = false
     /// Archived interview/feedback sources, loaded off disk (any extension — the
     /// scanner only keeps md/json/jsonl). Drives the "Raw feedback" nav entry.
     @State private var rawSources: [RawSource] = []
@@ -295,14 +296,25 @@ struct ProjectView: View {
             Spacer()
 
             Button {
-                Task { await store.refresh() }
-                Task { await syncMonitor.check(projectPath: project.path) }
+                guard !isRefreshing else { return }
+                Task {
+                    isRefreshing = true
+                    async let refresh: () = store.refresh()
+                    async let push: () = syncMonitor.push()
+                    _ = await (refresh, push)
+                    isRefreshing = false
+                }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                if isRefreshing || syncMonitor.isSyncing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                }
             }
             .buttonStyle(ActionButtonStyle())
             .fixedSize()
-            .help("Re-read .nanopm/ from disk")
+            .disabled(isRefreshing || syncMonitor.isSyncing)
+            .help(isRefreshing || syncMonitor.isSyncing ? "Refreshing and syncing…" : "Re-read .nanopm/ and push pending changes")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
