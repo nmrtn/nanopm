@@ -22,10 +22,9 @@ source ~/.nanopm/lib/nanopm.sh 2>/dev/null || \
   source .nanopm/lib/nanopm.sh 2>/dev/null || \
   { echo "ERROR: nanopm not installed. Run: curl -fsSL https://raw.githubusercontent.com/nmrtn/nanopm/main/setup | bash"; exit 1; }
 nanopm_preamble
-SUPABASE_URL=$(nanopm_config_get supabase_url 2>/dev/null || echo "")
-SUPABASE_KEY=$(nanopm_config_get supabase_key 2>/dev/null || echo "")
-if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
-  echo "SUPABASE_STATUS: already configured ($SUPABASE_URL)"
+if nanopm_supabase_configured 2>/dev/null; then
+  _SB_URL=$(grep '^NANOPM_SUPABASE_URL=' "$HOME/.nanopm/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+  echo "SUPABASE_STATUS: already configured (${_SB_URL:-set via env var})"
 else
   echo "SUPABASE_STATUS: not configured"
 fi

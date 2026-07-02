@@ -773,6 +773,10 @@ def cmd_pull(args) -> int:
     skipped_edits = 0
     for row in rows:
         dest = wiki / row["path"]
+        try:
+            dest.resolve().relative_to(wiki.resolve())
+        except ValueError:
+            continue  # skip — path escapes wiki dir
         if dest.is_file():
             local_content = dest.read_text(encoding="utf-8", errors="replace")
             stored_hash = state.get(row["path"])
@@ -829,6 +833,10 @@ def cmd_raw_pull(args) -> int:
     for row in rows:
         state_key = "raw/" + row["path"]
         dest = raw / row["path"]
+        try:
+            dest.resolve().relative_to(raw.resolve())
+        except ValueError:
+            continue  # skip — path escapes raw dir
         if dest.is_file():
             local_content = dest.read_text(encoding="utf-8", errors="replace")
             stored_hash = state.get(state_key)
