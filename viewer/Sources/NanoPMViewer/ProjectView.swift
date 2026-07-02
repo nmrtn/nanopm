@@ -21,6 +21,7 @@ struct ProjectView: View {
     let onSwitchProject: () -> Void
 
     @StateObject private var store: ArtifactStore
+    @StateObject private var syncMonitor = SyncStatusMonitor()
     @EnvironmentObject private var runManager: RunManager
     @Environment(\.openWindow) private var openWindow
     @State private var selection: String?
@@ -288,6 +289,18 @@ struct ProjectView: View {
             }
             .buttonStyle(.borderless)
             .help("What NanoPM remembers about this project — every skill run leaves a trace here")
+
+            SyncStatusBadge(monitor: syncMonitor)
+                .task(id: project.path) {
+                    await syncMonitor.check(projectPath: project.path)
+                }
+                .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+                    Task { await syncMonitor.check(projectPath: project.path) }
+                }
+                .onChange(of: runManager.hasActiveRuns) { _, hasActive in
+                    guard !hasActive else { return }
+                    Task { await syncMonitor.check(projectPath: project.path) }
+                }
 
             Spacer()
 
