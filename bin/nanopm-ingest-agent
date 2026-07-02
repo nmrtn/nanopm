@@ -63,8 +63,9 @@ try:
 except ImportError:  # pragma: no cover — non-POSIX: degrade to no locking
     fcntl = None
 
-SUPABASE_PAGES_TABLE = "nanopm_wiki_pages"
-SUPABASE_RAW_TABLE   = "nanopm_raw_sources"
+SUPABASE_PAGES_TABLE    = "nanopm_wiki_pages"
+SUPABASE_RAW_TABLE      = "nanopm_raw_sources"
+SUPABASE_PROJECTS_TABLE = "nanopm_projects"
 
 
 def _supabase_creds(project: str) -> tuple[str | None, str | None]:
@@ -122,11 +123,52 @@ def _content_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
 
 
+def _supabase_ensure_project(project: str) -> None:
+    """Register this project in the nanopm_projects table (the multi-tenant registry).
+
+    The wiki/raw tables are already multi-tenant — every row carries project_slug and
+    a shared Supabase instance holds many projects (no DB-per-project). But nothing
+    enumerates *which* projects live there; nanopm_projects is that registry (one row
+    per project), so a shared DB is self-describing and a teammate's viewer can list
+    projects instead of having to know each slug.
+
+    Fires ONE insert per project: guarded by a '__project_registered__' sentinel in the
+    per-project sync-state (keys are looked up by exact path elsewhere, never iterated,
+    so the sentinel is inert), so it never adds a per-page HTTP call on bulk sync or the
+    per-write auto-push. Uses ignore-duplicates so an existing/edited registry row is
+    never clobbered. Best-effort — never raises; the page/raw push already succeeded."""
+    url, key = _supabase_creds(project)
+    if not url or not key:
+        return
+    project_slug = Path(project).resolve().name
+    state = _load_sync_state(project)
+    if state.get("__project_registered__") == project_slug:
+        return
+    try:
+        req = urllib.request.Request(
+            f"{url}/rest/v1/{SUPABASE_PROJECTS_TABLE}",
+            data=_json.dumps({"slug": project_slug, "name": project_slug}).encode(),
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=ignore-duplicates",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=5)
+        state["__project_registered__"] = project_slug
+        _save_sync_state(project, state)
+    except Exception:
+        pass  # registry is best-effort; the page/raw sync already succeeded
+
+
 def _supabase_upsert_page(project: str, rel_path: str, content: str) -> None:
     """Upsert one wiki page to Supabase. Best-effort — never raises."""
     url, key = _supabase_creds(project)
     if not url or not key:
         return
+    _supabase_ensure_project(project)
     try:
         fm, body = parse_frontmatter(content)
         project_slug = Path(project).resolve().name
@@ -193,6 +235,7 @@ def _supabase_upsert_raw(project: str, rel_path: str, content: str) -> None:
     url, key = _supabase_creds(project)
     if not url or not key:
         return
+    _supabase_ensure_project(project)
     try:
         project_slug = Path(project).resolve().name
         parts = Path(rel_path).parts
