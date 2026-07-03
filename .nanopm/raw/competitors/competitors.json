@@ -178,6 +178,32 @@
       },
       "last_checked": null,
       "urls_verified": false
+    },
+    {
+      "name": "Aha!",
+      "slug": "aha",
+      "homepage": "https://www.aha.io/",
+      "pages": {
+        "changelog": "https://support.aha.io/release-notes/2026-release-notes",
+        "api_docs": null,
+        "pricing": "https://www.aha.io/roadmaps/pricing",
+        "other": "https://www.aha.io/"
+      },
+      "urls_verified": true,
+      "last_checked": "2026-07-02T11:55:01Z"
+    },
+    {
+      "name": "DevFlow",
+      "slug": "devflow",
+      "homepage": "https://devflow.co/",
+      "pages": {
+        "changelog": null,
+        "api_docs": null,
+        "pricing": "https://devflow.co/pricing",
+        "other": "https://devflow.co/"
+      },
+      "urls_verified": true,
+      "last_checked": "2026-07-03T15:43:55Z"
     }
   ]
 }

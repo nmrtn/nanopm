@@ -56,3 +56,14 @@
 {"skill":"pm-prd","outputs":{"feature":"Feedback ingestion and learning loop","file":".nanopm/wiki/docs/prds/feedback-ingestion-and-learning-loop.md","status":"DRAFT","next":"pm-breakdown"},"ts":"2026-06-30T14:17:00Z","slug":"nanopm"}
 {"skill":"pm-breakdown","outputs":{"feature":"feedback-ingestion-and-learning-loop","task_count":"7","target":"github","handoff_path":"github://nmrtn/nanopm"},"ts":"2026-06-30T15:24:14Z","slug":"nanopm"}
 {"skill":"pm-solutions","outputs":{"opportunity":"pipeline-sequence-opaque","solution_count":"26","shortlisted":"cull-the-roster-before-adding-guidance,entry-banner-in-every-skill-preamble,readme-phase-first-reframe-plus-how-to-use-guide","index":".nanopm/wiki/entities/solutions/INDEX.md","next":"pm-prd"},"ts":"2026-07-01T20:39:32Z","slug":"nanopm"}
+{"skill":"pm-competitors-intel","ts":"2026-07-02T11:56:31Z","outputs":{"report":".nanopm/raw/competitors/INTEL-2026-07-02.md","added_this_run":"Aha!","mode":"diff","changes_found":"0 (baseline for Aha!)"},"slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"37","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-02T13:03:07Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"37","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-02T15:06:43Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"37","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T09:40:44Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"38","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T09:57:15Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"39","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T10:05:41Z","slug":"nanopm"}
+{"skill":"pm-weekly-update","outputs":{"date":"2026-07-03","audience":"public-changelog","status":"drafted"},"ts":"2026-07-03T10:16:17Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"39","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T10:17:28Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"40","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T10:25:08Z","slug":"nanopm"}
+{"skill":"pm-opportunities","outputs":{"opportunity_count":"41","index":".nanopm/wiki/entities/opportunities/INDEX.md","next":"pm-roadmap"},"ts":"2026-07-03T14:56:15Z","slug":"nanopm"}
+{"skill":"pm-competitors-intel","ts":"2026-07-03T15:45:07Z","outputs":{"report":".nanopm/raw/competitors/INTEL-2026-07-02.md","added_this_run":"DevFlow","mode":"diff","changes_found":"0 (baseline)","note":"DevFlow = closest competitor on concept"},"slug":"nanopm"}

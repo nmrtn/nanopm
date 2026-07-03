@@ -7,7 +7,7 @@ sources: [competitors.json, intel snapshots]
 ---
 
 # Competitive Landscape
-Last updated by /pm-competitors-intel (analyze mode) on 2026-06-15
+Last updated by /pm-competitors-intel on 2026-07-02 (DevFlow + Aha! added; prior analyze-mode pass 2026-06-15)
 Project: nanopm
 
 ---
@@ -89,6 +89,33 @@ Project: nanopm
 **Latest notable change:** *Baseline captured. Diff available on next run.* 9 plugins / 68 skills / 42 commands across discovery → strategy → execution → shipping; supports Claude Code, Claude Cowork, Codex CLI, Cursor, Gemini CLI, OpenCode, Kiro (7 hosts); marketplace-native install (`claude plugin install`, GitHub marketplace); MIT; includes shipped-code quality skills (`/security-audit-static`, `/performance-audit-static`, `/derive-tests`).
 
 **Strategic note:** The most direct head-to-head on the "PM skill pack for AI coding agents" wedge — same intent, ~3× the surface area, 7 hosts vs nanopm's 3, marketplace-native distribution. The differentiator nanopm needs to defend: (a) pipeline-compounding typed JSONL state vs plugin-style independent skills, (b) a hard refusal-based adversarial gate vs a callable `/red-team-prd` command, and (c) the Define-phase artifacts (vision/business-model/org/personas) absent from PM Skills' surface.
+
+---
+
+## DevFlow
+
+**Website:** https://devflow.co/
+**Monitored pages:**
+- Homepage: https://devflow.co/ *(fetched 2026-07-02)*
+- Pricing: https://devflow.co/pricing *(fetched 2026-07-02)*
+
+**Latest notable change:** Baseline capture (first run). *"An AI product team, in one workspace"* — autonomous PM/architect/coder/tester agents with shared context + memory, spec→code→test, integrations (GitHub/Linear/Jira/Notion/Figma/Slack/Sentry), French/sovereign infra, on claude-sonnet-4. Ticket-based done-for-you pricing: $2,500–$10,000/mo for 5–30 tickets. *("An AI product team, in one workspace" — devflow.co, 2026-07-02)*
+
+**Strategic note:** The closest competitor on concept — same thesis as nanopm (AI PM + shared memory + spec→build). The moat is the *model*, not the idea: DevFlow is expensive managed delivery where its agents do the work and the buyer steps out; nanopm is a local, host-neutral pack the builder runs in their own agent, keeping control. Top competitor to watch — the threat trigger is a cheaper self-serve tier.
+
+---
+
+## Aha!
+
+**Website:** https://www.aha.io/
+**Monitored pages:**
+- Homepage: https://www.aha.io/ *(fetched 2026-07-02)*
+- Pricing: https://www.aha.io/roadmaps/pricing *(fetched 2026-07-02)*
+- Release notes: https://support.aha.io/release-notes/2026-release-notes *(verified 2026-07-02 — dated release entries; this is the diff surface)*
+
+**Latest notable change:** Baseline capture (first run). Incumbent enterprise PM suite positioning itself "discovery to delivery with AI" — Elle assistant + Aha! Builder ("prototypes and business applications with AI") layered onto the full suite. Pricing $74.59–$149/user/mo. *("The World's #1 Product Management Software" — aha.io homepage, 2026-07-02)*
+
+**Strategic note:** The enterprise incumbent nanopm is explicitly *not* trying to be — opposite on every axis nanopm competes on (host-neutrality: locked GUI SaaS vs terminal/agent-native; pricing: $75–149/user/seat vs local/near-free; user: enterprise PM teams vs solo AI-coding builder "Theo"). Value as a tracked competitor is as the market *ceiling* nanopm approaches from below: watch whether its AI push stays GUI-bound (safe) or goes agent/CLI-native (the signal it's coming down-market into nanopm's lane).
 
 ---
 
