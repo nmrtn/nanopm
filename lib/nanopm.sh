@@ -1245,7 +1245,7 @@ for uncertain agent-linked matches).
 ```markdown
 ---
 id: <kebab-slug>
-title: "<the user problem, in plain language>"
+title: "<short, outcome-framed noun phrase — e.g. 'Know which feature to ship next', not 'No prioritization clarity'>"
 theme: <one L1 theme>
 status: draft                 # draft | defining | review | ready-for-solutions
 priority: medium              # high | medium | low  (judgment)
@@ -2377,7 +2377,8 @@ Be STRICT and conservative — this is the explicit project default:
 - Same THEME is NOT a duplicate. Two problems under one theme are still two
   problems.
 - Default to \`new\` unless the candidate is NEAR-IDENTICAL to an existing one:
-  the same job-to-be-done, the same pain, the same user — not merely adjacent.
+  the same underlying user need or desired outcome, the same user — not merely adjacent.
+  Framing differences (pain vs. outcome language) do NOT make two entries distinct.
 - Reserve confidence >= 8 for near-identical matches. Use a LOWER confidence when
   the relation is only loose or thematic.
 - A wrong merge silently destroys a distinct user problem. When in doubt, prefer

@@ -126,7 +126,8 @@ _TIER_LINEAR=$(nanopm_has_connector linear)
 _TIER_NOTION=$(nanopm_has_connector notion)
 _TIER_DOVETAIL=$(nanopm_has_connector dovetail)
 _TIER_GITHUB=$(nanopm_has_connector github)
-echo "LINEAR: $_TIER_LINEAR | NOTION: $_TIER_NOTION | DOVETAIL: $_TIER_DOVETAIL | GITHUB: $_TIER_GITHUB"
+_tier_label() { case "$1" in 1) echo "mcp";; 2) echo "api";; 3) echo "browser";; 3-discover) echo "browser(unconfigured)";; *) echo "none";; esac; }
+echo "LINEAR: $(_tier_label $_TIER_LINEAR) | NOTION: $(_tier_label $_TIER_NOTION) | DOVETAIL: $(_tier_label $_TIER_DOVETAIL) | GITHUB: $(_tier_label $_TIER_GITHUB)"
 ```
 
 **For each connector with tier 1:**
