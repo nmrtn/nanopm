@@ -4,6 +4,7 @@ type: opportunity
 title: "Every loop iteration starts cold — I re-explain who the company is instead of building on a current baseline"
 theme: Context upkeep
 status: archived
+archived_reason: "Implemented via context-briefs feature (v0.11.0–v0.21.0) — CONTEXT-SUMMARY.md auto-regenerates after every Define skill and is loaded into every subsequent run as a shared baseline."
 priority: high
 provenance: evidence-backed
 evidence_sources: ["raw/feedback/2ff04b9bcb81.md"]

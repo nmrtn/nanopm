@@ -3,6 +3,7 @@ id: plan-artifacts-buried-and-unshareable
 title: "The plan is buried in a local folder — users can't see it, navigate it, or share it"
 theme: Adoption & form factor
 status: archived
+archived_reason: "Implemented via three converging ships: macOS viewer (navigable GUI), wiki git tracking (team-shareable via git), and Supabase cloud sync (feat/supabase-cloud-sync, merged 2026-07-03)."
 priority: high
 provenance: nano-hypothesis
 evidence_sources: []

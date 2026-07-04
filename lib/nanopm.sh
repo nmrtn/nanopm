@@ -1248,6 +1248,7 @@ id: <kebab-slug>
 title: "<short, outcome-framed noun phrase — e.g. 'Know which feature to ship next', not 'No prioritization clarity'>"
 theme: <one L1 theme>
 status: draft                 # draft | defining | review | ready-for-solutions | archived
+archived_reason: ""           # if archived: "Implemented via X (vY.Y)" or "Dropped — reason"
 priority: medium              # high | medium | low  (judgment)
 provenance: nano-hypothesis   # nano-hypothesis | user-stated | evidence-backed
 evidence_sources: []          # e.g. [user-verbatim, behavioral-data, market-signal]

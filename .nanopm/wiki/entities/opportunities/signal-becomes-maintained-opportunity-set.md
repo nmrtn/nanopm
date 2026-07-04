@@ -4,6 +4,7 @@ type: opportunity
 title: "Raw signal never reliably becomes a maintained, deduped list of user problems"
 theme: Opportunity intelligence
 status: archived
+archived_reason: "Implemented via pm-opportunities (v0.15.0) + pm-add-feedback (v0.26.0) — a dedup agent, a ranked INDEX, and a feedback-to-opportunity ingestion pipeline now maintain the set automatically."
 priority: high
 provenance: nano-hypothesis
 evidence_sources: []

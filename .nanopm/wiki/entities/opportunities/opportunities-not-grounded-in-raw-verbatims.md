@@ -3,6 +3,7 @@ id: opportunities-not-grounded-in-raw-verbatims
 title: "Opportunities aren't grounded in raw verbatims — you can't pull up the actual feedback behind a problem"
 theme: Trust & evidence
 status: archived
+archived_reason: "Implemented via pm-add-feedback (v0.26.0) — raw feedback is content-addressed and archived under .nanopm/raw/feedback/, and the ingestion pipeline links each opportunity back to its verbatim sources."
 priority: high
 provenance: evidence-backed
 evidence_sources: [user-verbatim, external-prospect]

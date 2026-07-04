@@ -12,8 +12,9 @@ struct Opportunity: Identifiable {
     let theme: String
     let priority: String      // high | medium | low | ""
     let provenance: String    // nano-hypothesis | user-stated | evidence-backed | ""
-    let status: String        // draft | defining | review | ready-for-solutions | ""
+    let status: String        // draft | defining | review | ready-for-solutions | archived | ""
     let summary: String       // first line of "## 1. Problem summary"
+    let archivedReason: String // why it was archived (archived_reason frontmatter)
 
     var id: String { artifact.id }
     var lastUpdated: Date { artifact.modifiedAt }
@@ -60,7 +61,8 @@ enum OpportunityParser {
             priority: (fm["priority"] ?? "").lowercased(),
             provenance: (fm["provenance"] ?? "").lowercased(),
             status: (fm["status"] ?? "").lowercased(),
-            summary: summary
+            summary: summary,
+            archivedReason: fm["archived_reason"] ?? ""
         )
     }
 
@@ -136,6 +138,7 @@ struct OpportunitiesOverviewView: View {
     @State private var selection: Opportunity.ID?
     @State private var claudeAvailable: Bool?
     @State private var showAddSheet = false
+    @State private var showArchived = false
     @State private var sortOrder = [
         KeyPathComparator(\Opportunity.priorityOrder, order: .forward),
         KeyPathComparator(\Opportunity.theme, order: .forward),
@@ -160,6 +163,8 @@ struct OpportunitiesOverviewView: View {
         return out.sorted()
     }
 
+    private var archivedCount: Int { loaded ? opportunities.filter { $0.status == "archived" }.count : 0 }
+
     private var oppArtifacts: [Artifact] {
         store.artifacts.filter {
             OpportunityFiles.isOpportunityFile($0.relativePath) && !OpportunityFiles.isReserved($0.relativePath)
@@ -167,9 +172,9 @@ struct OpportunitiesOverviewView: View {
     }
 
     private var rows: [Opportunity] {
-        let base = loaded ? opportunities.filter { $0.status != "archived" } : oppArtifacts.map {
+        let base = loaded ? opportunities.filter { showArchived || $0.status != "archived" } : oppArtifacts.map {
             Opportunity(artifact: $0, title: prettyDocName($0.relativePath),
-                        theme: "…", priority: "", provenance: "", status: "", summary: "")
+                        theme: "…", priority: "", provenance: "", status: "", summary: "", archivedReason: "")
         }
         return base.sorted(using: sortOrder)
     }
@@ -242,10 +247,21 @@ struct OpportunitiesOverviewView: View {
                         Image(systemName: "lightbulb").foregroundStyle(Color.npCoral)
                     }
                     .font(.npDisplay(30))
-                    Text(rows.count == 1 ? "1 user problem, ranked. Click a row to open it."
-                                        : "\(rows.count) user problems, ranked. Click a row to open one.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(rows.count == 1 ? "1 user problem, ranked. Click a row to open it."
+                                            : "\(rows.count) user problems, ranked. Click a row to open one.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        if archivedCount > 0 {
+                            Button(action: { withAnimation(.easeInOut(duration: 0.15)) { showArchived.toggle() } }) {
+                                Label(showArchived ? "Hide archived" : "Show \(archivedCount) archived",
+                                      systemImage: showArchived ? "archivebox.fill" : "archivebox")
+                                    .font(.caption)
+                                    .foregroundStyle(showArchived ? Color.npAmber : Color.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 Spacer(minLength: 0)
                 launchControl
@@ -268,17 +284,24 @@ struct OpportunitiesOverviewView: View {
                         let oSlug = ((o.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
                         let solCount = solutionCounts[oSlug] ?? 0
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(o.title).font(.headline).foregroundStyle(Color.npInk).lineLimit(2)
+                            Text(o.title).font(.headline)
+                                .foregroundStyle(o.status == "archived" ? Color.secondary : Color.npInk)
+                                .lineLimit(2)
                             if !o.summary.isEmpty {
                                 Text(o.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
-                            if solCount > 0 {
+                            if o.status == "archived" {
+                                Label("archived", systemImage: "archivebox")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.secondary)
+                            } else if solCount > 0 {
                                 Text(solCount == 1 ? "1 solution ⊳" : "\(solCount) solutions ⊳")
                                     .font(.caption2.weight(.medium))
                                     .foregroundStyle(Color.npOlive)
                             }
                         }
                         .padding(.vertical, 4)
+                        .opacity(o.status == "archived" ? 0.6 : 1)
                     }
                     TableColumn("Theme", value: \.theme) { o in
                         Text(o.theme).font(.callout).foregroundStyle(Color.npInk)
@@ -446,10 +469,30 @@ struct OpportunityDetailView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(opportunity?.title ?? prettyDocName(artifact.relativePath))
                             .font(.npDisplay(30))
-                            .foregroundStyle(Color.npInk)
+                            .foregroundStyle(opportunity?.status == "archived" ? Color.secondary : Color.npInk)
                             .textSelection(.enabled)
                         Spacer()
-                        solutionsControl
+                        if opportunity?.status != "archived" { solutionsControl }
+                    }
+
+                    if let o = opportunity, o.status == "archived" {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "archivebox.fill")
+                                .foregroundStyle(Color.secondary)
+                                .padding(.top, 1)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Archived — no longer an open problem")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.secondary)
+                                Text(o.archivedReason.isEmpty ? "This opportunity was resolved." : o.archivedReason)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
                     }
 
                     if let o = opportunity {

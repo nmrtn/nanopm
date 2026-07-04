@@ -3,6 +3,7 @@ id: memory-wiki-health-is-invisible-without-running-th
 title: "Memory wiki health is invisible without running the lint agent by hand"
 theme: Trust & evidence
 status: archived
+archived_reason: "Implemented via Karpathy memory engine (v0.22.0) — a LINT_JUDGMENT_DUE flag now appears at the top of every skill preamble when lint is overdue, so health is visible without manually running the lint agent."
 priority: medium
 provenance: user-stated
 evidence_sources: []

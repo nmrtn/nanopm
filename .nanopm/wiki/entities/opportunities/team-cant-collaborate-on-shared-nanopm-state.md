@@ -3,6 +3,7 @@ id: team-cant-collaborate-on-shared-nanopm-state
 title: "Co-founders / teams can't collaborate on the same nanopm state — it's local per-machine"
 theme: Adoption & form factor
 status: archived
+archived_reason: "Implemented via Supabase cloud sync (feat/supabase-cloud-sync, merged 2026-07-03) — push/pull/status sync layer lets any machine read and write the shared wiki state."
 priority: medium
 provenance: user-stated
 evidence_sources: [user-verbatim]
