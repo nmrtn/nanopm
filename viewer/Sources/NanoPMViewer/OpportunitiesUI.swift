@@ -242,8 +242,8 @@ struct OpportunitiesOverviewView: View {
                         Image(systemName: "lightbulb").foregroundStyle(Color.npCoral)
                     }
                     .font(.npDisplay(30))
-                    Text(oppArtifacts.count == 1 ? "1 user problem, ranked. Click a row to open it."
-                                                 : "\(oppArtifacts.count) user problems, ranked. Click a row to open one.")
+                    Text(rows.count == 1 ? "1 user problem, ranked. Click a row to open it."
+                                        : "\(rows.count) user problems, ranked. Click a row to open one.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
