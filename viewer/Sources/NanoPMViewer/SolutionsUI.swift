@@ -14,10 +14,11 @@ struct Solution: Identifiable {
     let lens: String          // eng | design | business | ""
     let appetite: String      // small-bet | big-bet | ""
     let impact: String        // high | med | low | ""
-    let status: String        // proposed | shortlisted | chosen | speccing | ""
+    let status: String        // proposed | shortlisted | chosen | speccing | archived | ""
     let summary: String       // first line of the pitch / problem section
     let riskiestAssumption: String   // first prose line under "## Riskiest assumption"
     let cheapestTest: String         // first prose line under "## Cheapest test"
+    let archivedReason: String       // why it was archived (archived_reason frontmatter)
 
     var id: String { artifact.id }
     var lastUpdated: Date { artifact.modifiedAt }
@@ -82,7 +83,8 @@ enum SolutionParser {
             status: (fm["status"] ?? "").lowercased(),
             summary: summary,
             riskiestAssumption: riskiest,
-            cheapestTest: cheapest
+            cheapestTest: cheapest,
+            archivedReason: fm["archived_reason"] ?? ""
         )
     }
 
@@ -169,11 +171,14 @@ struct SolutionsOverviewView: View {
     @ObservedObject var store: ArtifactStore
     let onOpen: (String) -> Void
 
+    @EnvironmentObject private var runManager: RunManager
     @State private var solutions: [Solution] = []
     @State private var loaded = false
     @State private var selection: Solution.ID?
     @State private var statusFilter: String = "all"
     @State private var lensFilter: String = "all"
+    @State private var showArchived = false
+    @State private var archivingSolution: Solution?
     @State private var sortOrder = [
         KeyPathComparator(\Solution.statusOrder, order: .forward),
         KeyPathComparator(\Solution.impactOrder, order: .forward),
@@ -184,6 +189,9 @@ struct SolutionsOverviewView: View {
             SolutionFiles.isSolutionFile($0.relativePath) && !SolutionFiles.isReserved($0.relativePath)
         }
     }
+
+    private var archiveDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-archive" } }
+    private var archivedCount: Int { loaded ? solutions.filter { $0.status == "archived" }.count : 0 }
 
     /// Live status values present in the loaded set, for the status filter.
     private var statusOptions: [String] {
@@ -208,10 +216,10 @@ struct SolutionsOverviewView: View {
     }
 
     private var rows: [Solution] {
-        let base = loaded ? solutions : solutionArtifacts.map {
+        let base = loaded ? solutions.filter { showArchived || $0.status != "archived" } : solutionArtifacts.map {
             Solution(artifact: $0, title: prettyDocName($0.relativePath),
                      opportunity: "", lens: "", appetite: "", impact: "", status: "", summary: "",
-                     riskiestAssumption: "", cheapestTest: "")
+                     riskiestAssumption: "", cheapestTest: "", archivedReason: "")
         }
         return base
             .filter { statusFilter == "all" || $0.status == statusFilter }
@@ -228,10 +236,21 @@ struct SolutionsOverviewView: View {
                     Image(systemName: "lightbulb.max").foregroundStyle(Color.npCoral)
                 }
                 .font(.npDisplay(30))
-                Text(solutionArtifacts.count == 1 ? "1 candidate solution. Click a row to open it."
-                                                  : "\(solutionArtifacts.count) candidate solutions across your opportunities. Click a row to open one.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(rows.count == 1 ? "1 candidate solution. Click a row to open it."
+                                        : "\(rows.count) candidate solutions across your opportunities. Click a row to open one.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                    if archivedCount > 0 {
+                        Button(action: { withAnimation(.easeInOut(duration: 0.15)) { showArchived.toggle() } }) {
+                            Label(showArchived ? "Hide archived" : "Show \(archivedCount) archived",
+                                  systemImage: showArchived ? "archivebox.fill" : "archivebox")
+                                .font(.caption)
+                                .foregroundStyle(showArchived ? Color.npAmber : Color.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
             .padding(.horizontal, 28)
             .padding(.top, 28)
@@ -249,13 +268,27 @@ struct SolutionsOverviewView: View {
                 filterBar
                 Table(rows, selection: $selection, sortOrder: $sortOrder) {
                     TableColumn("Solution", value: \.title) { s in
+                        let sSlug = ((s.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+                        let isArchiving = runManager.latestRun(for: "archive:\(sSlug)", in: store.project.path)?.status == .running
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(s.title).font(.headline).foregroundStyle(Color.npInk).lineLimit(2)
+                            Text(s.title).font(.headline)
+                                .foregroundStyle(s.status == "archived" ? Color.secondary : Color.npInk)
+                                .lineLimit(2)
                             if !s.summary.isEmpty {
                                 Text(s.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
+                            if isArchiving {
+                                Label("archiving…", systemImage: "archivebox")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.npAmber)
+                            } else if s.status == "archived" {
+                                Label("archived", systemImage: "archivebox")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.secondary)
+                            }
                         }
                         .padding(.vertical, 4)
+                        .opacity(s.status == "archived" ? 0.6 : 1)
                     }
                     TableColumn("Opportunity", value: \.opportunity) { s in
                         if let parentID = parentOpportunityArtifactID(forSlug: s.opportunity, in: store.artifacts) {
@@ -295,11 +328,30 @@ struct SolutionsOverviewView: View {
                     }.width(74)
                 }
                 .onChange(of: selection) { _, id in if let id { onOpen(id) } }
+                .contextMenu(forSelectionType: Solution.ID.self) { ids in
+                    if let id = ids.first,
+                       let s = (loaded ? solutions : rows).first(where: { $0.id == id }),
+                       s.status != "archived" {
+                        Button {
+                            archivingSolution = s
+                        } label: {
+                            Label("Archive…", systemImage: "archivebox")
+                        }
+                    }
+                }
             }
         }
         .background(Color.npPaper)
         .task(id: "\(solutionArtifacts.map(\.id).joined())#\(store.generation)") {
             await load()
+        }
+        .sheet(item: $archivingSolution) { s in
+            EntityArchiveSheet(
+                entityTitle: s.title,
+                kinds: [("implemented", "Implemented"), ("dropped", "Dropped"), ("absorbed", "Absorbed")]
+            ) { kind, detail in
+                launchArchive(s, kind: kind, detail: detail)
+            }
         }
     }
 
@@ -338,6 +390,16 @@ struct SolutionsOverviewView: View {
         .padding(.bottom, 10)
     }
 
+    private func launchArchive(_ s: Solution, kind: String, detail: String) {
+        guard let doc = archiveDoc else { return }
+        let slug = ((s.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+        let context = detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? kind : "\(kind): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))"
+        runManager.launch(doc, in: store.project.path,
+                          userContext: context,
+                          argument: "solution/\(slug)",
+                          trackingKey: "archive:\(slug)")
+    }
+
     private func load() async {
         var result: [Solution] = []
         for art in solutionArtifacts {
@@ -372,6 +434,26 @@ struct SolutionDetailView: View {
                         .font(.npDisplay(30))
                         .foregroundStyle(Color.npInk)
                         .textSelection(.enabled)
+
+                    if let s = solution, s.status == "archived" {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "archivebox.fill")
+                                .foregroundStyle(Color.secondary)
+                                .padding(.top, 1)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Archived — no longer an active candidate")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.secondary)
+                                Text(s.archivedReason.isEmpty ? "This solution was resolved." : s.archivedReason)
+                                    .font(.caption)
+                                    .foregroundStyle(Color.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+                    }
 
                     if let s = solution {
                         // Back-link to the parent opportunity — the other half of the

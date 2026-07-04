@@ -1343,7 +1343,8 @@ id: <kebab-slug>
 type: solution
 title: "<the proposed solution, in plain language>"
 opportunity: <one parent opportunity slug>   # EXACTLY one — this is the tree edge
-status: proposed              # proposed | shortlisted | chosen | speccing
+status: proposed              # proposed | shortlisted | chosen | speccing | archived
+archived_reason: ""           # if archived: "Implemented via X (vY.Y)" or "Dropped — reason"
 lens: eng                     # eng | design | business  (the voice that proposed it)
 appetite: small-bet           # small-bet | big-bet  (Shape Up constraint, not an estimate)
 impact: medium                # high | medium | low  (qualitative; no numeric score)
@@ -2398,6 +2399,28 @@ target: <existing slug, or leave blank for new>
 confidence: <integer 0-10>
 rationale: <one line — name the matched slug, or say why it is new>
 EOF
+}
+
+nanopm_archive_entity() {
+  # nanopm_archive_entity <type> <slug> <reason>
+  # Rewrites status: archived + archived_reason in-place in the entity file.
+  local type="$1" slug="$2" reason="$3"
+  local dir=".nanopm/wiki/entities/${type}s"
+  local file="$dir/$slug.md"
+  [ -f "$file" ] || { echo "nanopm: file not found: $file" >&2; return 1; }
+  NANOPM_FILE="$file" NANOPM_REASON="$reason" python3 - <<'PY'
+import os, re
+path = os.environ["NANOPM_FILE"]
+reason = os.environ["NANOPM_REASON"]
+content = open(path, encoding="utf-8").read()
+content = re.sub(r'^status:.*$', 'status: archived', content, flags=re.M)
+if re.search(r'^archived_reason:', content, re.M):
+    content = re.sub(r'^archived_reason:.*$', f'archived_reason: "{reason}"', content, flags=re.M)
+else:
+    content = re.sub(r'^(status: archived)$', f'status: archived\narchived_reason: "{reason}"', content, flags=re.M)
+open(path, 'w', encoding="utf-8").write(content)
+print(f"nanopm: archived {path}")
+PY
 }
 
 nanopm_opportunities_reindex() {

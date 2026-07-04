@@ -139,6 +139,7 @@ struct OpportunitiesOverviewView: View {
     @State private var claudeAvailable: Bool?
     @State private var showAddSheet = false
     @State private var showArchived = false
+    @State private var archivingOpportunity: Opportunity?
     @State private var sortOrder = [
         KeyPathComparator(\Opportunity.priorityOrder, order: .forward),
         KeyPathComparator(\Opportunity.theme, order: .forward),
@@ -147,6 +148,7 @@ struct OpportunitiesOverviewView: View {
     /// The catalog skill that owns this page, so the Run menu reuses the same
     /// launch machinery (RunManager + headless `claude`) as every other skill.
     private var oppDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-opportunities" } }
+    private var archiveDoc: SkillDoc? { SkillCatalog.all.first { $0.skillCommand == "/pm-archive" } }
 
     /// No `SCHEMA.md` means the DB isn't bootstrapped yet — the menu collapses to
     /// a single Bootstrap action (you can't add to / generate into a DB that
@@ -237,6 +239,16 @@ struct OpportunitiesOverviewView: View {
         runManager.launch(doc, in: store.project.path, userContext: context)
     }
 
+    private func launchArchive(_ o: Opportunity, kind: String, detail: String) {
+        guard let doc = archiveDoc else { return }
+        let slug = ((o.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
+        let context = detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? kind : "\(kind): \(detail.trimmingCharacters(in: .whitespacesAndNewlines))"
+        runManager.launch(doc, in: store.project.path,
+                          userContext: context,
+                          argument: "opportunity/\(slug)",
+                          trackingKey: "archive:\(slug)")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
@@ -283,6 +295,7 @@ struct OpportunitiesOverviewView: View {
                     TableColumn("Opportunity", value: \.title) { o in
                         let oSlug = ((o.artifact.relativePath as NSString).lastPathComponent as NSString).deletingPathExtension
                         let solCount = solutionCounts[oSlug] ?? 0
+                        let isArchiving = runManager.latestRun(for: "archive:\(oSlug)", in: store.project.path)?.status == .running
                         VStack(alignment: .leading, spacing: 2) {
                             Text(o.title).font(.headline)
                                 .foregroundStyle(o.status == "archived" ? Color.secondary : Color.npInk)
@@ -290,7 +303,11 @@ struct OpportunitiesOverviewView: View {
                             if !o.summary.isEmpty {
                                 Text(o.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
-                            if o.status == "archived" {
+                            if isArchiving {
+                                Label("archiving…", systemImage: "archivebox")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(Color.npAmber)
+                            } else if o.status == "archived" {
                                 Label("archived", systemImage: "archivebox")
                                     .font(.caption2.weight(.medium))
                                     .foregroundStyle(Color.secondary)
@@ -321,6 +338,17 @@ struct OpportunitiesOverviewView: View {
                     }.width(74)
                 }
                 .onChange(of: selection) { _, id in if let id { onOpen(id) } }
+                .contextMenu(forSelectionType: Opportunity.ID.self) { ids in
+                    if let id = ids.first,
+                       let o = (loaded ? opportunities : rows).first(where: { $0.id == id }),
+                       o.status != "archived" {
+                        Button {
+                            archivingOpportunity = o
+                        } label: {
+                            Label("Archive…", systemImage: "archivebox")
+                        }
+                    }
+                }
             }
         }
         .background(Color.npPaper)
@@ -331,6 +359,14 @@ struct OpportunitiesOverviewView: View {
         .sheet(isPresented: $showAddSheet) {
             OpportunityAddSheet(projectName: store.project.name) { text in
                 launch("add: \(text)")
+            }
+        }
+        .sheet(item: $archivingOpportunity) { o in
+            EntityArchiveSheet(
+                entityTitle: o.title,
+                kinds: [("implemented", "Implemented"), ("dropped", "Dropped"), ("absorbed", "Absorbed")]
+            ) { kind, detail in
+                launchArchive(o, kind: kind, detail: detail)
             }
         }
     }
@@ -673,5 +709,77 @@ struct OpportunityAddSheet: View {
         .padding(16)
         .frame(width: 420)
         .onAppear { focused = true }
+    }
+}
+
+// MARK: - Archive sheet
+
+/// A generic archive sheet: pick a reason kind (e.g. Implemented / Dropped / Absorbed),
+/// optionally add detail, then the skill rephrases it into a polished archived_reason sentence.
+/// Used by opportunities, solutions, and other archivable entity types.
+struct EntityArchiveSheet: View {
+    let entityTitle: String
+    /// (kindValue, kindLabel) pairs shown in the picker.
+    let kinds: [(String, String)]
+    let onArchive: (String, String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedKind: String
+    @State private var detail = ""
+
+    init(entityTitle: String, kinds: [(String, String)], onArchive: @escaping (String, String) -> Void) {
+        self.entityTitle = entityTitle
+        self.kinds = kinds
+        self.onArchive = onArchive
+        _selectedKind = State(initialValue: kinds.first?.0 ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Archive this?")
+                .font(.headline)
+            Text(entityTitle)
+                .font(.callout)
+                .foregroundStyle(Color.npInk)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Reason").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Picker("Reason", selection: $selectedKind) {
+                    ForEach(kinds, id: \.0) { kind in
+                        Text(kind.1).tag(kind.0)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Optional detail").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                TextField("e.g. shipped via Supabase sync PR, merged 2026-07-03", text: $detail, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            Text("The agent will rephrase your input into a specific, contextual sentence — your exact words are never stored.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Archive") {
+                    onArchive(selectedKind, detail)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(width: 400)
     }
 }

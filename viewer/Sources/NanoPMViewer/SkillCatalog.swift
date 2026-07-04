@@ -303,5 +303,15 @@ enum SkillCatalog {
             headlessArgs: nil,
             phase: .daily, output: .file("CHALLENGES.md")
         ),
+
+        // MARK: Utility (not surfaced in phase overviews — looked up by skillCommand)
+        SkillDoc(
+            title: "Archive",
+            blurb: "Archive one entity (opportunity, solution, objective, competitor, or persona) with a polished, contextual reason sentence.",
+            icon: "archivebox",
+            skillCommand: "/pm-archive",
+            headlessArgs: nil,
+            phase: .daily, output: .handoff("Writes archived status + reason to the entity frontmatter; no separate .nanopm file is produced.")
+        ),
     ]
 }

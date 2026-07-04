@@ -43,6 +43,7 @@
     "./pm-brainstorm",
     "./pm-opportunities",
     "./pm-solutions",
-    "./pm-setup-cloud"
+    "./pm-setup-cloud",
+    "./pm-archive"
   ]
 }
