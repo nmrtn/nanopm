@@ -1247,7 +1247,7 @@ for uncertain agent-linked matches).
 id: <kebab-slug>
 title: "<short, outcome-framed noun phrase — e.g. 'Know which feature to ship next', not 'No prioritization clarity'>"
 theme: <one L1 theme>
-status: draft                 # draft | defining | review | ready-for-solutions
+status: draft                 # draft | defining | review | ready-for-solutions | archived
 priority: medium              # high | medium | low  (judgment)
 provenance: nano-hypothesis   # nano-hypothesis | user-stated | evidence-backed
 evidence_sources: []          # e.g. [user-verbatim, behavioral-data, market-signal]
@@ -2459,6 +2459,7 @@ def parse(path):
         "provenance": fm.get("provenance") or "nano-hypothesis",
         "last_updated": fm.get("last_updated") or "",
         "summary": summary,
+        "status": (fm.get("status") or "draft").lower(),
     }
 
 opps = []
@@ -2466,7 +2467,10 @@ for p in glob.glob(os.path.join(d, "*.md")):
     if os.path.basename(p) in skip:
         continue
     try:
-        opps.append(parse(p))
+        o = parse(p)
+        if o["status"] == "archived":
+            continue
+        opps.append(o)
     except Exception as e:
         print("nanopm: skipped unparseable %s (%s)" % (os.path.basename(p), e), file=sys.stderr)
 

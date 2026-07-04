@@ -84,7 +84,7 @@ func opportunityProvenanceTint(_ v: String) -> Color {
     switch v { case "evidence-backed": return .npOlive; case "user-stated": return .npAmber; case "nano-hypothesis": return .secondary; default: return .secondary }
 }
 func opportunityStatusTint(_ v: String) -> Color {
-    switch v { case "ready-for-solutions": return .npOlive; case "review": return .npCoral; case "defining": return .npAmber; default: return .secondary }
+    switch v { case "ready-for-solutions": return .npOlive; case "review": return .npCoral; case "defining": return .npAmber; case "archived": return .secondary; default: return .secondary }
 }
 
 /// Colored capsule for an opportunity attribute (priority / provenance / status).
@@ -167,7 +167,7 @@ struct OpportunitiesOverviewView: View {
     }
 
     private var rows: [Opportunity] {
-        let base = loaded ? opportunities : oppArtifacts.map {
+        let base = loaded ? opportunities.filter { $0.status != "archived" } : oppArtifacts.map {
             Opportunity(artifact: $0, title: prettyDocName($0.relativePath),
                         theme: "…", priority: "", provenance: "", status: "", summary: "")
         }

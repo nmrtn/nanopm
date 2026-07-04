@@ -2,7 +2,7 @@
 id: plan-artifacts-buried-and-unshareable
 title: "The plan is buried in a local folder — users can't see it, navigate it, or share it"
 theme: Adoption & form factor
-status: draft
+status: archived
 priority: high
 provenance: nano-hypothesis
 evidence_sources: []

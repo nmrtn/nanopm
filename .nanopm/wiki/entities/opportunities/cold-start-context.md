@@ -3,7 +3,7 @@ id: cold-start-context
 type: opportunity
 title: "Every loop iteration starts cold — I re-explain who the company is instead of building on a current baseline"
 theme: Context upkeep
-status: draft
+status: archived
 priority: high
 provenance: evidence-backed
 evidence_sources: ["raw/feedback/2ff04b9bcb81.md"]

@@ -2,7 +2,7 @@
 id: memory-wiki-health-is-invisible-without-running-th
 title: "Memory wiki health is invisible without running the lint agent by hand"
 theme: Trust & evidence
-status: draft
+status: archived
 priority: medium
 provenance: user-stated
 evidence_sources: []

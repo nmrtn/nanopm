@@ -2,7 +2,7 @@
 id: opportunities-not-grounded-in-raw-verbatims
 title: "Opportunities aren't grounded in raw verbatims — you can't pull up the actual feedback behind a problem"
 theme: Trust & evidence
-status: defining
+status: archived
 priority: high
 provenance: evidence-backed
 evidence_sources: [user-verbatim, external-prospect]

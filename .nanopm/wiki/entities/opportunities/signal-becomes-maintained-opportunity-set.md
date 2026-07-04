@@ -3,7 +3,7 @@ id: signal-becomes-maintained-opportunity-set
 type: opportunity
 title: "Raw signal never reliably becomes a maintained, deduped list of user problems"
 theme: Opportunity intelligence
-status: draft
+status: archived
 priority: high
 provenance: nano-hypothesis
 evidence_sources: []
