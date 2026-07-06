@@ -8,6 +8,7 @@ priority: high
 provenance: user-stated
 evidence_sources: []
 linked_objectives: []
+related_to: [no-single-mechanism-prioritizes-across-all-work-ty, roadmap-doesnt-orchestrate-into-living-plan]
 last_updated: 2026-07-03
 ---
 

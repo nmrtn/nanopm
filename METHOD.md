@@ -231,16 +231,31 @@ itself:
 
 **Doctrine ahead of code — assumed, being built:**
 
-- Tasks, bugs, and chores as first-class typed work (today they exit via handoff and
-  never return).
-- RANK: the single cross-type prioritizer and the Next List it emits.
-- The roadmap as a rendered output with problem/objective labels at two altitudes
-  (today it's a generated document without entity-level links).
-- The tick: today every stage is invoked by hand; nothing triggers, polls, or
-  re-ranks on its own.
-- LEARN backpropagation: auto status transitions on ship, KR progress readback,
-  falsification-deadline watching.
+Each gap below is not a note-to-self — it is a ranked opportunity already sitting in
+nanopm's own database, surfaced by the loop's own discovery process before this
+document named it. The slug is the receipt.
 
-The gap is not hidden and not accidental: the loop's own discovery process surfaced
-each missing brick as a ranked opportunity in its own database before this document
-named them. That is the method working — on itself, first.
+- **Tasks, bugs, and chores as first-class typed work** — today they exit via handoff
+  and never return. → `pipeline-scoped-for-epics-not-micro-tasks` (its one *chosen*
+  solution is a peer `task` entity type).
+- **RANK — the single cross-type prioritizer and the Next List it emits.**
+  → `no-single-mechanism-prioritizes-across-all-work-ty`, supported by
+  `prioritize-opportunities-by-strategic-impact`.
+- **The roadmap as a rendered output** with problem/objective labels at two altitudes
+  — today it's a generated document without entity-level links.
+  → `roadmap-doesnt-orchestrate-into-living-plan`.
+- **The tick** — today every stage is invoked by hand; nothing triggers, polls, or
+  re-ranks on its own. → `loop-runs-itself-on-a-cycle`.
+- **LEARN backpropagation** — auto status transitions on ship, KR progress readback,
+  falsification-deadline watching. → `opportunities-and-plans-go-stale-with-no-freshness`,
+  `planning-influence-on-shipped-work-invisible`.
+
+These three RANK / roadmap / tick opportunities cross-reference each other in the DB —
+they are one connected cluster, the horizontal orchestrator the vertical chain has been
+waiting for. That the method found its own missing bricks, ranked them, and linked them
+before writing this page is the method working — on itself, first.
+
+*(One honest asterisk: those opportunities carry no `linked_objectives`, because the
+current OKRs are all proof-quarter **validation** — none is a build-the-loop objective
+yet. Per the method's own rule, an empty link is more honest than a forced one. Whether
+to make the loop a first-class objective is a live bet, not an oversight.)*
