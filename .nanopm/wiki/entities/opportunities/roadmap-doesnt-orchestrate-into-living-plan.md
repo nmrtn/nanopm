@@ -7,7 +7,7 @@ priority: high
 provenance: user-stated
 evidence_sources: [user-verbatim]
 linked_objectives: []
-related_to: [opportunities-and-plans-go-stale-with-no-freshness, planning-influence-on-shipped-work-invisible, why-behind-recommendation-not-surfaced]
+related_to: [opportunities-and-plans-go-stale-with-no-freshness, planning-influence-on-shipped-work-invisible, why-behind-recommendation-not-surfaced, no-single-mechanism-prioritizes-across-all-work-ty, loop-runs-itself-on-a-cycle]
 last_updated: 2026-06-30
 ---
 
