@@ -24,6 +24,8 @@ nanopm runs the whole cycle where you already work, with two structural properti
 
 One command runs the full pipeline: `/pm-run`. Or invoke any skill standalone.
 
+The opinionated method behind all of this — the loop, the principles, and what nanopm refuses to do — is written up in **[METHOD.md](METHOD.md)**.
+
 ---
 
 ## Example
