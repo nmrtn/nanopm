@@ -1,7 +1,7 @@
 ## Tasks
 
 <!-- Implementation checklist. Each task should be independently shippable, 1-3 days of work.
-     If nanopm /pm-breakdown has already run, copy the task list from .nanopm/tasks/<feature>.md -->
+     If nanopm /pm-breakdown has already run, copy the task list from .nanopm/wiki/docs/tasks/<feature>.md -->
 
 - [ ] [Task 1 — action verb + what]
 - [ ] [Task 2]

@@ -17,8 +17,8 @@
 ## nanopm context
 
 <!-- Link to the nanopm artifacts that informed this proposal, if they exist:
-- Challenges: .nanopm/CHALLENGES.md
-- Strategy: .nanopm/STRATEGY.md
-- Roadmap: .nanopm/ROADMAP.md
-- PRD: .nanopm/prds/<feature>.md
+- Challenges: .nanopm/wiki/docs/challenges.md
+- Strategy: .nanopm/wiki/docs/strategy.md
+- Roadmap: .nanopm/wiki/docs/roadmap.md
+- PRD: .nanopm/wiki/docs/prds/<feature>.md
 -->

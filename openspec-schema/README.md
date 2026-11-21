@@ -33,9 +33,9 @@ openspec new change my-feature --schema nanopm
 
 The `nanopm` schema is aware of nanopm's output artifacts. When generating any artifact, it reads from `.nanopm/` if present:
 
-- `proposal.md` reads from `.nanopm/CHALLENGES.md` + `.nanopm/prds/<feature>.md`
-- `design.md` reads from `.nanopm/STRATEGY.md`
-- `tasks.md` reads from `.nanopm/tasks/<feature>.md` if `/pm-breakdown` has already run
+- `proposal.md` reads from `.nanopm/wiki/docs/challenges.md` + `.nanopm/wiki/docs/prds/<feature>.md`
+- `design.md` reads from `.nanopm/wiki/docs/strategy.md`
+- `tasks.md` reads from `.nanopm/wiki/docs/tasks/<feature>.md` if `/pm-breakdown` has already run
 - `specs/` converts PRD requirements into SHALL statements
 
 ## The full chain
