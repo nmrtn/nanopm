@@ -24,7 +24,7 @@ artifacts:
     instruction: |
       Convert the PRD's functional requirements into OpenSpec SHALL statements.
       One spec file per logical capability. Use Given/When/Then scenarios.
-      If .nanopm/prds/ exists, read the PRD there and extract requirements directly.
+      If .nanopm/wiki/docs/prds/ exists, read the PRD there and extract requirements directly.
     requires:
       - proposal
 
@@ -35,7 +35,7 @@ artifacts:
     instruction: |
       Create a technical design based on the PRD's technical notes and the
       nanopm strategy context. Focus on key decisions and trade-offs.
-      If .nanopm/STRATEGY.md exists, reference the strategic constraints.
+      If .nanopm/wiki/docs/strategy.md exists, reference the strategic constraints.
     requires:
       - proposal
 
@@ -45,7 +45,7 @@ artifacts:
     template: tasks.md
     instruction: |
       Create an implementation checklist from the proposal and specs.
-      If .nanopm/tasks/ has an existing breakdown, use it as the source of truth.
+      If .nanopm/wiki/docs/tasks/ has an existing breakdown, use it as the source of truth.
       Each task should be independently shippable, 1-3 days of work.
     requires:
       - specs
