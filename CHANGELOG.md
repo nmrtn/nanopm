@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — `/pm-prd` pages carry the doc-page frontmatter
+
+16 skills prepend the typed doc-page block (`type: doc`, `skill:`, `provenance:`, `generated:`,
+`sources:`) via `nanopm_wiki_doc_frontmatter`, but `/pm-prd` wrote `docs/prds/<feature>.md`
+straight from the `# Pitch:` / `# PRD:` heading. Tools that read wiki frontmatter (the index,
+the search index, external CI checks) couldn't tell a PRD's type or provenance, and the
+`docs/prds/` collection entry in `index.md` never got a `latest` date.
+
+- **`/pm-prd` Phase 4** now emits `nanopm_wiki_doc_frontmatter pm-prd user-stated …` first, in
+  both the Shape Up pitch and the standard PRD format. The body is unchanged, so the falsification
+  gate, the reviewer notes, `/pm-breakdown` and the viewer's PRD header parse work as before.
+- **`test/wiki-canonical.sh`** gains a regression gate: pm-prd must call the helper, and the
+  emitted block must carry `type: doc`, `skill: pm-prd` and `provenance:`.
+
 ## 0.26.0 — 2026-06-30 — `/pm-add-feedback` replaces `/pm-interview`: a feedback substrate, not just an interview tool
 
 The old `/pm-interview` skill bundled two jobs that don't belong together: preparing a hypothesis-driven

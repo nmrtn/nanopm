@@ -224,6 +224,27 @@ else
   fail "nanopm_wiki_doc_log missing from lib/nanopm.sh — the page-write heartbeat is unwired"
 fi
 
+# ── PRD pages carry the doc-page frontmatter ──────────────────────────────────
+# Regression gate: /pm-prd writes docs/prds/<feature>.md, so it must prepend the
+# same typed block as the other doc skills (type/skill/provenance), or tools that
+# read wiki frontmatter can't tell a PRD's type or provenance.
+echo
+echo "  PRD pages carry doc frontmatter"
+if grep -q "nanopm_wiki_doc_frontmatter pm-prd " "$_REPO_ROOT/pm-prd/SKILL.md"; then
+  ok "pm-prd calls nanopm_wiki_doc_frontmatter pm-prd"
+else
+  fail "pm-prd never calls nanopm_wiki_doc_frontmatter pm-prd (PRD pages have no frontmatter)"
+fi
+_PRD_FM=$(bash -c 'source "'"$_LIB"'" >/dev/null 2>&1; nanopm_wiki_doc_frontmatter pm-prd user-stated 2026-01-01 "roadmap,strategy"')
+if printf '%s\n' "$_PRD_FM" | grep -qx "type: doc" \
+   && printf '%s\n' "$_PRD_FM" | grep -qx "skill: pm-prd" \
+   && printf '%s\n' "$_PRD_FM" | grep -q "^provenance: "; then
+  ok "PRD frontmatter has type: doc, skill: pm-prd, provenance:"
+else
+  fail "PRD frontmatter missing type/skill/provenance keys"
+  printf '%s\n' "$_PRD_FM" | sed 's/^/        /'
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo
 echo "  ─────────────────────────────"
